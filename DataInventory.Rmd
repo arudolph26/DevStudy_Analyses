@@ -8,21 +8,15 @@ output: html_document
 This is an initial markdown file to gather info on all the raw data that I currently have access to.
 
 Rows: Subjects
-Column: Demographics, BART, BASC, BIS-BAS, EIS, CARE, DUQ, WASI, MGbehav,MGfmri
+Columns: Demographics, BART, BASC, BIS-BAS, EIS, CARE, DUQ, WASI, MGbehav,MGfmri
 
 Subjects: All subjects should be listed in the FINAL redcap data
 Demographics, 
 BART: 
 BASC: 
-BIS-BAS: 
-EIS: 
-CARE: 
-DUQ: 
-WASI: 
+
 MGbehav:
 MGfmri: Nifti's in ls5
-
-Begin building table: get row info from Redcap data?
 
 Data directories on TACC:
 /corral-repl/utexas/poldracklab/users/shelfins/Developmental_Study
@@ -113,11 +107,64 @@ rm(eisa_qs, eisy_qs)
 - 100003: missing `eisy10` and `eis13`
 - 200249: missing `eisy1`
 
+Check complete for `care`
+This should only be true for `subj_id` > 100000
+
 ```{r}
-grep('care', names(q.data), value=T)
+care_qs <- grep('care', names(q.data), value=T)
+
+data.inv$care <- check_complete(q.data, "subj_id", matrix(rep(care_qs,4),ncol=4), data.inv, "subjects")
+
+rm(care_qs)
 ```
 
-`q.data` should have data for: basc, care, duq, iq
+- 407209: missing `careeb24`
+- 409381: missing `career26`
+- 200213: missing all care
+- 200025: : missing `careeb21`
+
+Check complete for `duq`
+
+```{r}
+duq_qs <- grep('duq', names(q.data), value=T)
+
+data.inv$duq <- check_complete(q.data, "subj_id", matrix(rep(duq_qs,4),ncol=4), data.inv, "subjects")
+
+rm(duq_qs)
+```
+
+306587: missing `duq6`
+408988: missing `duq22` and `duq29`
+308023: missing `duq17` 
+200199: missing `duq19`
+200166: missing `duq12`
+200213: missing any `duq`
+
+Check complete for `iq`, `vocab_raw` and `mr_raw`
+
+```{r}
+data.inv$iq <- check_complete(q.data, "subj_id", matrix(rep("fsiq2",4),ncol=4), data.inv, "subjects")
+
+data.inv$vocab <- check_complete(q.data, "subj_id", matrix(rep("vocab_raw",4),ncol=4), data.inv, "subjects")
+
+data.inv$matrea <- check_complete(q.data, "subj_id", matrix(rep("mr_raw",4),ncol=4), data.inv, "subjects")
+```
+
+200088: missing iq 
+100180: missing iq, missing vocab, missing matrea  
+100215: missing iq, missing vocab, missing matrea
+100191: missing vocab, missing matrea
+406620: missing matrea
+
+Check for complete basc
+
+```{r}
+grep('basct', names(q.data), value=T)
+grep('basca', names(q.data), value=T)
+grep('basc[0-999]$', names(q.data), value=T)
+```
+
+`q.data` should have data for: basc
 
 QUESTION: re questionnaire scoring. Some subjects have no data for some questionnaires while others have maybe one question missing. How should I treat those who have some data?
 
