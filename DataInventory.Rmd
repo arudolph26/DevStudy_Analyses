@@ -53,7 +53,7 @@ check_complete <- function(input_df, input_row_name, q_indices, output_df, outpu
                               ifelse(input_df[i,input_row_name]>400000, 4, 1))))
     
     #check if questions for that age category are complete  
-   tmp[i] <- ifelse(sum(is.na(input_df[input_df[input_row_name] == output_df[i, output_row_name], q_indices[,j]]))>0, 0, 1)
+   tmp[i] <- ifelse(sum(is.na(input_df[input_df[input_row_name] == output_df[i, output_row_name], unlist(q_indices[j])]))>0, 0, 1)
   }
 
   
@@ -67,7 +67,7 @@ Check complete data for `bisbas`
 ```{r}
 bisbas_qs <- grep('bisbas', names(q.data))
 
-data.inv$bisbas <- check_complete(q.data, "subj_id",  matrix(rep(bisbas_qs,4), ncol=4), data.inv, "subjects")
+data.inv$bisbas <- check_complete(q.data, "subj_id",  list(bisbas_qs, bisbas_qs,bisbas_qs, bisbas_qs), data.inv, "subjects")
 
 rm(bisbas_qs)
 ```
@@ -87,7 +87,7 @@ Check complete data for `eis`
 eisy_qs <- grep('eisy', names(q.data))
 eisa_qs <- grep('eisa', names(q.data))
 
-data.inv$eis <- check_complete(q.data, "subj_id", matrix(c(eisy_qs, eisy_qs, eisy_qs, eisa_qs),ncol=4), data.inv, "subjects")
+data.inv$eis <- check_complete(q.data, "subj_id", list(eisy_qs, eisy_qs, eisy_qs, eisa_qs), data.inv, "subjects")
 
 rm(eisa_qs, eisy_qs)
 ```
@@ -113,7 +113,7 @@ This should only be true for `subj_id` > 100000
 ```{r}
 care_qs <- grep('care', names(q.data), value=T)
 
-data.inv$care <- check_complete(q.data, "subj_id", matrix(rep(care_qs,4),ncol=4), data.inv, "subjects")
+data.inv$care <- check_complete(q.data, "subj_id", list(care_qs, care_qs, care_qs, care_qs), data.inv, "subjects")
 
 rm(care_qs)
 ```
@@ -143,11 +143,11 @@ rm(duq_qs)
 Check complete for `iq`, `vocab_raw` and `mr_raw`
 
 ```{r}
-data.inv$iq <- check_complete(q.data, "subj_id", matrix(rep("fsiq2",4),ncol=4), data.inv, "subjects")
+data.inv$iq <- check_complete(q.data, "subj_id", list("fsiq2", "fsiq2", "fsiq2", "fsiq2"), data.inv, "subjects")
 
-data.inv$vocab <- check_complete(q.data, "subj_id", matrix(rep("vocab_raw",4),ncol=4), data.inv, "subjects")
+data.inv$vocab <- check_complete(q.data, "subj_id", list("vocab_raw", "vocab_raw", "vocab_raw", "vocab_raw"), data.inv, "subjects")
 
-data.inv$matrea <- check_complete(q.data, "subj_id", matrix(rep("mr_raw",4),ncol=4), data.inv, "subjects")
+data.inv$matrea <- check_complete(q.data, "subj_id", ist("mr_raw", "mr_raw", "mr_raw", "mr_raw"), data.inv, "subjects")
 ```
 
 200088: missing iq 
@@ -156,21 +156,68 @@ data.inv$matrea <- check_complete(q.data, "subj_id", matrix(rep("mr_raw",4),ncol
 100191: missing vocab, missing matrea
 406620: missing matrea
 
+NOTE: There should be a way to convert the raw vocab and matrix reasoning scores to `fsiq2`. Need WASI-II conversion scale for this. This should fix `2000088`. 
+
 Check for complete basc
 
 ```{r}
-grep('basct', names(q.data), value=T)
-grep('basca', names(q.data), value=T)
-grep('basc[0-999]$', names(q.data), value=T)
+basc_child_qs <- grep('basc[0-9]{1,3}$', names(q.data), value=T)
+basc_teen_qs <- grep('basct', names(q.data), value=T)
+basc_adult_qs <- grep('basca', names(q.data), value=T)
+
+check_complete(q.data, "subj_id", list(basc_child_qs,basc_teen_qs,basc_teen_qs,basc_adult_qs), data.inv, "subjects")
 ```
 
-`q.data` should have data for: basc
+406620: missing `basca150`
+408952: missing `basca77` 
+100062: completed `basct` instead of `basc`. Age rounds up to 13. Not sure if intentional.
+409850: completed `basct` instead of `basca`. Age 29 so not sure why. 
+407260: missing `basca4`
+200088: missing `basct157`
+100009: missing `basc11` and `basc53`
+408511: missing `basca156`
+100060: completed `basct` instead of `basc`. Even in that missing `basct15`. Age rounds up to 13. Not sure if intentional.
+308023: missing `basct51` 
+200166: missing `basct19` and `basct109`
+200156: missing `basct1` 
+100185: missing any `basc`
+100180: missing any `basc`
+200213: missing `basct31` and `basct95` 
+100207: completed `basct` instead of `basc`. Even in that missing `basct4`,`basct17`,`basct56`,`basct139`,`basct154`,`basct157`. Age rounds up to 13. Not sure if intentional.
+100215: missing any `basc`
+100244: missing `basc29`
+100191: completed `basct` instead of `basc`. Age rounds up to 13. Not sure if intentional.
+402997: missing `basca98` and `basca128`
+100103: completed `basct` instead of `basc`. Age rounds up to 13. Not sure if intentional. Even in that missing half the questions.
+100003: missing `basc57` 
+200249 missing `basct83`
+100250: completed `basct` instead of `basc`. Age rounds up to 13. Not sure if intentional.
+100129: completed `basct` instead of `basc`. Age rounds up to 13. Not sure if intentional. 
+100247: completed `basct` instead of `basc`. Age rounds up to 13. Not sure if intentional.
 
-QUESTION: re questionnaire scoring. Some subjects have no data for some questionnaires while others have maybe one question missing. How should I treat those who have some data?
+Check complete for demographics
 
-QUESTION: There are some errors in administration (e.g. Older subjects who have been administered the youth scales for certain questionnaires.). What should I do with them?
+```{r}
 
-still to check: bart, mgbehav, mgfmri
+```
+
+Check complete for BART
+
+```{r}
+
+```
+
+Check complete for Machine Game behavioral
+
+```{r}
+```
+
+Check complete for Machine Game imaging
+
+DICOMS
+
+```{r}
+```
 
 Here's what I have on the sample:
 
@@ -200,3 +247,7 @@ Of the 78 scanned (?) excluded participants:
 QUESTION re imaging data: I have access to the 60 that are deemed 'clean' from previous analyses. But should I replicate this decision by checking behavioral model fits for the 8 subjects excluded for this reason and the 3 that are excluded due to motion? If yes, I'm not sure where to find the images for the 3
 
 (Do I have the behavioral machine game for the 8? - yes)
+
+QUESTION: re questionnaire scoring. Some subjects have no data for some questionnaires while others have maybe one question missing. How should I treat those who have some data?
+
+QUESTION: There are some errors in administration (e.g. Older subjects who have been administered the youth scales for certain questionnaires.). What should I do with them?
