@@ -165,7 +165,9 @@ basc_child_qs <- grep('basc[0-9]{1,3}$', names(q.data), value=T)
 basc_teen_qs <- grep('basct', names(q.data), value=T)
 basc_adult_qs <- grep('basca', names(q.data), value=T)
 
-check_complete(q.data, "subj_id", list(basc_child_qs,basc_teen_qs,basc_teen_qs,basc_adult_qs), data.inv, "subjects")
+data.inv$basc <- check_complete(q.data, "subj_id", list(basc_child_qs,basc_teen_qs,basc_teen_qs,basc_adult_qs), data.inv, "subjects")
+
+rm(basc_child_qs, basc_teen_qs, basc_adult_qs)
 ```
 
 406620: missing `basca150`
@@ -196,27 +198,92 @@ check_complete(q.data, "subj_id", list(basc_child_qs,basc_teen_qs,basc_teen_qs,b
 100247: completed `basct` instead of `basc`. Age rounds up to 13. Not sure if intentional.
 
 Check complete for demographics
+age, race, ethnicity, gender
 
 ```{r}
+data.inv$age <- check_complete(q.data, "subj_id", list("age", "age", "age", "age"), data.inv, "subjects")
 
+data.inv$race <- check_complete(q.data, "subj_id", list("race", "race", "race", "race"), data.inv, "subjects")
+
+data.inv$ethnicity <-check_complete(q.data, "subj_id", list("ethnicity", "ethnicity", "ethnicity", "ethnicity"), data.inv, "subjects")
+
+data.inv$gender <- check_complete(q.data, "subj_id", list("gender", "gender", "gender", "gender"), data.inv, "subjects")
 ```
+
+100062: missing `race` and `ethnicity`
+407260: missing `race` 
+100051: missing `race` and `ethnicity`
+409381: missing `race` and `ethnicity`
+100188: missing `race` and `ethnicity`
+100185: missing `race` and `ethnicity` and `gender`
+100180: missing `race` and `ethnicity` and `gender`
+100215: missing `race` and `ethnicity` and `gender`
+100057: missing `ethnicity`
+200067: missing `ethnicity`
+200199: missing `ethnicity`
+100244: missing `ethnicity` 
+100103: missing `ethnicity` 
+100129: missing `ethnicity`
 
 Check complete for BART
 
 ```{r}
+bart.mat.list <- read.table(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "ls  /corral-repl/utexas/poldracklab/users/zenkavi/dev_study/data/behav/bart/*.mat"'))
 
+bart.mat.list$V1 <- sub("/corral-repl/utexas/poldracklab/users/zenkavi/dev_study/data/behav/bart/", "",bart.mat.list$V1)
+
+bart.mat.list$subjects<- as.numeric(gsub("([0-9]+).*$", "\\1", bart.mat.list$V1))
+
+data.inv$bart <- ifelse(data.inv$subjects %in% bart.mat.list$subjects == FALSE, 0,1)
+
+bart.mat.list$subjects[which(bart.mat.list$subjects %in% data.inv$subjects ==F)]
 ```
+
+200067: missing `bart` 
+100068: missing `bart` 
+100180: missing `bart` 
+100215: missing `bart`
+
+200027: subject for whom there is `bart` data but no other behavioral data.
 
 Check complete for Machine Game behavioral
 
 ```{r}
+mg.csv.list <- read.table(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "ls  /corral-repl/utexas/poldracklab/users/zenkavi/dev_study/data/behav/machine_game/*.csv"'))
+
+mg.csv.list$V1 <- sub("/corral-repl/utexas/poldracklab/users/zenkavi/dev_study/data/behav/machine_game/ProbLearn", "", mg.csv.list$V1)
+
+mg.csv.list$subjects <- as.numeric(sub(".csv", "", mg.csv.list$V1))
+
+data.inv$mg_behav <- ifelse(data.inv$subjects %in% mg.csv.list$subjects == FALSE, 0,1)
+
+mg.csv.list$subjects[which(mg.csv.list$subjects %in% data.inv$subjects == FALSE)]
 ```
+
+200067: missing `mg_behav` 
+411236: missing `mg_behav` 
+100060: missing `mg_behav` 
+308023: missing `mg_behav` 
+304228: missing `mg_behav` 
+200081: missing `mg_behav`
+
+1001102 : Additional csv file with subject number more than 6 digits. Presumably a second dataset for subject 100110 but not sure which to use.
 
 Check complete for Machine Game imaging
 
-DICOMS
+Some form of DICOMS for each subject
 
 ```{r}
+
+mg.dicom.zip.list <- read.table(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "ls  /corral-repl/utexas/poldracklab/openfmri/inprocess/ds054_shelfins/ds054_dicom/01_DICOM_zipfiles_from_XNAT/*.zip"'))
+
+mg.dicom.zip.list$V1 <- sub("/corral-repl/utexas/poldracklab/openfmri/inprocess/ds054_shelfins/ds054_dicom/01_DICOM_zipfiles_from_XNAT/", "", mg.dicom.zip.list$V1)
+
+gsub("([0-9]+).*$", "\\1", mg.dicom.zip.list$V1)
+
+unique(na.omit(as.numeric(unlist(strsplit(mg.dicom.zip.list$V1, "[^0-9]+")))))
+
+a <- na.omit(as.numeric(unlist(strsplit(mg.dicom.zip.list$V1, "[^0-9]+"))))
 ```
 
 Here's what I have on the sample:
