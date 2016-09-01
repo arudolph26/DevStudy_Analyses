@@ -1,0 +1,695 @@
+---
+title: "RL Simulations"
+author: "Zeynep Enkavi"
+output: 
+html_document:
+toc: true
+toc_depts: 2
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+```
+
+# Reinforcement model simulations
+
+This is an attempt to simulate some data for the machine game task (described below) and recover reinforcement learning model parameters to make sure that the optimization routines are working correctly.
+
+## Task descriptions
+
+The machine game is basically a one armed bandit task with four bandits with different expected values and reward options. In each trial a subject is faced with one of the machines and chooses to play or to pass. If they choose to play they receive a probabilistic reward. If they choose to pass they receive nothing. The machines have the following probabilities:
+
+1. Machine 1 is a high variance negative expected value machine that wins $5 90% of the time and looses $495 10% of the time. 
+2. Machine 2 is a high variance positive expected value machine that looses $5 90% of the time and wins $495 10% of the time.
+3. Machine 3 is a low variance positive expected value machine that wins $100 50% of the time and looses $10 50% of the time.
+4. Machine 4 is a low variance negative expected value machine that looses $100 50% of the time and wins $10 50% of the time.
+
+Subjects go through 180 trials (45 for each machine). The trials are pseudo-randomized for each subject and the rewards that would be received if a subject played a machine is specified in advance in the `values` df.
+
+```{r}
+values = read.csv('/Users/zeynepenkavi/Dropbox/PoldrackLab/Developmental study/Task/Dev_Learning_Study/values.csv', col.names = c(1,2,3,4), header=F)
+
+#Take a look at the outcomes for each machine
+head(values)
+
+#Reshape the df for later looping
+values = values[1:45,]
+values = values %>% gather(condition, outcome)
+values$condition = as.numeric(as.factor(values$condition))
+```
+
+A simple model model one could use to analyze the behavior in this task would be a reinforcement learning model with a single learning rate assuming linear utility. Accordingly the probability of playing a machine in a trial is a function of the expected value of that machine in that trial ($EV_t$) and the softmax temperetature ($\beta$)
+
+$p(k_{t} = 1) = \frac{e^{\beta*(EV_t)}}{1+e^{\beta*(EV_t)}}$
+
+where the $EV_t$ is updated after observing the reward ($r$) in each trial depending a learning ($\alpha$)
+
+${EV_{t+1}} = {EV_t} + \alpha * (r - {EV_t})$
+
+Let's simulate some data based on this task description and using this (likely trivial) model:
+
+```{r eval=FALSE}
+#Data frame that will be filled in
+#Trialnumber: The number of trial being played. Ranges from 1 to 180
+#Trial_type: Condition. Indicates which machine is being played (1-4). Ignoring the randomized order for simplicity and playing all trials for each machine in succession.
+#Response: Binary response. 1 for played, 0 for pass.
+#Point_earned: The observed outcome if the machine has been played in that trial.
+#choiceprob: Probability of playing the machine in that trial.
+sim_data <- data.frame(Trialnumber = c(1:180), Trial_type = c(rep(1, 45), rep(2, 45), rep(3, 45), rep(4, 45)), Response=NA, Points_earned=NA, choiceprob=NA)
+
+#True values for the parameters
+sim.alpha = 0.05
+sim.beta = 0.4
+
+#Vector of expected values to be updated on each trial. Initialized to be 0 for each machine, which assures p = 0.5 for any machine on first trial.
+sim.EV = c(0,0,0,0)
+
+#Loop through each row of the df and fill in based on the model
+for(i in 1:nrow(sim_data)){
+  
+  #sim_data$Trial_type[i]: integer indicating condition/machine being played
+  #sim.EV[sim_data$Trial_type[i]]: expected value for that machine in the expected value vector
+  sim_data$choiceprob[i] = exp(sim.EV[sim_data$Trial_type[i]]*sim.beta)/(exp(sim.EV[sim_data$Trial_type[i]]*sim.beta)+1)
+  
+  #Turn choice probability to a binomial response
+  sim_data$Response[i] = rbinom(1,1,sim_data$choiceprob[i])
+  
+  #The observed reward if the machine is played
+  sim_data$Points_earned[i] = ifelse(sim_data$Response[i]==1, values$outcome[i], ifelse(sim_data$Response[i]==0, 0, NA))
+  
+  #Update the expected value vector if the machine has been played depending on the observed outcome
+  sim.EV[sim_data$Trial_type[i]] <- ifelse(sim_data$Response[i]==1, sim.EV[sim_data$Trial_type[i]]+sim.alpha*(sim_data$Points_earned[i]-sim.EV[sim_data$Trial_type[i]]), sim.EV[sim_data$Trial_type[i]])
+}
+```
+
+```{r echo=FALSE}
+sim_data <- read.csv('/Users/zeynepenkavi/Downloads/sim_data.csv')
+```
+
+The [data](#data) that is produced by this model doesn't look very realistic. For example, once a big loss is observed the probability of playing that machine again is way too low but let's roll with it for a moment. We'll look at a more realistic model later.
+
+Ok now that we have our data let's write the optimization routine that should recover the true parameters of $\alpha$ = 0.05 and $\beta$ = 0.4.
+
+First the likelihood function that will be minimized:
+
+```{r}
+neg.log.lik <- function(par, data){
+  
+  beta = par[1]
+  alpha = par[2]
+  
+  #Vector of probabilities that will be estimated
+  prob <- rep(0, nrow(data))
+  
+  #Vector for log likelihoods that will be filled
+  err <- rep(0, nrow(data))
+  
+  #Initialize vector for expected values at 0
+  ev <- c(0,0,0,0)
+  
+  #For each trial in the data
+  for(i in 1:nrow(data)){
+    
+    #Probability of playing that machine is:
+    prob[i] = exp(ev[data$Trial_type[i]]*beta)/(exp(ev[data$Trial_type[i]]*beta)+1)
+    
+    #The expected value vector is updated for that machine if the machine has been played in that trial
+    ev[data$Trial_type[i]] <- ifelse(data$Response[i] == 1, ev[data$Trial_type[i]]+alpha*(data$Points_earned[i]-ev[data$Trial_type[i]]) ,ev[data$Trial_type[i]])
+    
+  }
+  
+  #To avoid log errors just in case
+  prob <- ifelse(prob == 1, 0.999999999999, 
+                 ifelse(prob == 0, 0.000000000001, prob))
+  
+  #Vectorized operation to get log likelihood
+  #Same thing as writing a condition for getting log(prob) if Response == 1
+  err <- data$Response * log(prob) + (1 - data$Response)*log(1-prob)
+  
+  #negative sum of log likelihood (to be minimized)
+  sumerr <- -sum(err)
+  
+  return(sumerr)  
+}
+```
+
+Then the wrapper around the `optim` function
+
+```{r}
+single.alpha.optim<- function(data, starting_vals){
+  
+  f_opt <- function(data, starting_vals){
+    optim.out <- optim(starting_vals, neg.log.lik, method = 'L-BFGS-B', lower=c(0,0), upper=c(Inf,1), data=data)
+    return(data.frame(neg.log.lik=optim.out$value, beta=optim.out$par[1], alpha=optim.out$par[2]))
+  }
+  
+  tryCatch(f_opt(data, starting_vals), error = function(e){return(data.frame(neg.log.lik=NA, beta=NA, alpha=NA))})
+  
+}
+
+#single.alpha.optim(sim_data, c(1,1))
+```
+
+Now let's try to recover the parameters. I'm not sure what would be the best starting values so let's try to do this 1000 times on the same data with true values for $\alpha$ = 0.05 and $\beta$ = 0.4 with different starting values. The $\beta$ starting values are drawn from a uniform distribution between 1 and 3 and the $\alpha$ starting values are drawn from a uniform distribution between 0 and 1.
+
+```{r eval=F}
+input_df <- data.frame(index = 1:1000, beta_start=runif(1000, 1, 3), alpha_start=runif(1000,0,1))
+
+#This takes an hour to run locally so I'll just read in the output
+run.single.alpha.optim.for.one.row <- function(row, func, data){
+  start.out <- data_frame(beta_start = row$beta_start, alpha_start = row$alpha_start)
+  func.out <- func(data, c(row$beta_start, row$alpha_start))
+  return(data.frame(start.out, func.out))
+}
+
+thousand_reps <- ddply(input_df, .(index), .progress='text',run.single.alpha.optim.for.one.row, single.alpha.optim, sim_data)
+```
+
+The mean and median estimates of both alpha and beta are pretty off compared to 0.05 and 0.4 respectively. It seems the optimization method is overestimating both parameters. Less so for the alpha than the beta.
+
+```{r echo=FALSE}
+thousand_reps <- read.csv('/Users/zeynepenkavi/Downloads/thousand_reps.csv')
+```
+
+```{r}
+head(thousand_reps)
+
+#What do the distributions of alpha and beta estimates look like?
+summary(thousand_reps$alpha)
+summary(thousand_reps$beta)
+
+thousand_reps %>%
+  select(alpha, beta) %>%
+  gather(key, value) %>%
+  ggplot(aes(value))+
+  geom_histogram(bins=90)+
+  theme_bw()+
+  facet_wrap(~key, scales = 'free')
+```
+
+But this doesn't give a sense of how strongly the estimation favors these values over the true values or whether there is a relationship between the two parameters or their starting values. To get a sense of this let's look at the scatter plots of starting values and estimated values as well as the scatter plot of both estimated parameters colored by the log likelihood. Lighter colors for log likelihood means higher. The red circle is for the maximum likelihood estimate with 1000 random starting values (as described above) and the red x is the true value.
+
+```{r warning=FALSE}
+p1 <- ggplot(thousand_reps, aes(beta_start, beta, color=-neg.log.lik))+
+  geom_point()+
+  theme_bw()+
+  theme(legend.position="none")
+
+p2 <- ggplot(thousand_reps, aes(alpha_start, alpha, color=-neg.log.lik))+
+  geom_point()+
+  theme_bw()+
+  theme(legend.position='none')
+
+p3 <- ggplot(thousand_reps, aes(beta, alpha, color=-neg.log.lik))+
+  geom_point()+
+  theme_bw()+
+  annotate("point", x = 0.4, y = 0.05, color='red', shape = 4)+
+  annotate("point", x = thousand_reps$beta[which(-thousand_reps$neg.log.lik == max(-thousand_reps$neg.log.lik, na.rm=T))], y = thousand_reps$alpha[which(-thousand_reps$neg.log.lik == max(-thousand_reps$neg.log.lik, na.rm=T))], color = 'red', shape=1)+
+  theme(legend.position ='bottom', legend.key.width = unit(2, "cm"))+
+  labs(color = "Log likelihood")
+
+
+g_legend<-function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+
+legend<-g_legend(p3)
+
+grid.arrange(arrangeGrob(p1, p2, p3+theme(legend.position='none'), nrow=1), legend, nrow=2, heights=c(10, 1))
+```
+
+```{r echo=FALSE}
+rm(p1, p2, p3, legend, g_legend)
+```
+
+Accordingly there isn't a correlation between the starting values and the estimated parameters, which is good. I'm not sure why the model sometimes converges on 0 for estimates basically regardless of the starting values despite the much worse fits. The rest of the estimates on the other hand seem to be very similar in terms of fit. Still, all estimated values are pretty far off the true values.
+
+Let's do a full grid search and get a sense of the likelihood surface.
+
+```{r}
+grid_search_df <- data.frame(index = 1:3131, beta=rep(seq(0,3,0.1), each = length(seq(0,1, 0.01))), alpha= rep(seq(0,1, 0.01), length(seq(0,3,0.1))))
+
+single.alpha.grid.one.row <- function(row, data){
+  starting_vals <- c(row$beta, row$alpha)
+  tryCatch(neg.log.lik(starting_vals,data),error = function(e){return(NA)}) 
+}
+
+#single.alpha.grid.one.row(grid_search_df[1,], data=sim_data)
+
+tmp <- ddply(grid_search_df, .(index), .progress='text',single.alpha.grid.one.row, data=sim_data)
+
+#Fix this later
+grid_search_df <- merge(grid_search_df, tmp, by='index')
+rm(tmp)
+names(grid_search_df) <- c("index","beta", "alpha", "neg_log_lik")
+
+ggplot(grid_search_df, aes(beta, alpha))+
+  geom_raster(aes(fill=-neg_log_lik))+
+  theme_bw()+
+  annotate("point", x = grid_search_df$beta[which(-grid_search_df$neg_log_lik == max(-grid_search_df$neg_log_lik))], y = grid_search_df$alpha[which(-grid_search_df$neg_log_lik == max(-grid_search_df$neg_log_lik))], color = 'red', shape=1) +
+  annotate("point", x = 0.4, y = 0.05, color='red', shape = 4)+
+  scale_fill_continuous(name = "Log likelihood")
+```
+
+As implied by the previous graphs the model doesn't do a good job in discriminating between a large range of both parameters. The true values (red x) are not far from the MLE estimates (red circle) in terms of fit but they are in terms of point estimates.
+
+One possibility is that for some reasons this model is bad at estmating both parameters at the same time. What if we try estimating each parameter iterating from previous convergence estimating one parameter at a time? Here is a function that should do this:
+
+```{r}
+iter.single.alpha.optim <- function(data, n, true_beta, true_alpha, start_par, beta_thresh, alpha_thresh, beta_start = 0.5, alpha_start = 0.5){
+  
+  #optim needs a function where the first argument is the parameter to be estimated
+  #modifying the previous neg.log.lik function to fix one parameter and estimate the other
+  neg.log.lik.fix <- function(par, data, fix_par, par_name){
+    beta = ifelse(par_name == 'beta', par, fix_par)
+    alpha = ifelse(par_name == 'alpha', par, fix_par)
+    prob <- rep(0, nrow(data))
+    err <- rep(0, nrow(data))
+    ev <- c(0,0,0,0)
+    for(i in 1:nrow(data)){
+      prob[i] = exp(ev[data$Trial_type[i]]*beta)/(exp(ev[data$Trial_type[i]]*beta)+1)
+      ev[data$Trial_type[i]] <- ifelse(data$Response[i] == 1, ev[data$Trial_type[i]]+alpha*(data$Points_earned[i]-ev[data$Trial_type[i]]) ,ev[data$Trial_type[i]])
+    }
+    prob <- ifelse(prob == 1, 0.999999999999, 
+                   ifelse(prob == 0, 0.000000000001, prob))
+    err <- data$Response * log(prob) + (1 - data$Response)*log(1-prob)
+    sumerr <- -sum(err)
+    return(sumerr)  
+  }
+  
+  #Initialize vars
+  par_name = start_par
+  iter = 0
+  beta_optim_par = beta_start
+  alpha_optim_par = alpha_start
+  beta_optim_nloglik = NA
+  alpha_optim_nloglik = NA
+  out = data.frame(iter = 0, true_beta = true_beta, true_alpha = true_alpha,beta_start = beta_start, alpha_start = alpha_start, beta_optim = beta_optim_par, alpha_optim = alpha_optim_par, par_name = par_name, beta_optim_nloglik = beta_optim_nloglik, alpha_optim_nloglik = alpha_optim_nloglik)
+  
+  #Begin iteration
+  while(iter < n){
+    
+    if(par_name == 'alpha'){
+      alpha_optim_out <- optim(alpha_start, neg.log.lik.fix, method = 'L-BFGS-B', lower=c(0), upper=c(1), data=data, fix_par = beta_optim_par, par_name = 'alpha')
+      alpha_optim_par <- alpha_optim_out$par
+      alpha_optim_nloglik <- alpha_optim_out$value
+    }
+    
+    else if(par_name== 'beta'){
+      beta_optim_out <- optim(beta_start, neg.log.lik.fix, method = 'L-BFGS-B', lower=c(0), upper=c(Inf), data=data, fix_par = alpha_optim_par, par_name = 'beta')
+      beta_optim_par <- beta_optim_out$par
+      beta_optim_nloglik <- beta_optim_out$value
+    }
+    
+    
+    #store each output
+    row <- data.frame(iter = iter, true_beta = true_beta, true_alpha = true_alpha,beta_start = beta_start, alpha_start = alpha_start, beta_optim = beta_optim_par, alpha_optim = alpha_optim_par, par_name = par_name, beta_optim_nloglik = beta_optim_nloglik, alpha_optim_nloglik = alpha_optim_nloglik)
+    out <- rbind(out, row)
+    iter = iter+1
+    par_name <- ifelse(par_name == 'beta', 'alpha','beta')
+    beta_diff = abs(true_beta - beta_optim_par)
+    alpha_diff = abs(true_alpha - alpha_optim_par)
+    
+    #Stop rule: either done with number of specified iterations or one of the parameters converges on the specified threshold
+    if(iter >= n | beta_diff < beta_thresh | alpha_diff < alpha_thresh){
+      break
+    }
+  }
+  return(out)
+}
+```
+
+There are a few decisions one could make when estimating the parameters this way: 1. On the starting values and 2. On which parameter to begin the estimation from
+
+```{r}
+#Start from 0, estimate alpha first
+iter_fit1 <- iter.single.alpha.optim(sim_data, n = 50, true_beta = 0.4, true_alpha = 0.05, start_par = 'alpha', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 0, alpha_start = 0)
+
+#Start from 0, estimate beta first
+iter_fit2 <- iter.single.alpha.optim(sim_data, n = 50, true_beta = 0.4, true_alpha = 0.05, start_par = 'beta', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 0, alpha_start = 0)
+
+#Start from 1, estimate alpha first
+iter_fit3 <- iter.single.alpha.optim(sim_data, n = 50, true_beta = 0.4, true_alpha = 0.05, start_par = 'alpha', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 1, alpha_start = 1)
+
+#Start from 1, estimate beta first 
+iter_fit4 <- iter.single.alpha.optim(sim_data, n = 50, true_beta = 0.4, true_alpha = 0.05, start_par = 'beta', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 1, alpha_start = 1)
+
+#Start from 0.5, estimate alpha first (smaller alpha threshold to allow more iterations)
+iter_fit5 <- iter.single.alpha.optim(sim_data, n = 50, true_beta = 0.4, true_alpha = 0.05, start_par = 'alpha', beta_thresh = 0.01, alpha_thresh = 0.001, beta_start = 0.5, alpha_start = 0.5)
+
+#Start from 0.5, estimate beta first
+iter_fit6 <- iter.single.alpha.optim(sim_data, n = 50, true_beta = 0.4, true_alpha = 0.05, start_par = 'beta', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 0.5, alpha_start = 0.5)
+
+iter_fit1$condition <- '0_alpha'
+iter_fit2$condition <- '0_beta'
+iter_fit3$condition <- '1_alpha'
+iter_fit4$condition <- '1_beta'
+iter_fit5$condition <- '0.5_alpha'
+iter_fit6$condition <- '0.5_beta'
+iter_fit <- rbind(iter_fit1, iter_fit2, iter_fit3, iter_fit4, iter_fit5, iter_fit6)
+rm(iter_fit1, iter_fit2, iter_fit3, iter_fit4, iter_fit5, iter_fit6)
+
+#Plot parameter estimate (y) for iteration (x) for both parameters with horizontal line for true values for each parameter
+iter_fit %>% 
+  select(iter, alpha_optim, beta_optim, condition) %>%
+  gather(key, value, -c(iter, condition)) %>%
+  ggplot(aes(iter, value, col=key))+
+  geom_point()+
+  theme_bw()+
+  facet_wrap(~condition)+
+  geom_hline(yintercept = 0.4, color = "#00BFC4")+
+  geom_hline(yintercept = 0.05, color = "#F8766D")
+```
+
+It seems that if we start $\beta$ from >0 and estimate it first then this method of iterated estimation could recover parameters somewhat successfully.
+
+To make sure that this isn't a fluke let's try it again on another data with different true values.
+
+```{r}
+sim_data2 <- data.frame(Trialnumber = c(1:180), Trial_type = c(rep(1, 45), rep(2, 45), rep(3, 45), rep(4, 45)), Response=NA, Points_earned=NA, choiceprob=NA)
+
+#True values for the parameters
+sim2.alpha = 0.2
+sim2.beta = 0.05
+sim2.EV = c(0,0,0,0)
+for(i in 1:nrow(sim_data2)){
+  
+  sim_data2$choiceprob[i] = exp(sim2.EV[sim_data2$Trial_type[i]]*sim2.beta)/(exp(sim2.EV[sim_data2$Trial_type[i]]*sim2.beta)+1)
+  
+  sim_data2$Response[i] = rbinom(1,1,sim_data2$choiceprob[i])
+  
+  sim_data2$Points_earned[i] = ifelse(sim_data2$Response[i]==1, values$outcome[i], ifelse(sim_data2$Response[i]==0, 0, NA))
+  
+  sim2.EV[sim_data2$Trial_type[i]] <- ifelse(sim_data2$Response[i]==1, sim2.EV[sim_data2$Trial_type[i]]+sim2.alpha*(sim_data2$Points_earned[i]-sim2.EV[sim_data2$Trial_type[i]]), sim2.EV[sim_data2$Trial_type[i]])
+}
+
+#Start from 0, estimate alpha first
+iter_fit1 <- iter.single.alpha.optim(sim_data2, n = 50, true_beta = 0.05, true_alpha = 0.2, start_par = 'alpha', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 0, alpha_start = 0)
+
+#Start from 0, estimate beta first
+iter_fit2 <- iter.single.alpha.optim(sim_data2, n = 50, true_beta = 0.05, true_alpha = 0.2, start_par = 'beta', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 0, alpha_start = 0)
+
+#Start from 1, estimate alpha first
+iter_fit3 <- iter.single.alpha.optim(sim_data2, n = 50, true_beta = 0.05, true_alpha = 0.2, start_par = 'alpha', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 0.75, alpha_start = 0.75)
+
+#Start from 1, estimate beta first 
+iter_fit4 <- iter.single.alpha.optim(sim_data2, n = 50, true_beta = 0.05, true_alpha = 0.2, start_par = 'beta', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 0.75, alpha_start = 0.75)
+
+#Start from 0.5, estimate alpha first 
+iter_fit5 <- iter.single.alpha.optim(sim_data2, n = 50, true_beta = 0.05, true_alpha = 0.2, start_par = 'alpha', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 0.5, alpha_start = 0.5)
+
+#Start from 0.5, estimate beta first
+iter_fit6 <- iter.single.alpha.optim(sim_data2, n = 50, true_beta = 0.05, true_alpha = 0.2, start_par = 'beta', beta_thresh = 0.01, alpha_thresh = 0.01, beta_start = 0.5, alpha_start = 0.5)
+
+iter_fit1$condition <- '0_alpha'
+iter_fit2$condition <- '0_beta'
+iter_fit3$condition <- '0.75_alpha'
+iter_fit4$condition <- '0.75_beta'
+iter_fit5$condition <- '0.5_alpha'
+iter_fit6$condition <- '0.5_beta'
+iter_fit <- rbind(iter_fit1, iter_fit2, iter_fit3, iter_fit4, iter_fit5, iter_fit6)
+rm(iter_fit1, iter_fit2, iter_fit3, iter_fit4, iter_fit5, iter_fit6)
+
+#Plot parameter estimate (y) for iteration (x) for both parameters with horizontal line for true values for each parameter
+iter_fit %>% 
+  select(iter, alpha_optim, beta_optim, condition) %>%
+  gather(key, value, -c(iter, condition)) %>%
+  ggplot(aes(iter, value, col=key))+
+  geom_point()+
+  theme_bw()+
+  facet_wrap(~condition)+
+  geom_hline(yintercept = 0.05, color = "#00BFC4")+
+  geom_hline(yintercept = 0.2, color = "#F8766D")
+```
+
+Starting values of 1 kept giving errors so the results are not perfectly comparable but here again starting from 0.5 and estimating $\beta$ first recovers parameters well (though this time so does estimating $\alpha$ first and perhaps given enough iterations starting from larger values as well).
+
+### Conclusion
+
+Though it is still unclear to me why the built-in optimization methods (whether it is a coding error on my end or some other issue) do so poorly in parameter recovery on simulated data and how the large indiscriminability on the likelihood surface ought to be interpreted the iterated estimation methods seems to do an acceptable job at certain specifications. If we continue wanting to fit these models perhaps such an approach would yield more accurate results though input on whether this would be legitimate would be useful.
+
+# More realistic model?
+
+As mentioned above the simulated data that the simple model with a single learning rate and linear utility produced data patterns unlike real participants' data. Specifically it was too sensitive to any losses and the probability of playing decreased too quickly after a loss.
+
+One argument for working with simulations suggest that one ought to work with data similar to those observed in the world. We can generate such data by adding an exponent on the observed rewards implying marginal decreasing utility.
+
+To simulate some such data:
+
+```{r eval=FALSE}
+sim_data3 <- data.frame(Trialnumber = c(1:180), Trial_type = c(rep(1, 45), rep(2, 45), rep(3, 45), rep(4, 45)), Response=NA, Points_earned=NA, choiceprob=NA)
+
+sim3.alpha = 0.01
+sim3.beta = 0.1
+sim3.gamma = 0.6
+
+sim3.EV = c(0,0,0,0)
+
+for(i in 1:nrow(sim_data3)){
+  sim_data3$choiceprob[i] = exp(sim3.EV[sim_data3$Trial_type[i]]*sim3.beta)/(exp(sim3.EV[sim_data3$Trial_type[i]]*sim3.beta)+1)
+  
+  sim_data3$Response[i] = rbinom(1,1,sim_data3$choiceprob[i])
+  
+  sim_data3$Points_earned[i] = ifelse(sim_data3$Response[i]==1, values$outcome[i], ifelse(sim_data3$Response[i]==0, 0, NA))
+  
+  #Strange looking double conditional to avoid exponentiating negative values for losses
+  sim3.EV[sim_data3$Trial_type[i]] <- ifelse(sim_data3$Response[i]==1 & sim_data3$Points_earned[i] > 0, sim3.EV[sim_data3$Trial_type[i]]+sim3.alpha*(sim_data3$Points_earned[i]^sim3.gamma-sim3.EV[sim_data3$Trial_type[i]]), ifelse(sim_data3$Response[i]==1 & sim_data3$Points_earned[i] < 0, sim3.alpha*((-1)*(abs(sim_data3$Points_earned[i])^sim3.gamma)-sim3.EV[sim_data3$Trial_type[i]]),  sim3.EV[sim_data3$Trial_type[i]]))}
+```
+
+```{r}
+sim_data3 <- read.csv('/Users/zeynepenkavi/Downloads/sim_data3.csv')
+```
+
+Now the [data](#realistic_data) looks more realistic. There are plays for the high variance negative expected value machine even after a large loss. Since $\beta$ (and also $\alpha$) is so slow the choice probability is close to 0.5 on each trial.
+
+Let's write the likelihood function to be minimized with the option to fix parameters.
+
+```{r}
+neg.log.lik.exp.fix <- function(par, data, fix_par, par_name){
+  
+  #par_name = vector of strings denoting the parameter to be estimated. Values: 'alpha', 'beta', 'gamma' or any combination
+  #fix_par = df with names alpha, beta, gamma containing the values the parameters are fixed at.
+  #par = vector of starting values that will be specified in optim. order matters: beta, alpha, gamma 
+  
+  beta = ifelse('beta' %in% par_name & length(par_name) == 1, par, ifelse('beta' %in% par_name & length(par_name) == 2, par[1], fix_par$beta))
+  alpha = ifelse('alpha' %in% par_name & length(par_name) == 1, par, ifelse('alpha' %in% par_name & length(par_name) == 2 & 'beta' %in% par_name, p[2], ifelse('alpha' %in% par_name & length(par_name) == 2 & 'gamma' %in% par_name, p[1], fix_par$alpha)))
+  gamma = ifelse('gamma' %in% par_name & length(par_name) == 1, par, ifelse('gamma' %in% par_name & length(par_name) == 2, par[2], fix_par$gamma))
+  
+  prob <- rep(0, nrow(data))
+  err <- rep(0, nrow(data))
+  ev <- c(0,0,0,0)
+  for(i in 1:nrow(data)){
+    prob[i] = exp(ev[data$Trial_type[i]]*beta)/(exp(ev[data$Trial_type[i]]*beta)+1)
+    ev[data$Trial_type[i]] <- ifelse(data$Response[i]==1 & data$Points_earned[i] > 0, ev[data$Trial_type[i]]+alpha*(data$Points_earned[i]^gamma-ev[data$Trial_type[i]]), ifelse(data$Response[i]==1 & data$Points_earned[i] < 0, alpha*((-1)*(abs(data$Points_earned[i])^gamma)-ev[data$Trial_type[i]]), ev[data$Trial_type[i]]))
+  }
+  prob <- ifelse(prob == 1, 0.999999999999, 
+                 ifelse(prob == 0, 0.000000000001, prob))
+  err <- data$Response * log(prob) + (1 - data$Response)*log(1-prob)
+  sumerr <- -sum(err)
+  return(sumerr)  
+}
+
+#neg.log.lik.exp.fix(par = 0, data=sim_data3, fix_par = data.frame(alpha = 0.01, gamma = 0.6), par_name = c('beta'))
+```
+
+Since I have very little confidence in getting the built-in optimization routines to work I'm going to skip iterating through different starting values and look directly at the likelihood surface. Before that though just to provide some evidence for this skepticism let's look at where it estimates the parameters to be when we fix two of three at the true values.
+
+```{r}
+optim(0.5, neg.log.lik.exp.fix, method = 'L-BFGS-B', lower=c(0), upper=c(Inf), data=sim_data3, fix_par = data.frame(alpha = 0.01, gamma = 0.6), par_name = c('beta'))
+
+optim(0.5, neg.log.lik.exp.fix, method = 'L-BFGS-B', lower=c(0), upper=c(1), data=sim_data3, fix_par = data.frame(beta = 0.1, gamma = 0.6), par_name = c('alpha'))
+
+optim(0.5, neg.log.lik.exp.fix, method = 'L-BFGS-B', lower=c(0), upper=c(1), data=sim_data3, fix_par = data.frame(beta = 0.1, alpha = 0.01), par_name = c('gamma'))
+```
+
+As expected they are wildly off. So let's look at the likelihood surfaces again.
+(This takes time to run despite efforts to make it faster. Ran on TACC instead and reading in the output)
+
+```{r}
+grid_search_exp_df <- data.frame(index = 1:(31*101*101), beta=rep(grid_search_df$beta, 101), alpha = rep(grid_search_df$alpha, 101), gamma = rep(seq(0,1,0.01), each = 101))
+
+single.alpha.exp.grid.one.row <- function(row, data){
+  par <- row$beta
+  tryCatch(neg.log.lik.exp.fix(par = par, data=data, fix_par = data.frame(alpha = row$alpha, gamma = row$gamma), par_name = c('beta')),error = function(e){return(NA)}) 
+}
+
+# single.alpha.exp.grid.one.row(grid_search_exp_df[1,], data=sim_data3)
+```
+```{r eval=FALSE}
+tmp <- ddply(grid_search_exp_df, .(index), .progress='text',single.alpha.exp.grid.one.row, data=sim_data3)
+```
+
+Only after running this did I realize that I didn't know how one could plot a likelihood surface of a model with multiple parameters so here are the likelihoods surfaces for grids of two parameters at a time.
+
+Still have the same problem with the simple model: The surfaces are relatively flat and therefore do not discriminate well between point estimates. The red circles are again the maximum likelihood estimates while the red x's are the true values.
+
+```{r echo=F}
+tmp <- read.csv('/Users/zeynepenkavi/Downloads/tmp_tacc_output.csv')
+tmp <- tmp[,-c(names(tmp) == "X")]
+```
+```{r}
+grid_search_exp_df <- merge(grid_search_exp_df, tmp, by='index')
+rm(tmp)
+names(grid_search_exp_df) <- c("index","beta", "alpha", "gamma","neg_log_lik")
+
+ggplot(grid_search_exp_df, aes(neg_log_lik))+
+  geom_histogram()+
+  theme_bw()
+
+summary(grid_search_exp_df$neg_log_lik)
+
+grid_search_exp_df_clean <- grid_search_exp_df[-which(is.na(grid_search_exp_df$neg_log_lik)),]
+
+p1 <- ggplot(grid_search_exp_df, aes(beta, alpha))+
+  geom_raster(aes(fill=-neg_log_lik))+
+  theme_bw()+
+  scale_fill_continuous(name = "Log likelihood")+
+  annotate("point", x = grid_search_exp_df$beta[which(-grid_search_exp_df$neg_log_lik == max(-grid_search_exp_df$neg_log_lik, na.rm=T))], y = grid_search_exp_df$alpha[which(-grid_search_exp_df$neg_log_lik == max(-grid_search_exp_df$neg_log_lik, na.rm=T))], color = 'red', shape=1)+
+  annotate("point", x = 0.1, y = 0.01, color='red', shape = 4)+
+  theme(legend.position = 'none')
+
+p2 <- ggplot(grid_search_exp_df, aes(beta, gamma))+
+  geom_raster(aes(fill=-neg_log_lik))+
+  theme_bw()+
+  scale_fill_continuous(name = "Log likelihood")+
+  annotate("point", x = grid_search_exp_df$beta[which(-grid_search_exp_df$neg_log_lik == max(-grid_search_exp_df$neg_log_lik, na.rm=T))], y = grid_search_exp_df$gamma[which(-grid_search_exp_df$neg_log_lik == max(-grid_search_exp_df$neg_log_lik, na.rm=T))], color = 'red', shape=1)+
+  annotate("point", x = 0.1, y = 0.6, color='red', shape = 4)+
+  theme(legend.position = 'none')
+
+p3 <- ggplot(grid_search_exp_df, aes(alpha, gamma))+
+  geom_raster(aes(fill=-neg_log_lik))+
+  theme_bw()+
+  scale_fill_continuous(name = "Log likelihood")+
+  annotate("point", x = grid_search_exp_df$alpha[which(-grid_search_exp_df$neg_log_lik == max(-grid_search_exp_df$neg_log_lik, na.rm=T))], y = grid_search_exp_df$gamma[which(-grid_search_exp_df$neg_log_lik == max(-grid_search_exp_df$neg_log_lik, na.rm=T))], color = 'red', shape=1)+
+  annotate("point", x = 0.01, y = 0.6, color='red', shape = 4)+
+  theme(legend.position = 'bottom')
+
+g_legend<-function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+
+legend<-g_legend(p3)
+
+grid.arrange(arrangeGrob(p1, p2, p3+theme(legend.position='none'), nrow=1), legend, nrow=2, heights=c(10, 1))
+
+rm(p1, p2, p3, legend)
+```
+
+Could iterated estimation help in this case? Trying estimating one parameter at a time fixing the other two. Once one parameter converges on a specified threshold only the remaining two continue to be estimated. If two parameters converge on specified thresholds or when number of specified max iterations is reached iteration stops.
+
+```{r}
+iter.single.alpha.exp.optim <- function(data, n, true_beta, true_alpha, true_gamma, start_par, beta_thresh, alpha_thresh, gamma_thresh, beta_start = 0.5, alpha_start = 0.5, gamma_start = 0.5){
+ 
+  #Initialize vars
+  par_name = start_par
+  iter = 0
+  beta_optim_par = beta_start
+  alpha_optim_par = alpha_start
+  gamma_optim_par = gamma_start
+  beta_optim_nloglik = NA
+  alpha_optim_nloglik = NA
+  gamma_optim_nloglik = NA
+  out = data.frame(iter = 0, true_beta = true_beta, true_alpha = true_alpha, true_gamma = true_gamma,beta_start = beta_start, alpha_start = alpha_start, gamma_start = gamma_start,beta_optim = beta_optim_par, alpha_optim = alpha_optim_par, gamma_optim = gamma_optim_par,par_name = par_name, beta_optim_nloglik = beta_optim_nloglik, alpha_optim_nloglik = alpha_optim_nloglik, gamma_optim_nloglik = gamma_optim_nloglik)
+  
+  #Begin iteration
+  while(iter < n){
+    
+    if(par_name == 'alpha'){
+      alpha_optim_out <- optim(alpha_start, neg.log.lik.exp.fix, method = 'L-BFGS-B', lower=c(0), upper=c(1), data=data, fix_par = data.frame(beta = beta_optim_par, gamma = gamma_optim_par), par_name = c('alpha'))
+      alpha_optim_par <- alpha_optim_out$par
+      alpha_optim_nloglik <- alpha_optim_out$value
+    }
+    
+    else if(par_name== 'beta'){
+      beta_optim_out <- optim(beta_start, neg.log.lik.exp.fix, method = 'L-BFGS-B', lower=c(0), upper=c(Inf), data=data, fix_par = data.frame(alpha = alpha_optim_par, gamma = gamma_optim_par), par_name = c('beta'))
+      beta_optim_par <- beta_optim_out$par
+      beta_optim_nloglik <- beta_optim_out$value
+    }
+    
+    else if(par_name== 'gamma'){
+      gamma_optim_out <- optim(gamma_start, neg.log.lik.exp.fix, method = 'L-BFGS-B', lower=c(0), upper=c(1), data=data, fix_par = data.frame(beta = beta_optim_par, alpha = alpha_optim_par), par_name = c('gamma'))
+      gamma_optim_par <- gamma_optim_out$par
+      gamma_optim_nloglik <- gamma_optim_out$value
+    }
+    
+    
+    #store each output
+    row <- data.frame(iter = iter, true_beta = true_beta, true_alpha = true_alpha, true_gamma = true_gamma, beta_start = beta_start, alpha_start = alpha_start, gamma_start = gamma_start,beta_optim = beta_optim_par, alpha_optim = alpha_optim_par, gamma_optim = gamma_optim_par, par_name = par_name, beta_optim_nloglik = beta_optim_nloglik, alpha_optim_nloglik = alpha_optim_nloglik, gamma_optim_nloglik = gamma_optim_nloglik)
+    out <- rbind(out, row)
+    iter = iter+1
+    #par_name <- ifelse(par_name == 'beta', 'alpha', ifelse(par_name == 'alpha', 'gamma', 'beta'))
+    #par_name <- sample(c('alpha', 'beta', 'gamma'), 1)
+    
+    beta_diff = abs(true_beta - beta_optim_par)
+    alpha_diff = abs(true_alpha - alpha_optim_par)
+    gamma_diff = abs(true_gamma - gamma_optim_par)
+    par_name <- ifelse(beta_diff < beta_thresh, sample(c('alpha', 'gamma'),1), ifelse(alpha_diff < alpha_thresh, sample(c('beta', 'gamma'), 1), ifelse(gamma_diff < gamma_thresh, sample(c('beta', 'alpha'), 1), sample(c('alpha', 'beta', 'gamma'),1) )))
+    
+    #Stop rule: either done with number of specified iterations or two of the parameters converge on the specified threshold
+    if(iter >= n | (beta_diff < beta_thresh & alpha_diff < alpha_thresh) | (beta_diff < beta_thresh & gamma_diff < gamma_thresh) | (alpha_diff < alpha_thresh & gamma_diff < gamma_thresh)){
+      break
+    }
+  }
+  return(out)
+}
+```
+
+Iteration seems to help estimating $\alpha$. Estimates improve for the other two parameters depending on the parameter we start estimating with but they seem less stable. 
+
+This pattern might be why Sarah chose to fix the beta and one of the two learning rates and estimated only one learning rate (from negative prediction errors) and the exponent only. Still the changes in the stability of point estimates of the exponent $\gamma$ makes me worry about using as a key variable to correlate with other measures (behavioral or neural) if, of course, I am not messing up the estimation somehow.
+
+```{r}
+#Start from 0.5, estimate beta first 
+iter_fit1 <- iter.single.alpha.exp.optim(sim_data3, n = 150, true_beta = 0.1, true_alpha = 0.01, true_gamma = 0.6, start_par = 'beta', beta_thresh = 0.01, alpha_thresh = 0.01, gamma_thresh = 0.01, beta_start = 0.5, alpha_start = 0.5, gamma_start = 0.5)
+
+#Start from 0.5, estimate alpha first 
+iter_fit2 <- iter.single.alpha.exp.optim(sim_data3, n = 150, true_beta = 0.1, true_alpha = 0.01, true_gamma = 0.6, start_par = 'alpha', beta_thresh = 0.01, alpha_thresh = 0.01, gamma_thresh = 0.01, beta_start = 0.5, alpha_start = 0.5, gamma_start = 0.5)
+
+#Start from 0.5, estimate gamma first
+iter_fit3 <- iter.single.alpha.exp.optim(sim_data3, n = 150, true_beta = 0.1, true_alpha = 0.01, true_gamma = 0.6, start_par = 'gamma', beta_thresh = 0.01, alpha_thresh = 0.01, gamma_thresh = 0.01, beta_start = 0.5, alpha_start = 0.5, gamma_start = 0.5)
+
+iter_fit1$condition <- '0.5_beta'
+iter_fit2$condition <- '0.5_alpha'
+iter_fit3$condition <- '0.5_gamma'
+iter_fit_exp <- rbind(iter_fit1, iter_fit2, iter_fit3)
+rm(iter_fit1, iter_fit2, iter_fit3)
+
+#Plot parameter estimate (y) for iteration (x) for both parameters with horizontal line for true values for each parameter
+iter_fit_exp %>% 
+  select(iter, alpha_optim, beta_optim, gamma_optim,condition) %>%
+  gather(key, value, -c(iter, condition)) %>%
+  ggplot(aes(iter, value, col=key))+
+  geom_point()+
+  theme_bw()+
+  facet_wrap(~condition)+
+  geom_hline(yintercept = 0.1, color = "#00BA38")+
+  geom_hline(yintercept = 0.01, color = "#F8766D")+
+  geom_hline(yintercept = 0.6, color = "#619CFF")
+```
+
+### Conclusion
+
+Trying to get point estimates for this dataset that was simulated using a model with an exponent on the observed rewards (capturing concavity of a utility function) because it produced more realistic response patterns wasn't very successful and yielded similar results to my attempt to recover parameters of a simpler model. The likelihood surfaces were again mostly flat and the iterated estimation somewhat helpful but still unclear on whether it would be legitimate to use.
+
+# Appendix: 
+
+## Simulated data <a name="data"></a>
+
+```{r}
+sim_data
+```
+
+## More realistic simulated data <a name="realistic_data"></a>
+
+```{r}
+sim_data3
+```

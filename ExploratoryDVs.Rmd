@@ -1,0 +1,276 @@
+---
+title: "Exploratory DVs"
+author: "Zeynep Enkavi"
+output: 
+html_document:
+toc: true
+toc_depts: 2
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+```
+
+# Exploratory DVs
+
+Since I am currently unable to successfully recover parameters on simulated data as described above here are some exploratory dependent variables that might capture the question of interest more simply.
+
+To take a step back, this sample consists of three age groups: children, adolescents and adults and we hypothesize that the increase in risk taking behavior is related to sensitivity to high variance feedback. 
+
+Had I been able to fit the models correctly, the parameter of interest to observe the age differences on would have been an exponent on the prediction errors (as Sarah fit them or on rewards as we may have fitted them).
+
+Here are some exploratory thoughts on other ways to quantify how sensitive subjects are to feedback from different machines.
+
+```{r echo=FALSE}
+setwd("/Users/zeynepenkavi/Downloads/machine_game")
+
+file_list <- list.files()
+
+for (file in file_list){
+  
+  tmp <- read.csv(file)
+  tmp$Sub_id <- as.numeric(gsub("[^0-9]", "", file))
+  tmp$Trial_number <- 1:nrow(tmp)
+  
+  if('X' %in% names(tmp)){
+    tmp <- tmp[,-which(names(tmp) == "X")]
+  }
+  
+  if (file == file_list[1]){
+    all_data = tmp
+  }
+  else{
+    all_data = rbind(all_data, tmp)
+  }
+  rm(tmp)
+}
+
+rm(file, file_list)
+```
+
+## Average number of trials to play again post loss
+
+One way to quantify how subjects respond to experiencing losses is to count how many trials it takes them to decide to play again. Here's a function that would calculate this.
+
+```{r}
+count.postloss.trials <- function(subject_data){
+  
+  Sub_id = unique(subject_data$Sub_id)
+  
+  loss_trials = which(subject_data$Points_earned<0)
+  
+  play_trials= which(subject_data$Response == 1)
+  
+  post_loss_trials = play_trials[which(play_trials %in% loss_trials)+1]
+  
+  num_trials_post_loss = post_loss_trials - loss_trials
+  
+  out <- data.frame(Sub_id = rep(Sub_id, length(num_trials_post_loss)), num_trials_post_loss = num_trials_post_loss)
+  #return(num_trials_post_loss)
+  #return(data.frame(num_trials_post_loss = num_trials_post_loss))
+}
+
+# subject_data <- all_data[1:180,]
+# tmp <- count.postloss.trials(subject_data)
+```
+
+This histogram suggests that ignoring which machine the loss is experienced on and which machine they play on next it takes subjects around two trials to play again after a loss. 
+
+This seems to suggest that behavior almost doesn't change at all after a loss and that is (hopefully) unlikely to be true. So let's look at how many trials it takes a subject to play again on each machine after experiencing a loss on that machine.
+
+```{r}
+postloss_trials <- ddply(all_data, .(Sub_id, Trial_type), count.postloss.trials)
+
+mean_postloss_trials <- postloss_trials %>%
+  group_by(Sub_id) %>%
+  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T))
+
+mean_postloss_trials %>% ggplot(aes(mean_post_loss))+
+  geom_histogram()+
+  theme_bw()
+```
+
+**What is up with this unknown column warning and inability to color the histogram???**
+
+```{r}
+mean_postloss_trials_per_machine <- postloss_trials %>%
+  group_by(Sub_id, Trial_type) %>%
+  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T))
+
+mean_postloss_trials_per_machine$facet_labels <- with(mean_postloss_trials_per_machine, ifelse(Trial_type == 1, "+5,-495", ifelse(Trial_type == 2, "-5,+495", ifelse(Trial_type == 3, "-10,+100", ifelse(Trial_type == 4, "+10,-100", NA)))))
+
+ggplot(mean_postloss_trials_per_machine, aes(mean_post_loss))+
+  geom_histogram()+
+  theme_bw()+
+  facet_wrap(~facet_labels)
+
+mean_postloss_trials_per_machine %>% 
+  group_by(facet_labels) %>%
+  summarise(mean=mean(mean_post_loss, na.rm=T), sd = sd(mean_post_loss, na.rm=T))
+
+```
+
+```{r}
+#Does this correlate with age or bart adjusted pumps? No.
+
+#Age data
+demog_data <- read.csv('/Users/zeynepenkavi/Dropbox/PoldrackLab/Developmental study/Final Redcap Data/DevelopmentalStudy_DATA_2015-03-25_1258.csv')
+
+# head(names(demog_data), 20)
+# str(demog_data$subj_id)
+# str(demog_data$calc_age)
+
+mean_postloss_trials <- merge(mean_postloss_trials, demog_data[,c('subj_id', 'calc_age')], all.x = T, by.x = 'Sub_id', by.y = 'subj_id')
+
+#Manual correction
+mean_postloss_trials$calc_age[which(is.na(mean_postloss_trials$calc_age))] = demog_data$calc_age[which(demog_data$subj_id == 100110)]
+
+#Bart data
+setwd("/Users/zeynepenkavi/Downloads/bart_tsv")
+
+file_list <- list.files(pattern = '*.tsv')
+
+for (file in file_list){
+  
+  tmp <- read.csv(file, sep = "\t")
+  tmp$Sub_id <- as.numeric(strsplit(file, "_")[[1]][1])
+  
+  if (file == file_list[1]){
+    bart_data = tmp
+  }
+  else{
+    bart_data = rbind(bart_data, tmp)
+  }
+  rm(tmp)
+}
+
+rm(file, file_list)
+
+adjusted.pumps <- function(subject_data){
+  subject_data_adjusted = subject_data[subject_data$exploded == 0,]
+  subject_pumps <- subject_data_adjusted %>% 
+    group_by(trial.num) %>%
+    summarise(total_pumps = sum(finished))
+  out <- data.frame(Sub_id = unique(subject_data$Sub_id), mean_adjusted_pumps = mean(subject_pumps$total_pumps))
+  return(out)
+}
+
+#subject_data <- bart_data[c(bart_data$Sub_id == 100003),]
+#adjusted.pumps(subject_data)
+
+bart_pumps <- ddply(bart_data, .(Sub_id), adjusted.pumps)
+
+mean_postloss_trials <- merge(mean_postloss_trials, bart_pumps, all.x = T, by= 'Sub_id')
+
+ggpairs(mean_postloss_trials, (which(names(mean_postloss_trials) %in% c('calc_age', 'mean_post_loss', 'mean_adjusted_pumps'))))
+```
+
+## Mean p(play) post loss
+Operationalized as: Number of times you played immediately after experiencing a loss/Number of loss trials
+
+```{r}
+mean.postloss.play.prob <- function(subject_data){
+  
+  Sub_id = unique(subject_data$Sub_id)
+  
+  loss_trials = which(subject_data$Points_earned<0)
+  
+  mean_post_loss_prob <- mean(ifelse(subject_data$Response[loss_trials+1] == 2, 1, 0), na.rm=T)
+  
+  out <- data.frame(Sub_id = Sub_id, mean_post_loss_prob = mean_post_loss_prob)
+  
+  return(out)
+}
+
+# subject_data <- all_data[1:180,]
+#tmp <- mean.postloss.play.prob(subject_data)
+
+mean_postloss_trials <- merge(mean_postloss_trials, ddply(all_data, .(Sub_id), mean.postloss.play.prob), all.x=T, by='Sub_id')
+
+ggpairs(mean_postloss_trials, (which(names(mean_postloss_trials) %in% c('calc_age', 'mean_post_loss', 'mean_adjusted_pumps', 'mean_post_loss_prob'))))
+```
+
+## How many people experience multiple losses (for each machine)
+
+```{r}
+loss.per.machine <- function(subject_data){
+  
+  Sub_id = unique(subject_data$Sub_id)
+  
+  loss_trials = which(subject_data$Points_earned<0)
+  
+  loss_per_machine = as.data.frame(table(subject_data$Trial_type[loss_trials]))
+  
+  out <- data.frame(Sub_id = rep(Sub_id, nrow(loss_per_machine)), machine = loss_per_machine$Var1, num_loss = loss_per_machine$Freq)
+  
+  return(out)
+}
+
+#subject_data <- all_data[1:180,]
+#tmp <- loss.per.machine(subject_data)
+
+loss_per_machine <- ddply(all_data, .(Sub_id), loss.per.machine)
+
+loss_per_machine$facet_labels <- with(loss_per_machine, ifelse(machine == 1, "+5,-495", ifelse(machine == 2, "-5,+495", ifelse(machine == 3, "-10,+100", ifelse(machine == 4, "+10,-100", NA)))))
+
+head(loss_per_machine)
+
+loss_per_machine %>%
+  ggplot(aes(num_loss))+
+  geom_histogram()+
+  facet_wrap(~facet_labels)+
+  theme_bw()
+
+#With machine do people experience a single loss most frequently?
+with(loss_per_machine[loss_per_machine$num_loss == 1,], table(facet_labels))
+```
+
+## Cross-talk between machines
+are you less likely to play overall after a loss or only less likely to play that machine
+
+```{r}
+mean_postloss_play_prob_per_machine <- ddply(all_data, .(Sub_id, Trial_type), mean.postloss.play.prob)
+
+mean_postloss_play_prob_per_machine$facet_labels <- with(mean_postloss_play_prob_per_machine, ifelse(Trial_type == 1, "+5,-495", ifelse(Trial_type == 2, "-5,+495", ifelse(Trial_type == 3, "-10,+100", ifelse(Trial_type == 4, "+10,-100", NA)))))
+
+mean_postloss_play_prob_per_machine %>% ggplot(aes(mean_post_loss_prob, fill = facet_labels))+
+  geom_histogram(alpha = 0.5)+
+  theme_bw()#+
+#facet_wrap(~facet_labels)
+
+mean_postloss_trials%>% ggplot(aes(mean_post_loss_prob))+
+  geom_histogram()+
+  theme_bw()
+
+tmp <- mean_postloss_trials[,c("Sub_id", "mean_post_loss_prob")]
+tmp$Trial_type <- 0
+tmp$facet_labels <- 'Overall'
+tmp <- tmp[,c(3,1,2,4)]
+tmp <- rbind(tmp, mean_postloss_play_prob_per_machine)
+
+tmp %>% ggplot(aes(mean_post_loss_prob, fill = facet_labels))+
+  geom_histogram(alpha=0.5)+
+  theme_bw()
+
+
+pairwise.t.test(tmp$mean_post_loss_prob, tmp$facet_labels)
+
+t.test(tmp$mean_post_loss_prob[tmp$facet_labels=='Overall'], tmp$mean_post_loss_prob[tmp$facet_labels=='-10,+100'])
+
+t.test(tmp$mean_post_loss_prob[tmp$facet_labels=='Overall'], tmp$mean_post_loss_prob[tmp$facet_labels=='+10,-100'])
+
+t.test(tmp$mean_post_loss_prob[tmp$facet_labels=='Overall'], tmp$mean_post_loss_prob[tmp$facet_labels=='-5,+495'])
+
+t.test(tmp$mean_post_loss_prob[tmp$facet_labels=='Overall'], tmp$mean_post_loss_prob[tmp$facet_labels=='+5,-495'])
+
+#Less likely to play after a loss trial in the low varince positive EV machine and more likely to play after a loss trial in the low variance positive EV machine
+
+#What is optimal here? Is this pattern 'rational'?
+#I don't think so. In the positive EV machine the optimal thing would be to always play. The decrease in probability in playing (from 0.5) after experiencing small losses would lead one to make less than one could
+#Conversely in the low variance negative expected value machine one should never play. But the increase in probability in playing after losses 
+```

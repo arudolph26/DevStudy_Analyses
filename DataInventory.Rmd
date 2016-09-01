@@ -8,7 +8,7 @@ output: html_document
 This is an initial markdown file to gather info on all the raw data that I currently have access to.
 
 Rows: Subjects
-Columns: Demographics, BART, BASC, BIS-BAS, EIS, CARE, DUQ, WASI, MGbehav,MGfmri
+Columns: Demographics, BART, BASC, BIS-BAS, EIS, CARE, DUQ, WASI, MGbehav ,MGfmri
 
 Subjects: All subjects should be listed in the FINAL redcap data
 Demographics, 
@@ -22,10 +22,13 @@ Data directories on TACC:
 /corral-repl/utexas/poldracklab/users/shelfins/Developmental_Study
 /corral-repl/utexas/poldracklab/data/dev_study/
 
+Where I'm keeping copied versions:
+/corral-repl/utexas/poldracklab/users/zenkavi/dev_study
+
 Read in data Redcap/questionnare from TACC. This df holds a record for all subjects that came in.
 
 ```{r}
-q.data <- read.csv(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "cat /corral-repl/utexas/poldracklab/users/zenkavi/dev_study/data/behav/questionnaire/DevelopmentalStudy_DATA_2015-03-25_1258.csv"'))
+q.data <- read.csv(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "cat /corral-repl/utexas/poldracklab/users/zenkavi/dev_study/todo/behav_data_tb_organized/questionnaire/DevelopmentalStudy_DATA_2015-03-25_1258.csv"'))
 ```
 
 Create new df to inventory what data is available for each subject.
@@ -108,27 +111,32 @@ rm(eisa_qs, eisy_qs)
 - 200249: missing `eisy1`
 
 Check complete for `care`
-This should only be true for `subj_id` > 100000
+This should only be true for `subj_id` > 200000 (the youngest group did not complete this questionnaire)
 
 ```{r}
 care_qs <- grep('care', names(q.data), value=T)
 
 data.inv$care <- check_complete(q.data, "subj_id", list(care_qs, care_qs, care_qs, care_qs), data.inv, "subjects")
 
+data.inv$care <- ifelse(data.inv$subject < 200000, NA, data.inv$care)
+
 rm(care_qs)
 ```
 
 - 407209: missing `careeb24`
 - 409381: missing `career26`
-- 200213: missing all care
+- 200213: missing all `care`
 - 200025: : missing `careeb21`
 
 Check complete for `duq`
+This should only be true for `subj_id` > 200000 (the youngest group did not complete this questionnaire)
 
 ```{r}
 duq_qs <- grep('duq', names(q.data), value=T)
 
-data.inv$duq <- check_complete(q.data, "subj_id", matrix(rep(duq_qs,4),ncol=4), data.inv, "subjects")
+data.inv$duq <- check_complete(q.data, "subj_id", list(duq_qs, duq_qs, duq_qs, duq_qs), data.inv, "subjects")
+
+data.inv$duq <- ifelse(data.inv$subject < 200000, NA, data.inv$duq)
 
 rm(duq_qs)
 ```
@@ -147,7 +155,7 @@ data.inv$iq <- check_complete(q.data, "subj_id", list("fsiq2", "fsiq2", "fsiq2",
 
 data.inv$vocab <- check_complete(q.data, "subj_id", list("vocab_raw", "vocab_raw", "vocab_raw", "vocab_raw"), data.inv, "subjects")
 
-data.inv$matrea <- check_complete(q.data, "subj_id", ist("mr_raw", "mr_raw", "mr_raw", "mr_raw"), data.inv, "subjects")
+data.inv$matrea <- check_complete(q.data, "subj_id", list("mr_raw", "mr_raw", "mr_raw", "mr_raw"), data.inv, "subjects")
 ```
 
 200088: missing iq 
@@ -228,15 +236,17 @@ data.inv$gender <- check_complete(q.data, "subj_id", list("gender", "gender", "g
 Check complete for BART
 
 ```{r}
-bart.mat.list <- read.table(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "ls  /corral-repl/utexas/poldracklab/users/zenkavi/dev_study/data/behav/bart/*.mat"'))
+bart.mat.list <- read.table(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "ls  /corral-repl/utexas/poldracklab/users/zenkavi/dev_study/todo/behav_data_tb_organized/bart/*.mat"'))
 
-bart.mat.list$V1 <- sub("/corral-repl/utexas/poldracklab/users/zenkavi/dev_study/data/behav/bart/", "",bart.mat.list$V1)
+bart.mat.list$V1 <- sub("/corral-repl/utexas/poldracklab/users/zenkavi/dev_study/todo/behav_data_tb_organized/bart/", "",bart.mat.list$V1)
 
 bart.mat.list$subjects<- as.numeric(gsub("([0-9]+).*$", "\\1", bart.mat.list$V1))
 
 data.inv$bart <- ifelse(data.inv$subjects %in% bart.mat.list$subjects == FALSE, 0,1)
 
 bart.mat.list$subjects[which(bart.mat.list$subjects %in% data.inv$subjects ==F)]
+
+rm(bart.mat.list)
 ```
 
 200067: missing `bart` 
@@ -249,18 +259,18 @@ bart.mat.list$subjects[which(bart.mat.list$subjects %in% data.inv$subjects ==F)]
 Check complete for Machine Game behavioral
 
 ```{r}
-mg.csv.list <- read.table(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "ls  /corral-repl/utexas/poldracklab/users/zenkavi/dev_study/data/behav/machine_game/*.csv"'))
+mg.csv.list <- read.table(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "ls  /corral-repl/utexas/poldracklab/users/zenkavi/dev_study/todo/behav_data_tb_organized/machine_game/*.csv"'))
 
-mg.csv.list$V1 <- sub("/corral-repl/utexas/poldracklab/users/zenkavi/dev_study/data/behav/machine_game/ProbLearn", "", mg.csv.list$V1)
+mg.csv.list$V1 <- sub("/corral-repl/utexas/poldracklab/users/zenkavi/dev_study/todo/behav_data_tb_organized/machine_game/", "", mg.csv.list$V1)
 
-mg.csv.list$subjects <- as.numeric(sub(".csv", "", mg.csv.list$V1))
+mg.csv.list$subjects <- as.numeric(sub("ProbLearn","",sub(".csv", "", mg.csv.list$V1)))
 
 data.inv$mg_behav <- ifelse(data.inv$subjects %in% mg.csv.list$subjects == FALSE, 0,1)
 
 mg.csv.list$subjects[which(mg.csv.list$subjects %in% data.inv$subjects == FALSE)]
 ```
 
-200067: missing `mg_behav` 
+200067: missing `mg_behav` --> should be 200027
 411236: missing `mg_behav` 
 100060: missing `mg_behav` 
 308023: missing `mg_behav` 
@@ -271,20 +281,24 @@ mg.csv.list$subjects[which(mg.csv.list$subjects %in% data.inv$subjects == FALSE)
 
 Check complete for Machine Game imaging
 
-Some form of DICOMS for each subject
-
-```{r}
-
-mg.dicom.zip.list <- read.table(pipe('ssh -l zenkavi ls5.tacc.utexas.edu "ls  /corral-repl/utexas/poldracklab/openfmri/inprocess/ds054_shelfins/ds054_dicom/01_DICOM_zipfiles_from_XNAT/*.zip"'))
-
-mg.dicom.zip.list$V1 <- sub("/corral-repl/utexas/poldracklab/openfmri/inprocess/ds054_shelfins/ds054_dicom/01_DICOM_zipfiles_from_XNAT/", "", mg.dicom.zip.list$V1)
-
-gsub("([0-9]+).*$", "\\1", mg.dicom.zip.list$V1)
-
-unique(na.omit(as.numeric(unlist(strsplit(mg.dicom.zip.list$V1, "[^0-9]+")))))
-
-a <- na.omit(as.numeric(unlist(strsplit(mg.dicom.zip.list$V1, "[^0-9]+"))))
-```
+After moving niftis:
+100215: Doesn't have mg behavioral or imaging after run 1 [declined after scanner]
+100109: Have behavioral data for all runs but not images after run 1
+100169: Have behavioral data for all runs but not images after run 3
+200025: No bold for run 6
+408511: No bold for run 6
+100244: No bold for run 6
+100062: No sbref for run 4
+100068: No sbref for run 4
+200249: No sbref for run 4
+200081: Has all images but no behavioral data (acccidental deletion)
+411236: Has all images but no behavioral data (acccidental deletion)
+200027: Has all images but no behavioral data (acccidental deletion)
+407260: Has two complete sets of images. Not sure if duplicate
+100060: No phasediff image and no behavioral data for imaging task
+308023: Has all images but no behavioral data (acccidental deletion)
+406989: Has all images but no behavioral data (acccidental deletion)
+304228: Has all images but no behavioral data (acccidental deletion)
 
 Here's what I have on the sample:
 
@@ -292,15 +306,16 @@ Here's what I have on the sample:
 Data were collected from 83 subjects. Three subjects were excluded from all further analyses for reaching clinical criteria on one or more of the following scales from the SRP (atypicality, attention problems, hyperactivity, anxiety, depression). One subject chose to withdraw from the study shortly after entering the scanner, and one subject did not meet age criteria for the study, leaving 78 subjects (30 children, 14 M, 16 F; 26 adolescents, 14 M, 12 F; and 22 adults, 13 F, 9 M).
 Of the remaining 78 subjects, two subjects (both female children) did not complete the questionnaires, and two subjects (both female children) did not complete the BART.
 
-From imaging analyses:
-Of the remaining 78 subjects, 14 subjects were excluded from the machine game analysis. Eight subjects (5 children, 2 adolescents, 1 adult) were excluded because their data did not fit the model well (solution with the best fit yielded a negative exponent, negative A-neg, or both); six subjects (1 child, 4 adolescents, 1 adult) were excluded due to the accidental deletion of their behavioral data from this task, leaving a machine game sample of 64 subjects (24 children 11 M, 13 F; 20 adolescents, 10 M, 10 F; and 20 adults, 8 M, 12 F).
-An additional four subjects (all children) were excluded from the imaging analysis, three due to excess motion (more than 25% of volumes had greater than 0.5 mm framewise displacement), and one due to a scanner malfunction partway through the scan, leaving an imaging sample of 60 subjects (20 children, 11 M, 9 F; 20 adolescents, 10 M, 10 F; 20 adults, 8 M, 12 F).
-`
-
 Of the 83 total participants:
 3 Clinical criteria subjects: 311444, 100244, 200211
 1 decline after scanner: 100215
 1 underage: 200213
+6 accidental behavioral file deletions: 200081, 411236, 200027, 308023, 406989, 304228
+
+From imaging analyses:
+Of the remaining 78 subjects, 14 subjects were excluded from the machine game analysis. Eight subjects (5 children, 2 adolescents, 1 adult) were excluded because their data did not fit the model well (solution with the best fit yielded a negative exponent, negative A-neg, or both); six subjects (1 child, 4 adolescents, 1 adult) were excluded due to the accidental deletion of their behavioral data from this task, leaving a machine game sample of 64 subjects (24 children 11 M, 13 F; 20 adolescents, 10 M, 10 F; and 20 adults, 8 M, 12 F).
+An additional four subjects (all children) were excluded from the imaging analysis, three due to excess motion (more than 25% of volumes had greater than 0.5 mm framewise displacement), and one due to a scanner malfunction partway through the scan, leaving an imaging sample of 60 subjects (20 children, 11 M, 9 F; 20 adolescents, 10 M, 10 F; 20 adults, 8 M, 12 F).
+`
 
 2 incomplete questionnaires: 100185
 2 incomplete BART: 100068
