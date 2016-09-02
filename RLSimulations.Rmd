@@ -693,3 +693,9 @@ sim_data
 ```{r}
 sim_data3
 ```
+
+## Order of values df
+
+```{r}
+values
+```

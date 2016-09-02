@@ -7,26 +7,27 @@ toc: true
 toc_depts: 2
 ---
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r setup_env, echo=FALSE, message=FALSE, warning=FALSE}
 library(ggplot2)
 library(gridExtra)
 library(GGally)
 library(plyr)
 library(dplyr)
 library(tidyr)
+sem<-function(x)sd(x, na.rm=T)/sqrt(length(x[!is.na(x)]))
 ```
 
 # Exploratory DVs
 
 Since I am currently unable to successfully recover parameters on simulated data as described above here are some exploratory dependent variables that might capture the question of interest more simply.
 
-To take a step back, this sample consists of three age groups: children, teens and adults and we hypothesize that the increase in risk taking behavior with age is related to sensitivity to high variance feedback. [[That is, children are too sensitive rare but large losses and therefore less likely to risk playing those machines again while teens and young adults weigh these losses more appropriately ...]]
+To take a step back, this sample consists of three age groups: kids, teens and adults and we hypothesize that the increase in risk taking behavior with age is related to sensitivity to high variance feedback. 
 
 Had I been able to fit the models correctly, the parameter of interest to observe the age differences on would have been an exponent on the prediction errors (as Sarah fit them or on rewards as we may have fitted them).
 
 Here are some exploratory thoughts on other ways to quantify how sensitive subjects are to feedback from different machines.
 
-```{r echo=FALSE}
+```{r read_in_data, echo=FALSE, data_read_in}
 ##################
 #Machine game data
 ##################
@@ -81,13 +82,6 @@ assign.machine.info <- function(data){
 
 machine_game_data_clean <- assign.machine.info(machine_game_data_clean)
 
-assign.age.info <- function(data){
-  data$age_group <- with(data, ifelse(Sub_id<200000, "kids", ifelse(Sub_id>200000 & Sub_id<300000, "teen", "adult")))
-  
-  data %>% 
-    group_by(Sub_id) %>%
-    mutate(age = demog_data$calc_age[demog_data$subj_id])
-}
 
 ##################
 #Demographics data
@@ -98,8 +92,17 @@ demog_data <- read.csv('/Users/zeynepenkavi/Dropbox/PoldrackLab/Developmental st
 # str(demog_data$subj_id)
 # str(demog_data$calc_age)
 
-# Add age data to machine_game_data
-machine_game_data_clean <- merge(machine_game_data_clean, demog_data[,c('subj_id', 'calc_age')], all.x = T, by.x = 'Sub_id', by.y = 'subj_id')
+# Add age data to machine_game_data_clean
+assign.age.info <- function(data){
+  
+  data$age_group <- with(data, ifelse(Sub_id<200000, "kid", ifelse(Sub_id>200000 & Sub_id<300000, "teen", "adult")))
+  
+  data %>%
+    group_by(Sub_id) %>%
+    left_join(demog_data[,c('subj_id', 'calc_age')], by = c("Sub_id" = "subj_id"))
+}
+
+machine_game_data_clean <- assign.age.info(machine_game_data_clean)
 
 # Check if there are any problems with the merged ages
 # summary(machine_game_data_clean$calc_age)
@@ -127,29 +130,85 @@ for (file in file_list){
 rm(file, file_list)
 ```
 
+## Sample info
+
+First let's get a sense of the sample. Here is how many subjects we have who have complete datasets for the probabilistic learning task and their age break downs.
+
+```{r sample_info, warning=FALSE}
+machine_game_data_clean %>% 
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  group_by(age_group) %>%
+  summarise(min_age = min(calc_age),
+            mean_age = mean(calc_age),
+            sd_age = sd(calc_age),
+            max_age = max(calc_age),
+            n = n()/180)
+```
+
+## Proportion of playing
+
+The first thing we can look at is how often do subjects play versus pass. It seems that teens play most frequently while adults play least frequently.
+
+```{r}
+machine_game_data_clean %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
+  group_by(age_group, Response) %>%
+  tally %>%
+  group_by(age_group) %>%
+  mutate(pct=(100*n)/sum(n)) %>%
+  ggplot(aes(Response, pct, fill = age_group))+
+  geom_bar(stat='identity', position = position_dodge(0.9))+
+  theme_bw()+
+  ylab('Percentage of trials')
+```
+
+We can break this down by machines.
+
+```{r warning=FALSE}
+machine_game_data_clean %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
+  group_by(age_group, facet_labels,Response) %>%
+  tally %>%
+  group_by(age_group, facet_labels) %>%
+  mutate(pct=(100*n)/sum(n)) %>%
+  ggplot(aes(Response, pct, fill = age_group))+
+  geom_bar(stat='identity', position = position_dodge(0.9))+
+  theme_bw()+
+  ylab('Percentage of trials')+
+  facet_wrap(~facet_labels)
+```
+
+Are these differences in frequency of playing significant?
+
+```{r}
+
+```
+
 ## Average number of trials to play again post loss
 
 One way to quantify how subjects respond to experiencing losses is to count how many trials it takes them to decide to play again. Here's a function that would calculate this.
 
-```{r warning=FALSE}
+```{r func_def, warning=FALSE}
 count.postloss.trials <- function(subject_data){
-  
-  loss_trials = which(subject_data$Points_earned<0)
-  
-  play_trials= which(subject_data$Response == 1)
-  
-  post_loss_trials = play_trials[which(play_trials %in% loss_trials)+1]
-  
-  num_trials_post_loss = post_loss_trials - loss_trials
-  
-  return(data.frame(num_trials_post_loss = num_trials_post_loss))
+
+loss_trials = which(subject_data$Points_earned<0)
+
+play_trials= which(subject_data$Response == 1)
+
+post_loss_trials = play_trials[which(play_trials %in% loss_trials)+1]
+
+num_trials_post_loss = post_loss_trials - loss_trials
+
+return(data.frame(num_trials_post_loss = num_trials_post_loss))
 }
 
 # subject_data <- machine_game_data_clean[1:180,]
 # tmp <- count.postloss.trials(subject_data)
 ```
 
-This histogram suggests that ignoring which machine the loss is experienced on and which machine they play on next it takes subjects around two trials to play again after a loss. 
+This histogram suggests that ignoring which machine the loss is experienced on and which machine they play on next it takes subjects between 1-2 trials to play again after a loss. 
 
 This seems to suggest that behavior almost doesn't change at all after a loss and that is (hopefully) unlikely to be true. So let's look at how many trials it takes a subject to play again on each machine after experiencing a loss on that machine.
 
@@ -157,7 +216,8 @@ This seems to suggest that behavior almost doesn't change at all after a loss an
 postloss_trials <- machine_game_data_clean %>%
   group_by_(.dots = list(~Sub_id, ~Trial_type)) %>%
   do(count.postloss.trials(.))  %>%
-  do(assign.machine.info(.))
+  do(assign.machine.info(.)) %>%
+  do(assign.age.info(.))
 
 mean_postloss_trials <- postloss_trials %>%
   group_by(Sub_id) %>%
@@ -174,12 +234,32 @@ It looks like it takes subjects fewer trials to play a machine again for machine
 mean_postloss_trials_per_machine <- postloss_trials %>%
   group_by_(.dots = list(~Sub_id, ~Trial_type)) %>%
   summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T)) %>%
-  do(assign.machine.info(.))
+  do(assign.machine.info(.)) %>%
+  do(assign.age.info(.))
 
 mean_postloss_trials_per_machine %>% ggplot(aes(mean_post_loss))+
   geom_histogram()+
   theme_bw()+
   facet_wrap(~facet_labels)
+
+mean_postloss_trials_per_machine %>% ggplot(aes(calc_age,mean_post_loss))+
+  geom_point()+
+  geom_smooth() +
+  theme_bw()+
+  facet_wrap(~facet_labels)
+
+mean_postloss_trials_per_machine %>% 
+  #transmute(age_group = factor(age_group, levels = c('kid', 'teen', 'adult')))%>%
+  group_by_(.dots = list(~age_group, ~facet_labels)) %>%
+  summarise(age_group_mean = mean(mean_post_loss, na.rm=T),
+            age_group_sem = sem(mean_post_loss)) %>%
+  ggplot(aes(factor(age_group, levels = c('kid', 'teen', 'adult')),age_group_mean))+
+  geom_bar(stat = 'identity', position = position_dodge(width=0.9))+
+  geom_errorbar(aes(ymin = age_group_mean - age_group_sem, ymax = age_group_mean + age_group_sem), position = position_dodge(width=0.9), width =0.25)+
+  theme_bw()+
+  facet_wrap(~facet_labels)+
+  xlab('')+
+  ylab('Average number of trials after loss to play again')
 
 mean_postloss_trials_per_machine %>% 
   group_by(facet_labels) %>%
@@ -197,11 +277,6 @@ with(mean_postloss_trials_per_machine, pairwise.t.test(mean_post_loss, facet_lab
 What we are interested in is whether there is an age difference in each of these panels, or even more specifically whether there is an age difference in the last panel and whether this correlates with risk taking behavior (i.e. BART).
 
 ```{r warning=FALSE}
-mean_postloss_trials_per_machine %>%
-  mutate(age_group = ifelse(Sub_id<200000, "kids", ifelse(Sub_id>200000 & Sub_id<300000, "teen", "adult"))) %>%
-  group_by_(.dots = list(~age_group,~facet_labels)) %>%
-  summarise(age_group_mean = mean(mean_post_loss,na.rm=T),
-            age_group_sem = )
 ```
 
 
