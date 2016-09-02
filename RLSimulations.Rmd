@@ -8,12 +8,12 @@ toc_depts: 2
 ---
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-library(plyr)
-library(dplyr)
-library(tidyr)
 library(ggplot2)
 library(gridExtra)
 library(GGally)
+library(plyr)
+library(dplyr)
+library(tidyr)
 ```
 
 # Reinforcement model simulations
