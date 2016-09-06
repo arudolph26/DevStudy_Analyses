@@ -147,7 +147,9 @@ machine_game_data_clean %>%
 
 ## Proportion of playing
 
-The first thing we can look at is how often do subjects play versus pass. It seems that teens play most frequently while adults play least frequently.
+The first thing we can look at is how often do subjects play versus pass. It seems that teens and kids play more frequently while adults play least frequently.
+
+This is somewhat counterintuitive and confusing given the assumption in our hypothesis that adults take more risks and therefore perform better in this task. Any increase in 'risk-taking' in this task with age should depend on the machine and its expected value to translate to better performance.
 
 ```{r}
 machine_game_data_clean %>%
@@ -163,7 +165,9 @@ machine_game_data_clean %>%
   ylab('Percentage of trials')
 ```
 
-We can break this down by machines.
+To get a better sense of risk attitudes in different contingency states we break this proportion of playing down by machines.
+
+Indeed now we can see that adults are more 'risk-taking' i.e. play more frequently in positive expected value machines and less likely to play in negative expected value machines. This is why they perform better overall.
 
 ```{r warning=FALSE}
 machine_game_data_clean %>%
@@ -186,11 +190,78 @@ machine_game_data_clean %>%
   labs(fill = 'Age group')
 ```
 
-Are these differences in frequency of playing significant? A hierarchical regression suggests that compared to adults kids play more frequently in the '+5,-495' condition and less frequently in the '-10,+100' condition. (Teens are not different from adults.)
+Speaking of performances let's take a quick look at the number of points subjects end up with at the end of the task.
+
+Indeed adults earn more points in the low variance positive expected value machine (though not significantly in the positive expected value high variance machine) and loose less points in the negative expected value machines. These are hard to read off of the interactions in the hierarchical regression (I think) because most of the variance is explained by the difference between conditions but analyses of simple effects looking at age effects within each condition confirms the pattern seen on the plot.
+
+```{r}
+machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(mean_points = mean(total_points),
+            sem_points = sem(total_points)) %>%
+  ggplot(aes(facet_labels, mean_points, fill=age_group))+
+  geom_bar(stat='identity', position = position_dodge((0.9)))+
+  geom_errorbar(aes(ymin=mean_points-sem_points, ymax=mean_points+sem_points), position = position_dodge(0.9), width=0.25)+
+  theme_bw()+
+  xlab('Machine')+
+  ylab('Mean points')+
+  labs(fill='Age group')
+
+
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
+summary(lmerTest::lmer(total_points ~ age_group*facet_labels + (1|Sub_id), data = tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
+  filter(facet_labels=='+10,-100')
+summary(lm(total_points ~ age_group, data=tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
+  filter(facet_labels=='-5,+495')
+summary(lm(total_points ~ age_group, data=tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
+  filter(facet_labels=='+10,-100')
+summary(lm(total_points ~ age_group, data=tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
+  filter(facet_labels=='+5,-495')
+summary(lm(total_points ~ age_group, data=tmp))
+rm(tmp)
+```
+
+Going back to task behavior: Are these differences in frequency of playing significant? A hierarchical regression suggests that compared to adults kids play more frequently in the '+5,-495' condition and less frequently in the '-10,+100' condition. (Teens are not different from adults.)
 
 In other words kids are more sensitive to small but frequent losses and less sensitive to large but infrequent losses compared to adults.
 
-So they update the expected value of e.g. the high variance negative EV slower compared to adults (which would have translated to an exponent <1 on the prediction error had the model fitting worked); they are less sensitive to the magnitude of change in the prediction error (and more affected by frequency of feedback). (*Is this interpretation correct?*)
+So they update the expected value of e.g. the high variance negative machine slower compared to adults (which would have translated to an exponent <1 on the prediction error had the model fitting worked); they are less sensitive to the magnitude of change in the prediction error (and more affected by frequency of feedback). (*Is this interpretation correct?*)
 
 ```{r}
 tmp <- machine_game_data_clean %>%
@@ -207,17 +278,17 @@ summary(lmerTest::lmer(pct ~ age_group*facet_labels + (1|Sub_id), data = tmp))
 rm(tmp)
 ```
 
-Let's consider the optimal action for each machine: To maximize rewards one must always play the positive expected value machines and never play the negative expected value machines. So this underweighing of large magnitudes and overweighing of frequency of losses results in kids behaving more suboptimally compared to adults (though note that adults are also pretty far from 0 or 100 in playing any machine). I need to think about whether these two have dissociable roles. I'm not sure contrasting which machines would answer this because the variance and magnitude are perfectly correlated in the experimental setup. 
+Let's consider the optimal action for each machine for a minute: To maximize rewards one must always play the positive expected value machines and never play the negative expected value machines. So this underweighing of large magnitudes and overweighing of frequency of losses results in kids behaving more suboptimally compared to adults (though note that adults are also pretty far from 0 or 100 in playing any machine). I need to think about whether these two (sensitivity to magnitude versus to frequency) have dissociable roles. I'm not sure contrasting which machines would answer this because the variance and magnitude are perfectly correlated in the experimental setup. 
 
-One data point that I thought might be helpful was to compare the decrease in playing between low variance positive EV to low variance negative EV (-10, +100 vs +10,-100) with the decrease in playing between low variance positive EV and high variance negative EV (-10, +100 vs +5, -495). Since playing is lower in general for +10,-100 it seems that everyone is more sensitive to the frequency of losses than their magnitude and the decrease in adult's playing proportion is even larger than the kids'. It seems that kids are not more sensitive to the frequency of losses compared to adults either. It does also seem to be the case that between the magnitude and frequency they change their behavior more based on the frequency than the magnitude. But it's not clear to me whether their suboptimal behavior in the +5,-495 condition compared to adults is due to kids' lack of sensitivity to the magnitude of change or whether they learn better from more frequent feedback (i.e. a comparative overweighing of frequency of change) since these two change together in the experiment.
+One data point that I thought might be helpful was to compare the decrease in playing between low variance positive EV to low variance negative EV (-10, +100 vs +10,-100) with the decrease in playing between low variance positive EV and high variance negative EV (-10, +100 vs +5, -495). Since playing is lower in general for +10,-100 it seems that everyone is more sensitive to the frequency of losses than their magnitude and the decrease in adult's playing proportion is even larger than the kids'. It seems that kids are not more sensitive to the frequency of losses compared to adults either (as I may have implied above). It does, however, also seem to be the case that between the magnitude and frequency they change their behavior more based on the frequency than the magnitude. But it's not clear to me whether their suboptimal behavior in the +5,-495 condition compared to adults is due to kids' lack of sensitivity to the magnitude of change or whether they learn better from more frequent feedback (i.e. a comparative overweighing of frequency of change) since these two change together in the experiment.
 
-Percentage of time playing each machine gives us a sense of the global behavior but we are probably looking for a finer measure that would tell us more about how the behavior of a single subject changes from trial to trial (that we could also use parametrically for imaging analyses). 
+Since I'm not sure how to resolve this for now let's move on to other exploratory DVs. Percentage of time playing each machine gives us a sense of the global behavior but we are probably looking for a finer measure that would tell us more about how the behavior of a single subject changes from trial to trial (that we could also use parametrically for imaging analyses) depending on their observations. 
 
 Without any advanced models a simple statistic that we can calculate to capture change in behavior depending on the observed outcome is to count how many trials it takes a subject to play a machine again.  
 
 ## Average number of trials to play again post outcome
 
-If subjects are sensitive to losses and learning something about the machines in a way that overweights their most recent experience with the machine (e.g. a simple prediction error model that had been used for this data before) one sanity check is to compare how many trials it takes subjects to play a machine again after a loss versus a gain. Presumably the former would be higher than the latter.
+If subjects are sensitive to losses and learning something about the machines in a way that overweights their most recent experience with the machine (e.g. a simple prediction error model that had been used for this data before) one sanity check is to compare how many trials it takes subjects to play a machine again after a loss versus a gain. Presumably the former would be higher than the latter, that is one would hesitate to play a machine again after a loss but more likely to play it after a gain.
 
 ```{r func_def, warning=FALSE}
 count.postoutcome.trials <- function(subject_data){
@@ -250,7 +321,9 @@ count.postoutcome.trials <- function(subject_data){
 # tmp <- count.postoutcome.trials(subject_data)
 ```
 
-This graph shows the average number of trials it takes a subject to play a given machine after experiencing a loss or a gain. For almost everyone and for every machine the average number of trials it takes a subject to play following a loss is higher than the average number of trials it take them to play following a gain. This suggests that subjects are responding to outcomes in a way overweights their most recent experience with the machine [[because if they were taking all their experiences with the machine in to account then would we have expected there to be no difference in the low variance machines. or does this suggest they learn more from losses than gains]] [[how does this statement depend on frequency of gain/loss??]] 
+This graph shows the average number of trials it takes a subject to play a given machine after experiencing a loss or a gain. For almost everyone and for every machine the average number of trials it takes a subject to play following a loss (red dot) is higher than the average number of trials it take them to play following a gain (blue dot). This suggests that subjects are responding to outcomes in a way overweights their most recent experience with the machine. I think this serves as a (weak) sanity check for our intuitions modeling this data using simple prediction error models that are updated after each trial.
+
+One thought that is not necessarily immediately pertinent but that I puzzled over is how this graph would have looked like if subjects were taking all their experiences with the machine in to account (instead of overweighing their most recent experience). I have a vague intuition that in that case the difference in responding between the experiences (gain/loss) would be 0. That is, if one takes in to account all their experiences then they would distinguish between the positive and negative EV machines and either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. Relatedly then, this difference in response patterns depending on the observed outcome could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses. I'm not sure where I'm going with this but perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.
 
 ```{r}
 machine_game_data_clean %>%
@@ -260,108 +333,140 @@ machine_game_data_clean %>%
   summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
             mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
   gather(key, value, -Sub_id, -facet_labels) %>%
-  ggplot(aes(factor(Sub_id), value, color=key))+
+  ggplot(aes(factor(Sub_id), value, color=factor(key, levels = c("mean_post_loss", "mean_post_gain"))))+
   geom_point()+
   theme_bw()+
   facet_wrap(~facet_labels)+
   scale_x_discrete(labels=NULL)+
-  xlab('Subjects')
+  xlab('Subjects')+
+  labs(color = NULL)
 ```
 
-This histogram suggests that ignoring which machine the loss is experienced on and which machine they play on next it takes subjects between 1-2 trials to play again after a loss. 
+As our finer trial-by-trial measure, however, we have hypothesized that the driver of age differences would lie in post loss behavior. The previous plot also supports this strategy since there is less variability in post gain behavior (blue dots) compared to the post loss behavior. So let's see if there are age difference in post loss behavior.
 
-This seems to suggest that behavior almost doesn't change at all after a loss and that is (hopefully) unlikely to be true. So let's look at how many trials it takes a subject to play again on each machine after experiencing a loss on that machine.
+Indeed, reflecting the global behavior in proportion of playing in each condition adults are less likely to play after large losses in the high variance negative EV condition compared to kids while kids are less sensitive to the magnitude of loss. This, however is only a marginal effect based on the simple effects below and there aren't other significant age differences in other conditions.
 
-```{r warning=FALSE}
-
-
+```{r}
 machine_game_data_clean %>%
   group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
   do(count.postoutcome.trials(.))  %>%
-  do(assign.age.info(.)) %>%
   summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
             mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
-  group_by(facet_labels) %>%
-  summarise(mean_post_loss = mean(mean_post_loss, na.rm=T),
-            mean_post_gain = mean(mean_post_gain, na.rm=T))
-  
+  select(Sub_id, facet_labels, mean_post_loss) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(sem_post_loss = sem(mean_post_loss),
+            mean_post_loss = mean(mean_post_loss, na.rm=T))%>%
+  ggplot(aes(facet_labels, mean_post_loss, fill=age_group)) +
+  geom_bar(stat='identity', position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=mean_post_loss-sem_post_loss, ymax=mean_post_loss+sem_post_loss), position = position_dodge(0.9), width=0.25)+
+  theme_bw()+
+  xlab('Machine')+
+  ylab("Average number of trials post loss")+
+  labs(fill='Age group')
 
-machine_game_data_clean %>%
+tmp <- machine_game_data_clean %>%
   group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
   do(count.postoutcome.trials(.))  %>%
+  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
+            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
+  select(Sub_id, facet_labels, mean_post_loss) %>%
   do(assign.age.info(.)) %>%
-  select(Sub_id, facet_labels, num_trials_post_loss, num_trials_post_gain) %>%
-  gather(key, value, -Sub_id, -facet_labels) %>%
-  ggplot(aes(value, fill=key))+
-  geom_histogram()+
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  filter(facet_labels == '-10,+100')
+
+summary(lm(mean_post_loss ~ age_group, data=tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
+  do(count.postoutcome.trials(.))  %>%
+  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
+            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
+  select(Sub_id, facet_labels, mean_post_loss) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  filter(facet_labels == '-5,+495')
+
+summary(lm(mean_post_loss ~ age_group, data=tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
+  do(count.postoutcome.trials(.))  %>%
+  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
+            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
+  select(Sub_id, facet_labels, mean_post_loss) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  filter(facet_labels == '+10,-100')
+
+summary(lm(mean_post_loss ~ age_group, data=tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
+  do(count.postoutcome.trials(.))  %>%
+  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
+            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
+  select(Sub_id, facet_labels, mean_post_loss) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  filter(facet_labels == '+5,-495')
+
+summary(lm(mean_post_loss ~ age_group, data=tmp))
+rm(tmp)
+```
+
+Since we're not finding strong age differences on this potentially still somewhat coarse measure of sensitivity to magnitude of loss and we have some evidence/apriori assumptions built in prediction error models that subjects overweight their most recent experience perhaps a better DV would be the probability that a subject plays after each loss. That is, how often does a subject play immediately after a loss.
+
+```{r}
+#What is the probability that you'll play after a loss trial
+#The higher this is in the high var negative EV condition the worse your performance
+mean.postloss.play.prob <- function(subject_data){
+  
+  Sub_id = unique(subject_data$Sub_id)
+  
+  loss_trials = which(subject_data$Points_earned<0)
+  
+  mean_post_loss_prob <- mean(ifelse(subject_data$Response[loss_trials+1] == 1, 1, 0), na.rm=T)
+  
+  return(data.frame(mean_post_loss_prob=mean_post_loss_prob))
+}
+
+machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(mean.postloss.play.prob(.)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(sem_post_loss_prob = sem(mean_post_loss_prob),
+            mean_post_loss_prob = mean(mean_post_loss_prob)) %>%
+  ggplot(aes(facet_labels, mean_post_loss_prob, fill=age_group))+
+  geom_bar(stat = 'identity', position = position_dodge(0.9))+
+  geom_errorbar(aes(ymin=mean_post_loss_prob - sem_post_loss_prob, ymax=mean_post_loss_prob + sem_post_loss_prob), position=position_dodge(0.9), width=0.25)+
   theme_bw()+
-  facet_wrap(~facet_labels)
+  labs(fill = 'Age group')+
+  xlab('Machine')+
+  ylab('Mean playing prob post loss trial')
+```
 
+-----
+Thought of regressing total points on average number of trials after a loss to see if it could explain the performance difference but I think they might be necessarily correlated by definition. ???
 
-postloss_trials <- machine_game_data_clean %>%
-  group_by_(.dots = list(~Sub_id, ~Trial_type)) %>%
-  do(count.postloss.trials(.))  %>%
-  do(assign.machine.info(.)) %>%
+```{r}
+tmp <- machine_game_data_clean %>%
+  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
+  do(count.postoutcome.trials(.))  %>%
+  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
+            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
+  select(Sub_id, facet_labels, mean_post_loss) %>%
+  left_join(summarise(group_by(machine_game_data_clean, Sub_id, facet_labels), total_points = sum(Points_earned)), by = c("Sub_id", "facet_labels")) %>%
   do(assign.age.info(.))
 
-mean_postloss_trials <- postloss_trials %>%
-  group_by(Sub_id) %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T))
-
-mean_postloss_trials %>% ggplot(aes(mean_post_loss))+
-  geom_histogram()+
-  theme_bw()
-```
-
-It looks like it takes subjects fewer trials to play a machine again for machines with smaller losses compared to larger losses. For larger losses they are also faster to play it again if the losses are less frequent.
-
-```{r warning=FALSE}
-mean_postloss_trials_per_machine <- postloss_trials %>%
-  group_by_(.dots = list(~Sub_id, ~Trial_type)) %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T)) %>%
-  do(assign.machine.info(.)) %>%
-  do(assign.age.info(.))
-
-mean_postloss_trials_per_machine %>% ggplot(aes(mean_post_loss))+
-  geom_histogram()+
-  theme_bw()+
-  facet_wrap(~facet_labels)
-
-mean_postloss_trials_per_machine %>% ggplot(aes(calc_age,mean_post_loss))+
-  geom_point()+
-  geom_smooth() +
-  theme_bw()+
-  facet_wrap(~facet_labels)
-
-mean_postloss_trials_per_machine %>% 
-  #transmute(age_group = factor(age_group, levels = c('kid', 'teen', 'adult')))%>%
-  group_by_(.dots = list(~age_group, ~facet_labels)) %>%
-  summarise(age_group_mean = mean(mean_post_loss, na.rm=T),
-            age_group_sem = sem(mean_post_loss)) %>%
-  ggplot(aes(factor(age_group, levels = c('kid', 'teen', 'adult')),age_group_mean))+
-  geom_bar(stat = 'identity', position = position_dodge(width=0.9))+
-  geom_errorbar(aes(ymin = age_group_mean - age_group_sem, ymax = age_group_mean + age_group_sem), position = position_dodge(width=0.9), width =0.25)+
-  theme_bw()+
-  facet_wrap(~facet_labels)+
-  xlab('')+
-  ylab('Average number of trials after loss to play again')
-
-mean_postloss_trials_per_machine %>% 
-  group_by(facet_labels) %>%
-  summarise(mean=mean(mean_post_loss, na.rm=T), sd = sd(mean_post_loss, na.rm=T))
-```
-
-Let's check if these distributions are different from one another with a paired t-test.
-
-It seems that only the first panel is significantly different than the others. That is, subjects are faster to play the machine when they experience small losses half of the time compared to the other machines. 
-
-```{r warning=FALSE}
-with(mean_postloss_trials_per_machine, pairwise.t.test(mean_post_loss, facet_labels, p.adjust.method = 'bonferroni', paired=T))
-```
-
-What we are interested in is whether there is an age difference in each of these panels, or even more specifically whether there is an age difference in the last panel and whether this correlates with risk taking behavior (i.e. BART).
-
-```{r warning=FALSE}
+summary(lm(total_points ~ age_group*mean_post_loss*facet_labels, data=tmp))
+with(tmp, cor.test(total_points, mean_post_loss))
 ```
 
 
