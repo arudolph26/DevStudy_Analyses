@@ -699,3 +699,19 @@ sim_data3
 ```{r}
 values
 ```
+
+Todo: 
+
+Talk to Ian Ballard
+
+FIX beta starting values to draw from a uniform between 0-3 NOT 1!
+
+Is beta always larger (i.e. does the model always think that the choices are less random) - regenerate the data with the same parameters
+
+Try different parameters (esp for beta since it is close to 0)
+
+Try rewards in same regimes
+
+MLE versus MAP estimates (which requires)
+
+Email Greg (and maybe Nathaniel)

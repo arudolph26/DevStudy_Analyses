@@ -452,6 +452,52 @@ machine_game_data_clean %>%
   ylab('Mean playing prob post loss trial')
 ```
 
+```{r}
+adjusted.pumps <- function(subject_data){
+  subject_data_adjusted = subject_data[subject_data$exploded == 0,]
+  subject_pumps <- subject_data_adjusted %>% 
+    group_by(trial.num) %>%
+    summarise(total_pumps = sum(finished))
+  out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps))
+  return(out)
+}
+
+bart_data %>%
+  group_by(Sub_id) %>%
+  do(adjusted.pumps(.)) %>%
+  do(assign.age.info(.)) %>%
+  ggplot(aes(x=calc_age, y = mean_adjusted_pumps))+
+  geom_point()+
+  theme_bw()+
+  geom_smooth(method = "lm") +
+  xlab("Age")+
+  ylab("Risk taking (adjusted pumps)")
+
+tmp <- machine_game_data_clean %>%
+  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
+  do(count.postoutcome.trials(.))  %>%
+  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
+            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
+  select(Sub_id, facet_labels, mean_post_loss) %>%
+  do(assign.age.info(.)) 
+
+bart_data %>%
+  group_by(Sub_id) %>%
+  do(adjusted.pumps(.)) %>%
+  left_join(tmp, by = 'Sub_id') %>%
+  filter(!is.na(facet_labels)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  ggplot(aes(x = mean_adjusted_pumps, y = mean_post_loss))+
+  geom_point(aes(col=age_group))+
+  geom_smooth(method = "lm",col='black')+
+  facet_wrap(~facet_labels)+
+  theme_bw()+
+  ylab("Average number of trials post loss")+
+  xlab("Risk taking (Adjusted pumps)")+
+  ylim(0,10)+
+  labs(col="Age group")
+```
+
 -----
 Thought of regressing total points on average number of trials after a loss to see if it could explain the performance difference but I think they might be necessarily correlated by definition. ???
 
