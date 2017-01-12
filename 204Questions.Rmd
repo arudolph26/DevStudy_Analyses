@@ -1,0 +1,218 @@
+
+
+Check two things:
+1. Do people 'explore' the first five trials?
+
+```{r}
+names(machine_game_data_clean)
+with(machine_game_data_clean, table(Trial_type, gain_mag))
+```
+
+
+```{r}
+names(machine_game_data_clean)
+table(machine_game_data_clean$Response)
+
+machine_game_data_clean %>% 
+  group_by(Sub_id, facet_labels) %>%
+  slice(1:5) %>%
+  summarise(num_explored = sum(ifelse(Response == 1, 1,0))) %>%
+  do(assign.age.info(.)) %>%
+  ungroup() %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(mean_num_explored = mean(num_explored),
+            sem_num_explored = sem(num_explored)) %>%
+  ggplot(aes(facet_labels, mean_num_explored, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_bar(stat="identity", , position = position_dodge(0.9))+
+  geom_errorbar(aes(ymax = mean_num_explored+sem_num_explored, ymin = mean_num_explored-sem_num_explored), , position = position_dodge(width = 0.9), width=0.25)+
+  labs(fill = 'Age group')+
+  theme_bw()
+```
+
+2. Is the behavioral effect uniform across time?
+
+No. The effect seems to be most prominent for the largest loss machine. Starting after the initial exploratory period (pseudo random trials for the first 10 representing the true distribution)
+
+So for the project focus on this machine only.
+
+```{r}
+machine_game_data_clean %>%
+  group_by(facet_labels, Sub_id) %>%
+  mutate(relative_trial_num = 1:n()) %>%
+  ungroup() %>%
+  mutate(play1_pass0 = ifelse(Response == 1,1, 0)) %>%
+  group_by(relative_trial_num, facet_labels, age_group) %>%
+  summarise(mean_play = mean(play1_pass0),
+            sem_play = sem(play1_pass0)) %>%
+  filter(relative_trial_num<46) %>%
+  ggplot(aes(relative_trial_num, mean_play, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_point(alpha = 0.5)+
+  geom_line()+
+  geom_errorbar(aes(ymax = mean_play+sem_play, ymin = mean_play-sem_play), alpha = 0.25)+
+  facet_wrap(~facet_labels)+
+  theme_bw()+
+  labs(col = 'Age group')+
+  ylab("Proportion of participants that play")+
+  xlab("Relative trial number")
+```
+
+Why are they not exploring the second machine in the first trial?
+
+Because they are confused. It's the first trial.
+
+```{r}
+machine_game_data_clean %>%
+  group_by(facet_labels, Sub_id) %>%
+  mutate(relative_trial_num = 1:n()) %>%
+  filter(facet_labels == '+5,-495') %>%
+  arrange(relative_trial_num) 
+```
+
+Why are people playing the high variance negative EV machine after initial exploration?
+
+What are the trial numbers for this machine? (same for everyone except for one person, 406989)
+
+```{r}
+with(machine_game_data_clean[machine_game_data_clean$facet_labels == '+5,-495',], table(Trial_number))
+```
+
+Since basically everyone has the trial numbers does the proportion of subjects who play differ between the age groups depending on the how many trials of that type they have seen?
+
+```{r}
+machine_game_data_clean %>%
+  filter(Sub_id != 406989 & facet_labels == '+5,-495') %>%
+  mutate(play1_pass0 = ifelse(Response == 1,1, 0),
+         trials_since_last = ifelse(Trial_number>4, Trial_number - lag(Trial_number, default = 0), 0)) %>%
+  group_by(trials_since_last, age_group) %>%
+  summarise(mean_play = mean(play1_pass0),
+            sem_play = sem(play1_pass0)) %>%
+  ggplot(aes(trials_since_last, mean_play, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_point(alpha = 0.5)+
+  geom_line()+
+  geom_errorbar(aes(ymax = mean_play+sem_play, ymin = mean_play-sem_play), alpha = 0.25)+
+  theme_bw()+
+  labs(col = 'Age group')+
+  ylab("Proportion of participants that play")+
+  xlab("Trials since last trial of this type")
+```
+
+```{r}
+machine_game_data_clean %>%
+  filter(Sub_id != 406989 & facet_labels == '+5,-495') %>%
+  mutate(play1_pass0 = ifelse(Response == 1,1, 0),
+         trials_since_last = ifelse(Trial_number>4, Trial_number - lag(Trial_number, default = 0), 0)) %>%
+  group_by(Trial_number, age_group) %>%
+  summarise(mean_play = mean(play1_pass0),
+            sem_play = sem(play1_pass0),
+            trials_since_last = unique(trials_since_last))%>%
+  ggplot(aes(Trial_number, mean_play, group = age_group))+
+  geom_point(aes(col = factor(trials_since_last)))+
+  geom_errorbar(aes(ymax = mean_play+sem_play, ymin = mean_play-sem_play), alpha = 0.25)+
+  geom_line(aes(group = age_group, alpha = 0.5), col = 'gray')+
+  theme_bw()
+```
+
+Relationship between when it was last seen (not necessarily played) and relative trial number.
+
+```{r}
+machine_game_data_clean %>%
+  filter(Sub_id == 100003 & facet_labels == '+5,-495') %>%
+  mutate(relative_trial_number = 1:n(),
+         trials_since_last_of_machine = ifelse(Trial_number>4, Trial_number - lag(Trial_number, default = 0), 0))%>%
+  ggplot(aes(relative_trial_number, trials_since_last_of_machine))+
+  geom_point()+
+  theme_bw()
+```
+
+Zooming in to the high variance negative EV machine.
+
+```{r}
+machine_game_data_clean %>%
+  filter(facet_labels == "+5,-495")%>%
+  group_by(Sub_id) %>%
+  mutate(relative_trial_num = 1:n()) %>%
+  ungroup() %>%
+  mutate(play1_pass0 = ifelse(Response == 1,1, 0)) %>%
+  group_by(relative_trial_num, age_group) %>%
+  summarise(mean_play = mean(play1_pass0),
+            sem_play = sem(play1_pass0)) %>%
+  filter(relative_trial_num<46) %>%
+  ggplot(aes(relative_trial_num, mean_play, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_point(alpha = 0.5)+
+  geom_line()+
+  geom_errorbar(aes(ymax = mean_play+sem_play, ymin = mean_play-sem_play), alpha = 0.25)+
+  theme_bw()+
+  labs(col = 'Age group')+
+  ylab("Proportion of participants that play")+
+  xlab("Relative trial number")
+```
+
+How about trials since last played?
+
+Can we think of this as a 'memory effect'? The more trials since the last time you have played, the more interference? There doesn't seem to be an age difference in this.
+
+```{r}
+# install.packages('zoo')
+library(zoo)
+
+machine_game_data_clean %>%
+  filter(facet_labels == '+5,-495') %>%
+  group_by(Sub_id) %>%
+  mutate(play1_pass0 = ifelse(Response == 1, 1, 0),
+         relative_trial_number = 1:n(),
+         played_trial_number = ifelse(Response == 1, Trial_number, NA)) %>%
+  mutate(played_trial_number = na.locf(played_trial_number, na.rm=F)) %>%
+  filter(relative_trial_number > 1) %>%
+  mutate(trials_since_last_played = Trial_number - lag(played_trial_number)) %>%
+  group_by(trials_since_last_played, age_group) %>%
+  summarise(mean_played = mean(play1_pass0, na.rm = T),
+            sem_played = sem(play1_pass0)) %>%
+  ggplot(aes(trials_since_last_played, mean_played, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_smooth(alpha=0.5)+
+  theme_bw()+
+  labs(col='Age group')
+  
+```
+
+```{r}
+with(machine_game_data_clean[machine_game_data_clean$facet_labels=='+5,-495',], table(Trial_number))  
+```
+
+```{r}
+machine_game_data_clean %>%
+   filter(age_group == 'kid', facet_labels == '+5,-495') %>%
+  mutate(play1_pass0 = ifelse(Response == 1, 1, 0),
+         relative_trial_num  = 1:n()) %>%
+  ggplot(aes(relative_trial_num, play1_pass0))+
+  geom_point()+
+  facet_wrap(~ Sub_id)+
+  theme_bw()+
+  xlab('Relative trial number')+
+  ylab('Play or pass')
+    
+```
+```{r}
+write.csv(machine_game_data_clean, '/Users/zeynepenkavi/Dropbox/SU-Classes/Autumn16/PSYC204/models/data/machine_game_data_clean.csv')
+```
+
+```{r}
+tmp <- machine_game_data_clean %>%
+  filter(facet_labels == '+5,-495')%>%
+  group_by(Sub_id) %>%
+  summarise(total_plays = sum(ifelse(Response ==1,1,0)))
+
+tmp
+
+bart_data %>%
+  group_by(Sub_id) %>%
+  do(adjusted.pumps(.)) %>%
+  left_join(tmp, by="Sub_id") %>%
+  do(assign.age.info(.)) %>%
+  ggplot(aes(mean_adjusted_pumps, total_plays, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_point(alpha=0.25)+
+  geom_smooth(method = "lm", se=F)+
+  theme_bw()+
+  labs(col = "Age group")+
+  xlab("Optimally risky choices in risk taking task")+
+  ylab("Times played large loss machine")
+```

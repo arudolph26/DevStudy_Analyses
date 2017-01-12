@@ -11,7 +11,6 @@ toc_depts: 2
 library(ggplot2)
 library(gridExtra)
 library(GGally)
-library(plyr)
 library(dplyr)
 library(tidyr)
 sem<-function(x)sd(x, na.rm=T)/sqrt(length(x[!is.na(x)]))
@@ -149,7 +148,7 @@ machine_game_data_clean %>%
 
 The first thing we can look at is how often do subjects play versus pass. It seems that teens and kids play more frequently while adults play least frequently.
 
-This is somewhat counterintuitive and confusing given the assumption in our hypothesis that adults take more risks and therefore perform better in this task. Any increase in 'risk-taking' in this task with age should depend on the machine and its expected value to translate to better performance.
+This is somewhat counterintuitive and confusing given the assumption in our hypothesis that adults take more risks and therefore perform better in this task. Any increase in 'risk-taking' in this task with age should depend on the machine and its expected value to translate to better performance. (i.e. This graph is confusion; ignore.)
 
 ```{r}
 machine_game_data_clean %>%
@@ -179,7 +178,7 @@ machine_game_data_clean %>%
   mutate(pct=(100*n)/sum(n)) %>%
   do(assign.age.info(.)) %>%
   group_by(age_group, facet_labels, Response) %>%
-  summarise(mean_pct = mean(pct),
+  dplyr::summarise(mean_pct = mean(pct),
             sem_pct = sem(pct)) %>%
   ggplot(aes(Response, mean_pct, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
   geom_bar(stat='identity', position = position_dodge(0.9))+
@@ -211,24 +210,31 @@ machine_game_data_clean %>%
   ylab('Mean points')+
   labs(fill='Age group')
 
+```
 
+Statistical tests on difference in performance: adults different than kids in all but second condition.
+
+```{r eval=FALSE}
+# No sig other than difference between conditions
 tmp <- machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(total_points = sum(Points_earned)) %>%
   do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
 summary(lmerTest::lmer(total_points ~ age_group*facet_labels + (1|Sub_id), data = tmp))
 rm(tmp)
 
+# Adults make more in low var pos EV machine
 tmp <- machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(total_points = sum(Points_earned)) %>%
   do(assign.age.info(.)) %>%
   mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
-  filter(facet_labels=='+10,-100')
+  filter(facet_labels=='-10,+100')
 summary(lm(total_points ~ age_group, data=tmp))
 rm(tmp)
 
+# No sig age difference in high var pos EV machine
 tmp <- machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(total_points = sum(Points_earned)) %>%
@@ -238,6 +244,7 @@ tmp <- machine_game_data_clean %>%
 summary(lm(total_points ~ age_group, data=tmp))
 rm(tmp)
 
+# Adults loose less in low var neg EV machine
 tmp <- machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(total_points = sum(Points_earned)) %>%
@@ -247,6 +254,7 @@ tmp <- machine_game_data_clean %>%
 summary(lm(total_points ~ age_group, data=tmp))
 rm(tmp)
 
+# Adults loose less in high var pos EV machine
 tmp <- machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(total_points = sum(Points_earned)) %>%
@@ -263,6 +271,8 @@ In other words kids are more sensitive to small but frequent losses and less sen
 
 So they update the expected value of e.g. the high variance negative machine slower compared to adults (which would have translated to an exponent <1 on the prediction error had the model fitting worked); they are less sensitive to the magnitude of change in the prediction error (and more affected by frequency of feedback). (*Is this interpretation correct?*)
 
+The full multilevel model capturing this behavioral difference in terms of percent of playing each machine can be captured by the following model. Taking the adult behavior in the -10,+100 condition as baseline we can see that the interaction between kids in negative expected value trials are the only significant ones.
+
 ```{r}
 tmp <- machine_game_data_clean %>%
   mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
@@ -270,11 +280,11 @@ tmp <- machine_game_data_clean %>%
   group_by(Sub_id, facet_labels, Response) %>%
   tally %>%
   group_by(Sub_id, facet_labels) %>%
-  mutate(pct=(100*n)/sum(n)) %>%
+  mutate(pct_play=(100*n)/sum(n)) %>%
   filter(Response == 'play') %>%
   do(assign.age.info(.))
 
-summary(lmerTest::lmer(pct ~ age_group*facet_labels + (1|Sub_id), data = tmp))
+summary(lmerTest::lmer(pct_play ~ age_group*facet_labels + (1|Sub_id), data = tmp))
 rm(tmp)
 ```
 
@@ -365,7 +375,11 @@ machine_game_data_clean %>%
   xlab('Machine')+
   ylab("Average number of trials post loss")+
   labs(fill='Age group')
+```
 
+Statistical tests for the above graph: Only in the last condition is the effect marginal.
+
+```{r}
 tmp <- machine_game_data_clean %>%
   group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
   do(count.postoutcome.trials(.))  %>%
@@ -434,7 +448,11 @@ mean.postloss.play.prob <- function(subject_data){
   
   return(data.frame(mean_post_loss_prob=mean_post_loss_prob))
 }
+```
 
+The graph suggests that adults are more likely to play after a loss in the positive EV trials and less so in the negative EV trials though none of these are statistically significant.
+
+```{r}
 machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   do(mean.postloss.play.prob(.)) %>%
@@ -452,6 +470,52 @@ machine_game_data_clean %>%
   ylab('Mean playing prob post loss trial')
 ```
 
+Statisitcal test for this graph: none of the differences are significant.
+
+```{r}
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(mean.postloss.play.prob(.)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  filter(facet_labels == '-10,+100')
+
+summary(lm(mean_post_loss_prob ~ age_group, data=tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(mean.postloss.play.prob(.)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  filter(facet_labels == '-5,+495')
+
+summary(lm(mean_post_loss_prob ~ age_group, data=tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(mean.postloss.play.prob(.)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  filter(facet_labels == '+10,-100')
+
+summary(lm(mean_post_loss_prob ~ age_group, data=tmp))
+rm(tmp)
+
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(mean.postloss.play.prob(.)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  filter(facet_labels == '+5,-495')
+
+summary(lm(mean_post_loss_prob ~ age_group, data=tmp))
+rm(tmp)
+```
+
+Quick look at how this relates to BART data:
+
 ```{r}
 adjusted.pumps <- function(subject_data){
   subject_data_adjusted = subject_data[subject_data$exploded == 0,]
@@ -461,7 +525,11 @@ adjusted.pumps <- function(subject_data){
   out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps))
   return(out)
 }
+```
 
+Increase in number of pumps with age
+
+```{r}
 bart_data %>%
   group_by(Sub_id) %>%
   do(adjusted.pumps(.)) %>%
@@ -472,7 +540,10 @@ bart_data %>%
   geom_smooth(method = "lm") +
   xlab("Age")+
   ylab("Risk taking (adjusted pumps)")
+```
 
+
+```{r}
 tmp <- machine_game_data_clean %>%
   group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
   do(count.postoutcome.trials(.))  %>%
@@ -496,6 +567,8 @@ bart_data %>%
   xlab("Risk taking (Adjusted pumps)")+
   ylim(0,10)+
   labs(col="Age group")
+
+rm(tmp)
 ```
 
 -----
