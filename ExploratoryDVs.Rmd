@@ -13,20 +13,19 @@ library(gridExtra)
 library(GGally)
 library(dplyr)
 library(tidyr)
+library(lme4)
 sem<-function(x)sd(x, na.rm=T)/sqrt(length(x[!is.na(x)]))
 ```
 
-# Exploratory DVs
+# Developmental changes in sensitivity to high variance feedback relates to differences in risky decision making
 
-Since I am currently unable to successfully recover parameters on simulated data as described above here are some exploratory dependent variables that might capture the question of interest more simply.
+This sample consists of three age groups: kids, teens and adults and we hypothesize that sensitivity to learn from high variance feedback improves with age and this is related to better risky decisions.  
 
-To take a step back, this sample consists of three age groups: kids, teens and adults and we hypothesize that the increase in risk taking behavior with age is related to sensitivity to high variance feedback. 
+Subjects completed a probabilistic learning ask in the scanner, a realistic risky decision making task (BART) outside the scanner and numerous questionnaires. The focus of this notebook is on the first two tasks.  
 
-Had I been able to fit the models correctly, the parameter of interest to observe the age differences on would have been an exponent on the prediction errors (as Sarah fit them or on rewards as we may have fitted them).
+The plan of analysis is to establish that adults are more sensitive to high variance feedback in the probabilistic learning task and relate this (modeled) sensitivity to behavior in BART.  
 
-Here are some exploratory thoughts on other ways to quantify how sensitive subjects are to feedback from different machines.
-
-```{r read_in_data, echo=FALSE, data_read_in}
+```{r echo=FALSE}
 ##################
 #Machine game data
 ##################
@@ -144,24 +143,127 @@ machine_game_data_clean %>%
             n = n()/180)
 ```
 
+## Performance in probabilistic learning task
+
+First let's examine the behavior in the probabilistic learning task.   
+
+In this task subjects are presented with a fractal in each trial. The fractals represent different machines. Subjects choose to play or pass in each trial. Each machine yields a probabilistic reward. There are four machines in total. Two with positive and two with negative expected value. One of each of these machines has a low variance reward schedule while the other has a high variance reward structure. More clearly:  
+- One machine gives \$5 90% of the time and -\$495 %10 of the time
+- One machine gives -\$5 90% of the time and \$495 %10 of the time
+- One machine gives \$10 50% of the time and -$100 %50 of the time
+- One machine gives -\$10 50% of the time and $100 %50 of the time
+
+Performance in this task can be assessed by looking at the total number of points subjects make at the end of task.
+
+```{r}
+machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  group_by(age_group) %>%
+  summarise(mean_points = mean(total_points),
+            sem_points = sem(total_points)) %>%
+  ggplot(aes(age_group, mean_points))+
+  geom_bar(stat='identity', position = position_dodge((0.9)))+
+  geom_errorbar(aes(ymin=mean_points-sem_points, ymax=mean_points+sem_points), position = position_dodge(0.9), width=0.25)+
+  theme_bw()+
+  xlab('Machine')+
+  ylab('Mean points')+
+  labs(fill='Age group')
+
+```
+
+Indeed adults earn more points compared to the kids.
+
+```{r}
+tmp = machine_game_data_clean %>%
+  group_by(Sub_id) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
+
+summary(lm(total_points~age_group, data=tmp))
+
+rm(tmp)
+```
+
+Since we are interested in the sensitivity to high variance feedback, we should show that this difference in performance exists especially for the high variance feedback condition(s).
+
+```{r}
+machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(mean_points = mean(total_points),
+            sem_points = sem(total_points)) %>%
+  ggplot(aes(facet_labels, mean_points, fill=age_group))+
+  geom_bar(stat='identity', position = position_dodge((0.9)))+
+  geom_errorbar(aes(ymin=mean_points-sem_points, ymax=mean_points+sem_points), position = position_dodge(0.9), width=0.25)+
+  theme_bw()+
+  xlab('Machine')+
+  ylab('Mean points')+
+  labs(fill='Age group')
+
+```
+
+The graphs suggests that the difference in performance exists **not** for both of the high variance feedback conditions **but** for both of the negative expected value condit. Most detrimental (/potentially real world relevant in terms of public health risks and their feedback structure) is the high variance negtive expeted value trial
+
+```{r}
+# No sig other than difference between conditions
+tmp <- machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(total_points = sum(Points_earned)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
+summary(lmer(abs(total_points) ~ age_group*facet_labels+(1|Sub_id), data = tmp))
+rm(tmp)
+```
+
 ## Proportion of playing
 
-The first thing we can look at is how often do subjects play versus pass. It seems that teens and kids play more frequently while adults play least frequently.
+The first thing we can look at is how often do subjects play versus pass. It seems that teens and kids play more frequently while adults play least frequently.  
 
-This is somewhat counterintuitive and confusing given the assumption in our hypothesis that adults take more risks and therefore perform better in this task. Any increase in 'risk-taking' in this task with age should depend on the machine and its expected value to translate to better performance. (i.e. This graph is confusion; ignore.)
+It is not immediately apparent how to directly translate this to better performance/learning in this task but one way to think about it: If people learned perfectly they should play half of the time (always for the positive expected value trial and never for the negative expected value trials). The fact that all proportions are above 50% suggests that nobody learns perfectly and that adults might be closest to it. But this is very crude and a better way to look at it would be to see how this depends on the different machines and how it changes throughout the task.
 
 ```{r}
 machine_game_data_clean %>%
   mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
          Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
-  group_by(age_group, Response) %>%
+  group_by(Sub_id, Response) %>%
   tally %>%
-  group_by(age_group) %>%
+  group_by(Sub_id) %>%
   mutate(pct=(100*n)/sum(n)) %>%
-  ggplot(aes(Response, pct, fill = age_group))+
+  do(assign.age.info(.)) %>%
+  group_by(age_group, Response) %>%
+  dplyr::summarise(mean_pct = mean(pct),
+            sem_pct = sem(pct)) %>%
+  ggplot(aes(Response, mean_pct, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
   geom_bar(stat='identity', position = position_dodge(0.9))+
+  geom_errorbar(aes(ymin = mean_pct - sem_pct, ymax = mean_pct + sem_pct), position = position_dodge(width = 0.9), width=0.25)+
   theme_bw()+
-  ylab('Percentage of trials')
+  ylab('Percentage of trials')+
+  labs(fill = 'Age group')
+```
+
+Just to make sure that this crude measure is not capturing an interesting difference: Do the percentages of played trials differ from each other? No.  
+
+```{r}
+tmp = machine_game_data_clean %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
+  group_by(Sub_id, Response) %>%
+  tally %>%
+  group_by(Sub_id) %>%
+  mutate(pct=(100*n)/sum(n)) %>%
+  do(assign.age.info(.)) %>%
+  ungroup()
+
+summary(lm(pct ~ Response*age_group, data = tmp))
+
+rm(tmp)
 ```
 
 To get a better sense of risk attitudes in different contingency states we break this proportion of playing down by machines.
@@ -189,79 +291,21 @@ machine_game_data_clean %>%
   labs(fill = 'Age group')
 ```
 
-Speaking of performances let's take a quick look at the number of points subjects end up with at the end of the task.
-
-Indeed adults earn more points in the low variance positive expected value machine (though not significantly in the positive expected value high variance machine) and loose less points in the negative expected value machines. These are hard to read off of the interactions in the hierarchical regression (I think) because most of the variance is explained by the difference between conditions but analyses of simple effects looking at age effects within each condition confirms the pattern seen on the plot.
+Can we capture this in a regression too?  
+Yes, both interactions for kids in the negative expected value conditions are significant.
 
 ```{r}
-machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  summarise(total_points = sum(Points_earned)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  group_by(age_group, facet_labels) %>%
-  summarise(mean_points = mean(total_points),
-            sem_points = sem(total_points)) %>%
-  ggplot(aes(facet_labels, mean_points, fill=age_group))+
-  geom_bar(stat='identity', position = position_dodge((0.9)))+
-  geom_errorbar(aes(ymin=mean_points-sem_points, ymax=mean_points+sem_points), position = position_dodge(0.9), width=0.25)+
-  theme_bw()+
-  xlab('Machine')+
-  ylab('Mean points')+
-  labs(fill='Age group')
-
-```
-
-Statistical tests on difference in performance: adults different than kids in all but second condition.
-
-```{r eval=FALSE}
-# No sig other than difference between conditions
 tmp <- machine_game_data_clean %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
+  group_by(Sub_id, facet_labels, Response) %>%
+  tally %>%
   group_by(Sub_id, facet_labels) %>%
-  summarise(total_points = sum(Points_earned)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
-summary(lmerTest::lmer(total_points ~ age_group*facet_labels + (1|Sub_id), data = tmp))
-rm(tmp)
+  mutate(pct_play=(100*n)/sum(n)) %>%
+  filter(Response == 'play') %>%
+  do(assign.age.info(.))
 
-# Adults make more in low var pos EV machine
-tmp <- machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  summarise(total_points = sum(Points_earned)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
-  filter(facet_labels=='-10,+100')
-summary(lm(total_points ~ age_group, data=tmp))
-rm(tmp)
-
-# No sig age difference in high var pos EV machine
-tmp <- machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  summarise(total_points = sum(Points_earned)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
-  filter(facet_labels=='-5,+495')
-summary(lm(total_points ~ age_group, data=tmp))
-rm(tmp)
-
-# Adults loose less in low var neg EV machine
-tmp <- machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  summarise(total_points = sum(Points_earned)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
-  filter(facet_labels=='+10,-100')
-summary(lm(total_points ~ age_group, data=tmp))
-rm(tmp)
-
-# Adults loose less in high var pos EV machine
-tmp <- machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  summarise(total_points = sum(Points_earned)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))%>%
-  filter(facet_labels=='+5,-495')
-summary(lm(total_points ~ age_group, data=tmp))
+summary(lmer(pct_play ~ age_group*facet_labels + (1|Sub_id), data = tmp))
 rm(tmp)
 ```
 
@@ -284,7 +328,7 @@ tmp <- machine_game_data_clean %>%
   filter(Response == 'play') %>%
   do(assign.age.info(.))
 
-summary(lmerTest::lmer(pct_play ~ age_group*facet_labels + (1|Sub_id), data = tmp))
+summary(lmer(pct_play ~ age_group*facet_labels + (1|Sub_id), data = tmp))
 rm(tmp)
 ```
 
@@ -566,6 +610,36 @@ bart_data %>%
   ylab("Average number of trials post loss")+
   xlab("Risk taking (Adjusted pumps)")+
   ylim(0,10)+
+  labs(col="Age group")
+
+rm(tmp)
+```
+
+```{r}
+tmp <- machine_game_data_clean %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
+  group_by(Sub_id, facet_labels, Response) %>%
+  tally %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(pct=(100*n)/sum(n)) %>%
+  do(assign.age.info(.)) %>%
+  filter(Response == "play")
+
+bart_data %>%
+  group_by(Sub_id) %>%
+  do(adjusted.pumps(.)) %>%
+  left_join(tmp, by = 'Sub_id') %>%
+  select(Sub_id, mean_adjusted_pumps, pct, age_group, facet_labels) %>%
+  filter(!is.na(pct)) %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
+  ggplot(aes(x=mean_adjusted_pumps, y = pct))+
+  geom_point(aes(col=age_group))+
+  geom_smooth(method="lm", color='black')+
+  facet_wrap(~facet_labels)+
+  theme_bw()+
+  ylab("Percentage of playing")+
+  xlab("Risk taking (adjusted pumps)")+
   labs(col="Age group")
 
 rm(tmp)
