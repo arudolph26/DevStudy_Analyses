@@ -188,7 +188,7 @@ summary(lm(total_points~age_group, data=tmp))
 rm(tmp)
 ```
 
-Since we are interested in the sensitivity to high variance feedback, we should show that this difference in performance exists especially for the high variance feedback condition(s).
+Since we are interested in the age differences between sensitivity to different feedback schedules, we should show that this difference in performance exists especially for the high variance feedback condition(s).
 
 ```{r}
 machine_game_data_clean %>%
@@ -209,7 +209,11 @@ machine_game_data_clean %>%
 
 ```
 
-The graphs suggests that the difference in performance exists **not** for both of the high variance feedback conditions **but** for both of the negative expected value condit. Most detrimental (/potentially real world relevant in terms of public health risks and their feedback structure) is the high variance negtive expeted value trial
+Conclusions on performance:  
+- Kids do better in the low variance conditions compared to the high variance conditions. Kids make more in the low variance positive expected value machine than they they do in the high variance positive expected value machine (t = -2.477). They also loose less in the low variance negative expected value machine (t = -4.409) compared to what they loose in the negative expected value high variance machine (t = - 0.421).  
+- Adults and teens don't perform better than kids in the positive expected value machines; neither in the low variance positive expected condition (t = 1.717 and t = 427 respectively), nor in the high variance condition (t = 0.212 and t = 0.661). Though I wonder if it might be harder to detect a performance difference in the high variance positive expected value machine because of the large difference between magnitudes.    
+- Adults do outperform the kids in the negative expected value conditions both in the low variance conditions (t = -3.064) and the high variance condition (t = -3.422). Teens do not differ from kids in either negative expected value condition.  
+- So everybody (including kids) does better in the low variance conditions and is thus more sensitive to more frequent feedback but kids are worse in learning from negative feedback. Finding the age difference in performance only when comparing negative to positive expected value doesn't seem great given the emphasis of the hypothesis on the age differences to different feedback schedules. 
 
 ```{r}
 # No sig other than difference between conditions
@@ -222,11 +226,13 @@ summary(lmer(abs(total_points) ~ age_group*facet_labels+(1|Sub_id), data = tmp))
 rm(tmp)
 ```
 
+The question is what difference in behavior is leading to this difference in performance?  
+
 ## Proportion of playing
 
-The first thing we can look at is how often do subjects play versus pass. It seems that teens and kids play more frequently while adults play least frequently.  
+The first thing we can look at is how often do subjects play versus pass. It's hard to see any age differences here.  
 
-It is not immediately apparent how to directly translate this to better performance/learning in this task but one way to think about it: If people learned perfectly they should play half of the time (always for the positive expected value trial and never for the negative expected value trials). The fact that all proportions are above 50% suggests that nobody learns perfectly and that adults might be closest to it. But this is very crude and a better way to look at it would be to see how this depends on the different machines and how it changes throughout the task.
+It is not immediately apparent how to translate this to better performance/learning in this task but one way to think about it: If people learned perfectly they should play half of the time (always for the positive expected value trial and never for the negative expected value trials). The fact that all proportions are above 50% suggests that nobody learns perfectly and that adults might be closest to it. But this is very crude and a better way to look at it would be to see how this depends on the different machines and how it changes throughout the task.
 
 ```{r}
 machine_game_data_clean %>%
@@ -248,7 +254,7 @@ machine_game_data_clean %>%
   labs(fill = 'Age group')
 ```
 
-Just to make sure that this crude measure is not capturing an interesting difference: Do the percentages of played trials differ from each other? No.  
+Just to make sure that this crude measure is not capturing an interesting difference: Do the percentages of played trials differ from each other? No.  (Baseline in this regression is how frequently adults timeout so the significant differences only say that they play and pass more than they time out)
 
 ```{r}
 tmp = machine_game_data_clean %>%
@@ -266,9 +272,9 @@ summary(lm(pct ~ Response*age_group, data = tmp))
 rm(tmp)
 ```
 
-To get a better sense of risk attitudes in different contingency states we break this proportion of playing down by machines.
+To get a better sense of behavior in different contingency states we break this proportion of playing down by machines.
 
-Indeed now we can see that adults are more 'risk-taking' i.e. play more frequently in positive expected value machines and less likely to play in negative expected value machines. This is why they perform better overall.
+Now we can see age differences in playing in different conditions.
 
 ```{r warning=FALSE}
 machine_game_data_clean %>%
@@ -291,8 +297,21 @@ machine_game_data_clean %>%
   labs(fill = 'Age group')
 ```
 
-Can we capture this in a regression too?  
-Yes, both interactions for kids in the negative expected value conditions are significant.
+```{r}
+ machine_game_data_clean %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
+  group_by(Sub_id, facet_labels, Response) %>%
+  tally %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(pct_play=(100*n)/sum(n)) %>%
+  filter(Response == 'play') %>%
+  do(assign.age.info(.)) %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(mean_play = mean(pct_play))
+```
+
+Let's check which of these behavioral differences in playing are significant.
 
 ```{r}
 tmp <- machine_game_data_clean %>%
