@@ -424,22 +424,7 @@ summary(lmer(pct_correct ~ age_group*facet_labels + (1|Sub_id), data = tmp))
 rm(tmp)
 ```
 
-```{r}
-machine_game_data_clean %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
-  group_by(Sub_id, facet_labels, Response) %>%
-  tally %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(pct=(100*n)/sum(n)) %>%
-  do(assign.age.info(.)) %>%
-  group_by(age_group, facet_labels, Response) %>%
-  dplyr::summarise(mean_pct = mean(pct),
-            sem_pct = sem(pct)) %>%
-  filter(Response == 'play')
-```
-
-Ultimately, however, since we are interested in differences in learning. These we must quantify with respect to changes in time.  
+Since we are interested in differences in learning we must quantify with respect to changes in time.  
 
 Because there are optimal answers for each of these machines (playing for positive expected value machines and not playing for negative expected value machines) we can recode the responses as correct vs. incorrect and model learning across time for each condition as the slope of the logistic regression of correct responses over time. The larger this slope the better is the learning.
 
@@ -485,6 +470,64 @@ machine_game_data_clean %>%
   ylab('Average slope')+
   labs(fill = 'Age group')+
   xlab('')
+
+```
+
+Should I be making use of the intercept? If I use trials starting at 0 then the intercept is where they start on average (so before learning and not interesting). If I center the trials then the intercept would tell me where they are by the middle of task for each machine. 
+
+```{r warning=FALSE, message=FALSE}
+machine_game_data_clean %>%
+  filter(Response %in% c(1,2)) %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(trial = (1:n())-23,
+         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
+  ggplot(aes(trial, correct1_incorrect0))+
+  geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
+  geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
+  facet_wrap(~facet_labels)+
+  theme_bw()+
+  xlab("Relative trial number")+
+  scale_y_continuous(breaks=c(0,1))+
+  labs(col="Age group")
+```
+
+Note excluding people with too high slopes for depiction.
+
+```{r warning=FALSE, message = FALSE}
+get_learning_coef <- function(data){
+  model = glm(correct1_incorrect0 ~ trial, family = binomial(link=logit), data = data)
+  b0 = coef(model)[1]
+  b1 = coef(model)[2]
+  learnIndex = -b0/b1                   
+  return(data.frame(b0, b1, learnIndex))
+}
+
+machine_game_data_clean %>%
+  filter(Response %in% c(1,2)) %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(trial = (1:n())-23,
+         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
+  do(get_learning_coef(.)) %>%
+  do(assign.age.info(.)) %>%
+  # filter(b1<1, learnIndex < 10, learnIndex > -10) %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(mean_b0 = mean(b0),
+            sem_b0 = sem(b0),
+            mean_b1 = mean(b1),
+            sem_b1 = sem(b1),
+            mean_learnIndex = mean(learnIndex),
+            sem_learnIndex = sem(learnIndex)) %>%
+  gather(key, value, -age_group, -facet_labels) %>%
+  separate(key, c("stat", "var")) %>%
+  spread(stat, value) %>%
+  ggplot(aes(facet_labels, mean, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_bar(stat='identity', position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=mean-sem, ymax=mean+sem), position = position_dodge(0.9), width=0.25)+
+  theme_bw()+
+  facet_wrap(~var, scales = 'free')+
+  labs(fill = 'Age group')+
+  xlab('')+
+  ylim(-1,1)
 
 ```
 
