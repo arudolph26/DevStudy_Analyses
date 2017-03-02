@@ -15,13 +15,14 @@ library(dplyr)
 library(tidyr)
 library(lme4)
 sem<-function(x)sd(x, na.rm=T)/sqrt(length(x[!is.na(x)]))
+render_this <- function(){rmarkdown::render('ExploratoryDVs.Rmd', html_notebook(toc = T, toc_float = T))}
 ```
 
 # Developmental changes in sensitivity to high variance feedback relates to differences in risky decision making
 
 This sample consists of three age groups: kids, teens and adults and we hypothesize that sensitivity to learn from high variance feedback improves with age and this is related to better risky decisions.  
 
-Subjects completed a probabilistic learning ask in the scanner, a realistic risky decision making task (BART) outside the scanner and numerous questionnaires. The focus of this notebook is on the first two tasks.  
+Subjects completed a probabilistic learning task in the scanner, a realistic risky decision making task (BART) outside the scanner and numerous questionnaires. The focus of this notebook is on the first two tasks.  
 
 The plan of analysis is to establish that adults are more sensitive to high variance feedback in the probabilistic learning task and relate this (modeled) sensitivity to behavior in BART.  
 
@@ -145,13 +146,13 @@ machine_game_data_clean %>%
 
 ## Performance in probabilistic learning task
 
-First let's examine the behavior in the probabilistic learning task.   
+Let's examine the behavior in the probabilistic learning task.   
 
-In this task subjects are presented with a fractal in each trial. The fractals represent different machines. Subjects choose to play or pass in each trial. Each machine yields a probabilistic reward. There are four machines in total. Two with positive and two with negative expected value. One of each of these machines has a low variance reward schedule while the other has a high variance reward structure. More clearly:  
-- One machine gives \$5 90% of the time and -\$495 %10 of the time
-- One machine gives -\$5 90% of the time and \$495 %10 of the time
-- One machine gives \$10 50% of the time and -$100 %50 of the time
-- One machine gives -\$10 50% of the time and $100 %50 of the time
+In this task subjects are presented with a fractal in each trial. The fractals represent different machines. Subjects choose to play or pass in each trial. Each machine yields a probabilistic reward. There are four machines in total. Two with positive and two with negative expected value. One of each of these machines has a low variance reward schedule while the other has a high variance reward schedule. More clearly:  
+- One machine gives \$5 90% of the time and -\$495 %10 of the time  
+- One machine gives -\$5 90% of the time and \$495 %10 of the time  
+- One machine gives \$10 50% of the time and -$100 %50 of the time  
+- One machine gives -\$10 50% of the time and $100 %50 of the time  
 
 Performance in this task can be assessed by looking at the total number of points subjects make at the end of task.
 
@@ -174,7 +175,7 @@ machine_game_data_clean %>%
 
 ```
 
-Indeed adults earn more points compared to the kids.
+Indeed adults earn more points compared to the kids (t = 2.771).
 
 ```{r}
 tmp = machine_game_data_clean %>%
@@ -188,7 +189,7 @@ summary(lm(total_points~age_group, data=tmp))
 rm(tmp)
 ```
 
-Since we are interested in the age differences between sensitivity to different feedback schedules, we should show that this difference in performance exists especially for the high variance feedback condition(s).
+Since we are interested in the age differences between sensitivity to different feedback schedules, we should show that this difference in performance exists especially for the high variance feedback condition(s). Here is the plot of performance (total points earned) broken down by conditions.
 
 ```{r}
 machine_game_data_clean %>%
@@ -209,11 +210,11 @@ machine_game_data_clean %>%
 
 ```
 
-Conclusions on performance:  
-- Kids do better in the low variance conditions compared to the high variance conditions. Kids make more in the low variance positive expected value machine than they they do in the high variance positive expected value machine (t = -2.477). They also loose less in the low variance negative expected value machine (t = -4.409) compared to what they loose in the negative expected value high variance machine (t = - 0.421).  
-- Adults and teens don't perform better than kids in the positive expected value machines; neither in the low variance positive expected condition (t = 1.717 and t = 427 respectively), nor in the high variance condition (t = 0.212 and t = 0.661). Though I wonder if it might be harder to detect a performance difference in the high variance positive expected value machine because of the large difference between magnitudes.    
+The multilevel model below, where the absolute number of points in each condition is regressed on age with random intercepts for each subject suggests the following conclusions on performance:   
+- Kids do better in the low variance conditions compared to the high variance conditions. Kids collect more points in the low variance positive expected value machine than they they do in the high variance positive expected value machine (t = -2.477). They also loose less in the low variance negative expected value machine (t = -4.409) compared to what they loose in the negative expected value high variance machine (t = - 0.421).  
+- Adults and teens don't perform better than kids in the positive expected value machines; neither in the low variance positive expected condition (t = 1.717 and t = 427 respectively), nor in the high variance condition (t = 0.212 and t = 0.661).      
 - Adults do outperform the kids in the negative expected value conditions both in the low variance conditions (t = -3.064) and the high variance condition (t = -3.422). Teens do not differ from kids in either negative expected value condition.  
-- So everybody (including kids) does better in the low variance conditions and is thus more sensitive to more frequent feedback but kids are worse in learning from negative feedback. Finding the age difference in performance only when comparing negative to positive expected value doesn't seem great given the emphasis of the hypothesis on the age differences to different feedback schedules. 
+- So everybody (including kids) does better in the low variance conditions and is thus more sensitive to more frequent feedback but kids are worse in learning from negative feedback. **Finding the age difference in performance only when comparing negative to positive expected value seems problematic given the emphasis of the hypothesis on the age differences to different variances in the feedback schedules.** 
 
 ```{r}
 # No sig other than difference between conditions
@@ -230,9 +231,11 @@ The question is what difference in behavior is leading to this difference in per
 
 ## Proportion of playing
 
-The first thing we can look at is how often do subjects play versus pass. It's hard to see any age differences here.  
+The first thing we can look at is how often do subjects play versus pass. It's hard to see any age differences when we just look at frequency of overall playing.   
 
-It is not immediately apparent how to translate this to better performance/learning in this task but one way to think about it: If people learned perfectly they should play half of the time (always for the positive expected value trial and never for the negative expected value trials). The fact that all proportions are above 50% suggests that nobody learns perfectly and that adults might be closest to it. But this is very crude and a better way to look at it would be to see how this depends on the different machines and how it changes throughout the task.
+It is also not immediately apparent how to translate this to better performance/learning in this task but one way to think about it: If people learned perfectly they should play half of the time (always for the positive expected value trial and never for the negative expected value trials). The fact that all play proportions are above 50% suggests that nobody learns perfectly and that adults might be closest to it. But this is very crude and a better way to look at it would be to see   
+a. how this depends on the different machines and   
+b. how it changes throughout the task.
 
 ```{r}
 machine_game_data_clean %>%
@@ -272,11 +275,11 @@ summary(lm(pct ~ Response*age_group, data = tmp))
 rm(tmp)
 ```
 
-To get a better sense of behavior in different contingency states we break this proportion of playing down by machines.
+To get a better sense of overall behavior in different contingency states we break this proportion of playing down by machines.
 
-Now we can see age differences in playing in different conditions.
+Now we can see age differences in playing frequency in different conditions.
 
-```{r warning=FALSE}
+```{r warning=FALSE, message=FALSE}
 machine_game_data_clean %>%
   mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
          Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
@@ -297,21 +300,11 @@ machine_game_data_clean %>%
   labs(fill = 'Age group')
 ```
 
-```{r}
- machine_game_data_clean %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
-  group_by(Sub_id, facet_labels, Response) %>%
-  tally %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(pct_play=(100*n)/sum(n)) %>%
-  filter(Response == 'play') %>%
-  do(assign.age.info(.)) %>%
-  group_by(age_group, facet_labels) %>%
-  summarise(mean_play = mean(pct_play))
-```
+The differences in points earned map directly on to proportion of choosing to play each machine:  
 
-Let's check which of these behavioral differences in playing are significant.
+- Adults (baseline in the regression below) play most for the low variance positive expected value condition (top left) then significantly less for the high variance positive expected value condition (top right, t = -3.368), even less for high variance negative expected value condition (bottom right, t = -6.842), and least for the low variance negative expected value condition (bottom left, t = -9.333). This pattern reflects a sensitivity to low variance (better learning for low variance conditions comparing the equivalent expected values).
+- Teens do not differ significantly from adults in any condition.
+- Kids do not differ from adults in playing proportion in the positive expected value conditions (top row; low variance t = -1.633, high variance t = 0.225) but they do choose to play the machine for both of the negative expected value conditions (bottom row; low variance t = 3.015, high variance t = 3.517)
 
 ```{r}
 tmp <- machine_game_data_clean %>%
@@ -327,6 +320,174 @@ tmp <- machine_game_data_clean %>%
 summary(lmer(pct_play ~ age_group*facet_labels + (1|Sub_id), data = tmp))
 rm(tmp)
 ```
+
+This is not surprising given what the number of points earned already showed. But now that we are looking at a behavioral measure instead of an outcome measure we can quantify constructs of interest like sensitivity to variance or sensitivity to the expected values of the machines. 
+
+Sensitivity to variance is defined as the difference in proportion of playing machines of same expected value.  
+Sensitivity to expected value is defined as the difference in proportion of playing machines of same variance.
+
+var sensitivty: left col - right col
+ev sensitivity: top row - bottom row
+
+positive var sensitivity: more sensitive to low variance
+
+```{r}
+machine_game_data_clean %>%
+  # mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+  #        Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')),
+  #        facet_labels = ifelse(facet_labels == '-10,+100', 'low_var_pos_ev', ifelse(facet_labels == '-5,+495', 'high_var_pos_ev', ifelse(facet_labels == '+10,-100','low_var_neg_ev', ifelse(facet_labels == '+5,-495', 'high_var_neg_ev',NA))))) %>%
+  filter(Response %in% c(1,2)) %>%
+  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
+         age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')),
+         facet_labels = ifelse(facet_labels == '-10,+100', 'low_var_pos_ev', ifelse(facet_labels == '-5,+495', 'high_var_pos_ev', ifelse(facet_labels == '+10,-100','low_var_neg_ev', ifelse(facet_labels == '+5,-495', 'high_var_neg_ev',NA)))))%>%
+  # group_by(Sub_id, facet_labels, Response) %>%
+  group_by(Sub_id, facet_labels, correct1_incorrect0) %>%
+  tally %>%
+  group_by(Sub_id, facet_labels) %>%
+  # mutate(pct_play=(100*n)/sum(n)) %>%
+  mutate(pct_correct=(100*n)/sum(n)) %>%
+  # filter(Response == 'play') %>%
+  filter(correct1_incorrect0 == 1) %>%
+  do(assign.age.info(.)) %>%
+  select(-n) %>%
+  # spread(facet_labels, pct_play)%>%
+  spread(facet_labels, pct_correct)%>%
+  mutate(var_sensitivity_pos = low_var_pos_ev - high_var_pos_ev,
+         var_sensitivity_neg = low_var_neg_ev - high_var_neg_ev,
+         ev_sensitivity_low = low_var_pos_ev - low_var_neg_ev,
+         ev_sensitivity_high = high_var_pos_ev - high_var_neg_ev) %>%
+  group_by(age_group) %>%
+  summarise(mean__var_sensitivity_pos = mean(var_sensitivity_pos,na.rm=T),
+         mean__var_sensitivity_neg = mean(var_sensitivity_neg,na.rm=T),
+         mean__ev_sensitivity_low = mean(ev_sensitivity_low,na.rm=T),
+         mean__ev_sensitivity_high = mean(ev_sensitivity_high,na.rm=T),
+         sem__var_sensitivity_pos = sem(var_sensitivity_pos),
+         sem__var_sensitivity_neg = sem(var_sensitivity_neg),
+         sem__ev_sensitivity_low = sem(ev_sensitivity_low),
+         sem__ev_sensitivity_high = sem(ev_sensitivity_high)) %>%
+  gather(key, value, -age_group) %>%
+  separate(key, c('stat', 'var'), sep="__") %>%
+  spread(stat, value) %>%
+  ggplot(aes(var, mean, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_bar(stat='identity', position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=mean-sem, ymax=mean+sem), position = position_dodge(0.9), width=0.25)+
+  theme_bw()+
+  ylab('Average difference in optimal choice')+
+  labs(fill = 'Age group')+
+  xlab('')
+```
+
+```{r}
+machine_game_data_clean %>%
+  filter(Response %in% c(1,2)) %>%
+  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
+         age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')))%>%
+  group_by(Sub_id, facet_labels, correct1_incorrect0) %>%
+  tally %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(pct_correct=(100*n)/sum(n)) %>%
+  filter(correct1_incorrect0 == 1) %>%
+  do(assign.age.info(.)) %>%
+  select(-n, -correct1_incorrect0) %>%
+  group_by(facet_labels, age_group) %>%
+  summarise(mean_pct_correct = mean(pct_correct, na.rm=T),
+            sem_pct_correct = sem(pct_correct)) %>%
+  ggplot(aes(facet_labels, mean_pct_correct, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_bar(stat='identity', position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=mean_pct_correct-sem_pct_correct, ymax=mean_pct_correct+sem_pct_correct), position = position_dodge(0.9), width=0.25)+
+  theme_bw()+
+  ylab('Average percent of optimal choice')+
+  labs(fill = 'Age group')+
+  xlab('')
+```
+
+Kids don't differ from adults in any condition. There is a lot of individual variability.
+
+```{r}
+tmp = machine_game_data_clean %>%
+  filter(Response %in% c(1,2)) %>%
+  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
+         age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')))%>%
+  group_by(Sub_id, facet_labels, correct1_incorrect0) %>%
+  tally %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(pct_correct=(100*n)/sum(n)) %>%
+  filter(correct1_incorrect0 == 1) %>%
+  do(assign.age.info(.)) %>%
+  select(-n, -correct1_incorrect0)
+
+summary(lmer(pct_correct ~ age_group*facet_labels + (1|Sub_id), data = tmp))
+
+rm(tmp)
+```
+
+```{r}
+machine_game_data_clean %>%
+  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
+  group_by(Sub_id, facet_labels, Response) %>%
+  tally %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(pct=(100*n)/sum(n)) %>%
+  do(assign.age.info(.)) %>%
+  group_by(age_group, facet_labels, Response) %>%
+  dplyr::summarise(mean_pct = mean(pct),
+            sem_pct = sem(pct)) %>%
+  filter(Response == 'play')
+```
+
+Ultimately, however, since we are interested in differences in learning. These we must quantify with respect to changes in time.  
+
+Because there are optimal answers for each of these machines (playing for positive expected value machines and not playing for negative expected value machines) we can recode the responses as correct vs. incorrect and model learning across time for each condition as the slope of the logistic regression of correct responses over time. The larger this slope the better is the learning.
+
+```{r warning = FALSE, message=FALSE}
+machine_game_data_clean %>%
+  filter(Response %in% c(1,2)) %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(trial = 1:n(),
+         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
+  ggplot(aes(trial, correct1_incorrect0))+
+  geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
+  geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
+  facet_wrap(~facet_labels)+
+  theme_bw()+
+  xlab("Relative trial number")+
+  scale_y_continuous(breaks=c(0,1))+
+  labs(col="Age group")
+```
+
+
+```{r warning=FALSE, message=FALSE}
+
+get_learning_coef <- function(data){
+  return(data.frame(b1 = glm(correct1_incorrect0 ~ trial, family = binomial(link=logit), data = data)$coef[2]))
+}
+
+machine_game_data_clean %>%
+  filter(Response %in% c(1,2)) %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(trial = 1:n(),
+         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
+  do(get_learning_coef(.)) %>%
+  arrange(-b1) %>%
+  do(assign.age.info(.)) %>%
+  filter(b1<1) %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(mean_b1 = mean(b1),
+            sem_b1 = sem(b1)) %>%
+  ggplot(aes(facet_labels, mean_b1, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_bar(stat='identity', position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=mean_b1-sem_b1, ymax=mean_b1+sem_b1), position = position_dodge(0.9), width=0.25)+
+  theme_bw()+
+  ylab('Average slope')+
+  labs(fill = 'Age group')+
+  xlab('')
+
+```
+
 
 Going back to task behavior: Are these differences in frequency of playing significant? A hierarchical regression suggests that compared to adults kids play more frequently in the '+5,-495' condition and less frequently in the '-10,+100' condition. (Teens are not different from adults.)
 
