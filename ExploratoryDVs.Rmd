@@ -592,5 +592,204 @@ rm(tmp)
 
 How should we define these?
 
-Sensitivity to variance is defined as the difference in proportion of playing machines of same expected value.  
-Sensitivity to expected value is defined as the difference in proportion of playing machines of same variance.
+
+```{r}
+
+get_obs_var_ev <- function(data){
+  
+  new_data = data
+  new_data$obs_var <- NA
+  new_data$obs_ev <-  NA
+  
+  for(i in 1:nrow(new_data)){
+    if(i == 1){
+      obs = 0
+      obs_ev = 0
+      obs_var = 0
+    }
+    else{
+      #get all the trials until the current trial
+      obs = new_data[1:i,]
+      #filter only played trials; their belief should not be updated based on the trials they haven't played
+      obs = obs %>% filter(Response == 1) %>% ungroup() %>% select(Points_earned)
+      obs_var = var(obs)
+      obs_probs =  as.numeric(prop.table(table(obs)))
+      obs_rewards = as.numeric(names(prop.table(table(obs))))
+      obs_ev = sum(obs_probs*obs_rewards)
+    }
+    new_data$obs_var[i] = obs_var
+    new_data$obs_ev[i] = obs_ev
+  }
+  new_data$obs_var = ifelse(is.na(new_data$obs_var), 0, new_data$obs_var)
+  return(new_data)
+}
+
+tmp = machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(get_obs_var_ev(.))%>% 
+  mutate(play1_pass0 = ifelse(Response == 1, 1, 0))
+```
+
+```{r}
+tmp3 = machine_game_data_clean %>% filter(Sub_id == '100003', Trial_type==1)
+
+get_obs_var_ev(tmp3) %>% 
+  select(obs_var, obs_ev, Response, Points_earned)
+```
+
+```{r}
+# Do this for each subject
+tmp_glm = glm(play1_pass0 ~ obs_ev, tmp,family = binomial(link=logit))
+
+tmp$predict_glm = predict(tmp_glm)
+tmp$predict_glm = with(tmp,ifelse(predict_glm>0.5,1,0))
+
+sum(tmp$play1_pass0 == tmp$predict_glm)/nrow(tmp)
+###########
+tmp %>%
+  ggplot(aes(obs_ev, obs_var)) +
+  geom_point()+
+  facet_wrap(~facet_labels, scales='free')+
+  theme_bw()
+```
+
+```{r}
+# This model is not really interesting
+# summary(glmer(play1_pass0 ~ scale(obs_var)+scale(obs_ev)+age_group+facet_labels+(1|Sub_id), 
+#       family = binomial(link=logit), data = tmp))
+
+#Convergence problems begin even here
+# summary(glmer(play1_pass0 ~ scale(obs_var)+scale(obs_ev)+age_group+facet_labels+
+#                 scale(obs_var):age_group+
+#                 scale(obs_ev):age_group+
+#                 (1|Sub_id), 
+#       family = binomial(link=logit), data = tmp))
+
+# The 3 way interactions (age*facet*var and age*facet*ev) are of interest here
+# BUT This seems to take forever; won't converge
+# glmer(play1_pass0 ~ scale(obs_var)+scale(obs_ev)+age_group+facet_labels+
+#         scale(obs_ev):age_group:facet_labels+
+#         scale(obs_var):age_group:facet_labels+(1|Sub_id), 
+#       family = binomial(link=logit), data = tmp)
+
+# Estimate var and ev parameters for each subject in each condition separately and compare those
+# This is very crude but just trying
+```
+
+```{r warning=FALSE, message=FALSE}
+tmp %>%
+  group_by(Sub_id, facet_labels) %>%
+  ggplot(aes(obs_ev, play1_pass0))+
+  geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
+  geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
+  facet_wrap(~facet_labels, scales='free')+
+  theme_bw()+
+  xlab("EV of played trials")+
+  scale_y_continuous(breaks=c(0,1))+
+  labs(col="Age group")+
+  ylab('Play vs. pass')
+```
+
+```{r warning=FALSE, message=FALSE}
+tmp %>%
+  group_by(Sub_id, facet_labels) %>%
+  ggplot(aes(obs_var, play1_pass0))+
+  geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
+  geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
+  facet_wrap(~facet_labels, scales='free')+
+  theme_bw()+
+  xlab("Variance of played trials")+
+  scale_y_continuous(breaks=c(0,1))+
+  labs(col="Age group")+
+  ylab('Play vs. pass')
+```
+
+```{r warning=FALSE, message=FALSE}
+tmp %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(trial = (1:n())-23) %>%
+  ggplot(aes(trial, obs_var))+
+  geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'lm', se = FALSE, alpha=0.2)+
+  geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'lm', se = FALSE, alpha=1, size=2)+
+  facet_wrap(~facet_labels, scales='free')+
+  theme_bw()+
+  xlab("Relative trial number")+
+  labs(col="Age group")+
+  ylab('Observed variance')
+```
+
+```{r warning=FALSE, message=FALSE}
+tmp %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(trial = 1:n()) %>%
+  ggplot(aes(trial, obs_ev))+
+  geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'lm', se = FALSE, alpha=0.2)+
+  geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'lm', se = FALSE, alpha=1, size=2)+
+  facet_wrap(~facet_labels, scales='free')+
+  theme_bw()+
+  xlab("Relative trial number")+
+  labs(col="Age group")+
+  ylab('Observed expected value')
+```
+
+```{r}
+summary(tmp$obs_ev)
+summary(tmp$obs_var)
+```
+
+```{r}
+tmp2 <- tmp %>% filter(Sub_id == '409381', Trial_type==1) %>% mutate(trial = 1:n())
+
+summary(glm(play1_pass0 ~ trial + obs_var + obs_var:trial + obs_ev + obs_ev:trial, data = tmp2, family = binomial(link = logit)))
+```
+
+```{r}
+get_sensitivity <- function(data){
+  betas = as.data.frame(coef(glm(play1_pass0 ~ trial + scale(obs_var, center=F) + scale(obs_var, center=F):trial + scale(obs_ev, center=F) + scale(obs_ev, center=F):trial, data = data, family = binomial(link = logit)))) 
+  betas$key = row.names(betas)
+  row.names(betas) = c(1:nrow(betas))
+  names(betas)[1] = c('value')
+  return(betas %>% spread(key, value))
+}
+
+betas = tmp %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(trial = 1:n()) %>%
+  do(get_sensitivity(.)) %>%
+  do(assign.age.info(.))
+
+tmp %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(trial = 1:n()) %>%
+  do(get_sensitivity(.))
+```
+
+```{r}
+names(betas) = gsub("\\(|\\)", "", names(betas))
+
+betas %>%
+  select(-calc_age, -Intercept) %>%
+  gather(key, value, -Sub_id, -facet_labels, -age_group) %>%
+  group_by(age_group, facet_labels, key) %>%
+  summarise(mean_val=mean(value, na.rm=T),
+            sem_val = sem(value)) %>%
+  ggplot(aes(key, mean_val, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  geom_bar(stat='identity', position=position_dodge(0.9))+
+  geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), position = position_dodge(0.9), width=0.25)+
+  theme_bw()+
+  xlab('')+
+  ylab('Parameter estimate')+
+  labs(fill = 'Age group')+
+  facet_wrap(~facet_labels)
+```
+
+```{r}
+summary(lm(obs_ev ~ age_group*facet_labels, data = betas))
+```
+
+```{r}
+summary(lm(obs_var ~ age_group*facet_labels, data = betas))
+```
+
+-- optimal choice per trial
+-- how does this relationship change across learning
