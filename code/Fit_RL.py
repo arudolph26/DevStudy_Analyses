@@ -52,6 +52,7 @@ def calculate_prediction_error(x0,data):
             EV[int(TrialNum[i]-1)] += Prediction_Error
     
     choicelogprob = 0
+    choiceprob = np.where(choiceprob == 1, 0.99999999, np.where(choiceprob == 0, 0.00000001, choiceprob))
     for each_item in choiceprob:
         choicelogprob = choicelogprob - math.log(each_item)
         
@@ -59,7 +60,7 @@ def calculate_prediction_error(x0,data):
 
 
 def select_optimal_parameters(subject):
-    data =  pd.read_csv(data_path+'ProbLearn'+subject+'.csv')
+    data =  pd.read_csv(data_path+'ProbLearn'+str(subject)+'.csv')
     
     Results = pd.DataFrame({'x0_alpha_neg' : [],
                             'x0_exponent' : [],
