@@ -8,8 +8,6 @@ data_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/Developmental study/Task/De
 
 output_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy/output/fits/'
 
-data = pd.read_csv(data_path+'ProbLearn409850.csv')
-
 def calculate_prediction_error(x0,data):
     
     TrialNum = data.Trial_type
@@ -18,10 +16,10 @@ def calculate_prediction_error(x0,data):
     
     EV = [0,0,0,0]
     Prediction_Error = 0
-    alphapos=0.05
-    alphaneg=x0[0]
-    beta=1
-    exponent=x0[1]
+    alphapos=x0[0]
+    alphaneg=x0[1]
+    beta=x0[2]
+    exponent=x0[3]
     choiceprob = np.zeros((len(TrialNum)))
     
     for i in range(len(TrialNum)):
@@ -38,6 +36,8 @@ def calculate_prediction_error(x0,data):
         #If a machine has been played update the RPE      
         if Outcome[i] != 0:
             
+            #ADD ADDITIONAL IF STATEMENT FOR SINGLE LEARNING RATE OPTION
+            
             #If the outcome is better than expected use alphapos
             if Outcome[i] > EV[int(TrialNum[i]-1)]:
                 Prediction_Error = alphapos*(Outcome[i] - EV[int(TrialNum[i]-1)])**exponent
@@ -51,24 +51,36 @@ def calculate_prediction_error(x0,data):
             
             EV[int(TrialNum[i]-1)] += Prediction_Error
     
-    choicelogprob = 0
+    neglogprob = 0
     choiceprob = np.where(choiceprob == 1, 0.99999999, np.where(choiceprob == 0, 0.00000001, choiceprob))
     for each_item in choiceprob:
-        choicelogprob = choicelogprob - math.log(each_item)
+        neglogprob = neglogprob - math.log(each_item)
         
-    return(choicelogprob)
+    return(neglogprob)
 
 
-def select_optimal_parameters(subject):
+def select_optimal_parameters(subject, n_fits=50, pars):
+    
     data =  pd.read_csv(data_path+'ProbLearn'+str(subject)+'.csv')
     
-    Results = pd.DataFrame({'x0_alpha_neg' : [],
-                            'x0_exponent' : [],
-                            'xopt_alpha_neg' : [],
-                            'xopt_exponent' : [],
-                            'choicelogprob' : [],})
-
-    for i in range(50):
+    Results = pd.DataFrame({'x0_alpha_pos' : np.nan,
+                            'x0_alpha_neg' : np.nan,
+                            'x0_beta' : np.nan,
+                            'x0_exponent' : np.nan,
+                            'xopt_alpha_pos' : np.nan,
+                            'xopt_alpha_neg' : np.nan,
+                            'xopt_beta' : np.nan,
+                            'xopt_exponent' : np.nan,
+                            'neglogprob' : np.nan}, index = range(n_fits))
+    
+    fixparams = ...
+    fitparams = ...
+    
+    model_name = 'LearningParamsFix_'+ ... + '_Fit_'+ ...
+    
+    # chenge x0 depending on pars
+    
+    for i in range(n_fits):
         #Priors
         x0=[random.uniform(0,.4),random.uniform(0,1)]
         try:
@@ -82,10 +94,20 @@ def select_optimal_parameters(subject):
             Results.x0_exponent[i]=x0[1]
             Results.xopt_alpha_neg[i]=xopt[0]
             Results.xopt_exponent[i]=xopt[1]
-            Results.choicelogprob[i] = calculate_prediction_error(xopt,data)
+            Results.neglogprob[i] = calculate_prediction_error(xopt,data)
             
         except:
             print("fmin error")
     
     #write out sorted data
-    Results.sort_values(by=['choicelogprob']).to_csv(output_path+'LearningParametersSingleAlpha_'+str(subject)+'.csv')
+    Results.sort_values(by=['neglogprob']).to_csv(output_path+ model_name+str(subject)+'.csv')
+    
+#TO ADD:
+    #Options for different parameters
+    #Model comparison: which 
+    #Stability of parameters for each subject
+    #Consistent age difference (regardless of parameter stability)
+#Imaging:
+    #BIDS validator
+    #MRI-QC
+    #fmri-prep
