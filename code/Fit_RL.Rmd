@@ -1,0 +1,125 @@
+---
+title: "Fit RL"
+author: "Zeynep Enkavi"
+date: "May 7, 2018"
+output: html_document
+---
+
+```{r warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+theme_set(theme_bw())
+```
+
+Load a single subject's data
+```{r}
+data = read.csv('/Users/zeynepenkavi/Dropbox/PoldrackLab/Developmental study/Task/Dev_Learning_Study/Output/fMRI/ProbLearn409850.csv')
+
+data
+```
+
+Function to get parameter estimates for this subject
+
+```{r}
+neg.log.lik <- function(par, data){
+  
+  beta = par[1]
+  alpha = par[2]
+  
+  #Vector of probabilities that will be estimated
+  prob <- rep(0, nrow(data))
+  
+  #Vector for log likelihoods that will be filled
+  err <- rep(0, nrow(data))
+  
+  #Initialize vector for expected values at 0
+  ev <- c(0,0,0,0)
+  
+  #For each trial in the data
+  for(i in 1:nrow(data)){
+    
+    #Probability of playing that machine is:
+    prob[i] = exp(ev[data$Trial_type[i]]*beta)/(exp(ev[data$Trial_type[i]]*beta)+1)
+    
+    #The expected value vector is updated for that machine if the machine has been played in that trial
+    ev[data$Trial_type[i]] <- ifelse(data$Response[i] == 1, ev[data$Trial_type[i]]+alpha*(data$Points_earned[i]-ev[data$Trial_type[i]]) ,ev[data$Trial_type[i]])
+    
+  }
+  
+  #To avoid log errors just in case
+  prob <- ifelse(prob == 1, 0.999999999999, 
+                 ifelse(prob == 0, 0.000000000001, prob))
+  
+  #Vectorized operation to get log likelihood
+  #Same thing as writing a condition for getting log(prob) if Response == 1
+  err <- data$Response * log(prob) + (1 - data$Response)*log(1-prob)
+  
+  #negative sum of log likelihood (to be minimized)
+  sumerr <- -sum(err,na.rm=T)
+  
+  return(sumerr)  
+}
+
+single.alpha.optim<- function(data, starting_vals){
+  
+  f_opt <- function(data, starting_vals){
+    optim.out <- optim(starting_vals, neg.log.lik, method = 'L-BFGS-B', lower=c(0,0), upper=c(50,1), data=data)
+    return(data.frame(neg.log.lik=optim.out$value, beta=optim.out$par[1], alpha=optim.out$par[2]))
+  }
+  
+  tryCatch(f_opt(data, starting_vals), error = function(e){return(data.frame(neg.log.lik=NA, beta=NA, alpha=NA))})
+  
+}
+
+fit.single.alpha.optim <- function(data){
+  beta_start = rgamma(n = 1, shape = 4, scale = 0.9)
+  alpha_start = rbeta(n = 1, shape1 = 0.01, shape2 = 0.02)
+  starting_vals = c(beta_start, alpha_start)
+  optim_out = single.alpha.optim(data, starting_vals)
+  fit_out = cbind(beta_start, alpha_start, optim_out)
+  return(fit_out)
+}
+```
+
+Fit model to subject 100 times
+
+```{r}
+sub_fit = plyr::rdply(100,fit.single.alpha.optim(data))
+```
+
+Examine output
+
+```{r warning=FALSE, message=FALSE}
+sub_fit %>%
+  select(beta, alpha) %>%
+  gather(key, value) %>%
+  ggplot(aes(value))+
+  geom_density(position = 'identity', alpha=0.5)+
+  facet_wrap(~key, scales='free')
+
+summary(sub_fit$alpha)
+summary(sub_fit$beta)
+
+
+sub_fit %>%
+  select(-.n, -neg.log.lik) %>%
+  gather(key, value) %>%
+  separate(key, into = c("par", "time"), sep = "_") %>%
+  mutate(time = ifelse(is.na(time), "end", time)) %>%
+  group_by(time) %>%
+  mutate(group_row = 1:n()) %>%
+  spread(time, value) %>%
+  select(-group_row) %>%
+  ggplot(aes(start, end))+
+  geom_point()+
+  geom_abline(slope=1, intercept=0)+
+  facet_wrap(~par, scales = 'free')
+
+```
+
+Examine likelihood surface for this subject
+
+```{r}
+
+```
