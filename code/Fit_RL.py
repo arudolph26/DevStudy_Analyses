@@ -79,19 +79,30 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_pos':np.nan, 'a
     fixparams = []
     fitparams = []
     
-    model_name = 'LearningParamsFix_'+ ... + '_Fit_'+ ...
-    
     for key in pars.keys():
         if np.isnan(pars[key]):
             fitparams.append(key)
         else:
             fixparams.append(key)
+            
+    model_name = 'LearningParamsFix_'+ '_'.join(fixparams) + '_Fit_'+ '_'.join(fitparams)
+    
+    def sample_x0(...):
+        
+        x0 = []
+        
+        #Fix vs fit params
+        
+        #Priors
+        
+        return x0
+    
     
     # chenge x0 depending on pars
     
     for i in range(n_fits):
         #Priors
-        #x0=[random.uniform(0,.4),random.uniform(0,1)]
+        x0=sample_x0(...)
         try:
             print(x0)
             
