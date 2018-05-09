@@ -9,6 +9,21 @@ data_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/Developmental study/Task/De
 
 output_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy/output/fits/'
 
+
+def extract_pars(pars):
+    fixparams = []
+    fitparams = []
+    
+    for key in sorted(pars.keys()):
+        if np.isnan(pars[key]):
+            fitparams.append(key)
+        else:
+            fixparams.append(key)
+    
+    out = {'fitparams':fitparams, 'fixparams':fixparams}
+        
+    return(out)
+
 def calculate_prediction_error(x0,data, pars):
     
     TrialNum = data.Trial_type
@@ -17,14 +32,19 @@ def calculate_prediction_error(x0,data, pars):
     
     EV = [0,0,0,0]
     Prediction_Error = 0
+    choiceprob = np.zeros((len(TrialNum)))
     
     #FIGURE OUT HOW TO FIX AND NOT FIT THESE - TRY USING PARS. X0 SHOULD ALREADY ONLY HAVE VALUES FOR THE PARAMETERS THAT WILL BE FITTED
+    
+    fixparams = extract_pars(pars)['fixparams']
+    fitparams = extract_pars(pars)['fitparams']
+    
     alphaneg=x0[0]
     alphapos=x0[1]
     beta=x0[2]
     expneg=x0[3]
     exppos=x0[4]
-    choiceprob = np.zeros((len(TrialNum)))
+    
     
     for i in range(len(TrialNum)):
         #First update the choice probabilities for each trial
@@ -79,17 +99,9 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'a
                             'xopt_exp_neg' : np.nan,
                             'neglogprob' : np.nan}, index = range(n_fits))
     
-    
-    #extract which parameters will be fit and which are fixed
-    fixparams = []
-    fitparams = []
-    
-    for key in pars.keys():
-        if np.isnan(pars[key]):
-            fitparams.append(key)
-        else:
-            fixparams.append(key)
-    
+    fixparams = extract_pars(pars)['fixparams']
+    fitparams = extract_pars(pars)['fitparams']
+      
     #make string containing info on fitted pars for output file name        
     model_name = 'LearningParamsFix_'+ '_'.join(fixparams) + '_Fit_'+ '_'.join(fitparams)
     
@@ -121,24 +133,27 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'a
             
         return(x0)
     
-    
-    # chenge x0 depending on pars
-    
     for i in range(n_fits):
-        #Priors
+    
         x0=sample_x0(pars)
+        
         try:
             print(x0)
             
             #Fit model
             xopt = scipy.optimize.fmin(calculate_prediction_error,x0,args=(data,pars,),xtol=1e-6,ftol=1e-6)
             
-            #Update Results output - SHOULD DEPEND ON PARS, maybe use the fixparams and fitparams lists?
-            #Results.x0_alpha_neg[i]=x0[0]
-            #Results.x0_exponent[i]=x0[1]
-            #Results.xopt_alpha_neg[i]=xopt[0]
-            #Results.xopt_exponent[i]=xopt[1]
-            #Results.neglogprob[i] = calculate_prediction_error(xopt,data)
+            #convert xopt to dictionary for easier update of Results df
+            xopt_dict = dict(zip(fitparams,list(xopt)))
+            
+            #fill in Results df with x0 and xopt for the fitted params
+            for key in sorted(pars.keys()):
+                    Results['x0_'+key][i] = pars[key]
+                    if key in fitparams:
+                        Results['xopt_'+key] = xopt_dict[key]
+            
+            #add neg log of fit to Results output
+            Results.neglogprob[i] = calculate_prediction_error(xopt,data)
             
         except:
             print("fmin error")
