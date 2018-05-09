@@ -9,7 +9,7 @@ data_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/Developmental study/Task/De
 
 output_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy/output/fits/'
 
-def calculate_prediction_error(x0,data):
+def calculate_prediction_error(x0,data, pars):
     
     TrialNum = data.Trial_type
     Response = data.Response
@@ -18,7 +18,7 @@ def calculate_prediction_error(x0,data):
     EV = [0,0,0,0]
     Prediction_Error = 0
     
-    #FIGURE OUT HOW TO FIX AND NOT FIT THESE
+    #FIGURE OUT HOW TO FIX AND NOT FIT THESE - TRY USING PARS. X0 SHOULD ALREADY ONLY HAVE VALUES FOR THE PARAMETERS THAT WILL BE FITTED
     alphaneg=x0[0]
     alphapos=x0[1]
     beta=x0[2]
@@ -79,6 +79,8 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'a
                             'xopt_exp_neg' : np.nan,
                             'neglogprob' : np.nan}, index = range(n_fits))
     
+    
+    #extract which parameters will be fit and which are fixed
     fixparams = []
     fitparams = []
     
@@ -87,7 +89,8 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'a
             fitparams.append(key)
         else:
             fixparams.append(key)
-            
+    
+    #make string containing info on fitted pars for output file name        
     model_name = 'LearningParamsFix_'+ '_'.join(fixparams) + '_Fit_'+ '_'.join(fitparams)
     
     def sample_x0(pars):
@@ -99,20 +102,23 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'a
             #if NaN then fit param; so sample from prior; otherwise leave as is
             if np.isnan(pars_copy[key]):
                 #Priors
+                #UPDATING X0 FOR ALL PARS THAT WILL BE FITTED AFTER SAMPLING FROM PRIOR TO make sure x0 has the correct order and only values for parameters that will be fittd!
                 if key == 'alpha_pos':
-                    pars_copy[key] = random.uniform(0,.4)
+                    pars_copy[key] = random.uniform(1,2)
+                    x0.append(pars_copy[key])
                 if key == 'alpha_neg':
-                    pars_copy[key] = random.uniform(0,.4)
+                    pars_copy[key] = random.uniform(3,4)
+                    x0.append(pars_copy[key])
                 if key == 'beta':
-                    pars_copy[key] = random.uniform(0,1)
+                    pars_copy[key] = random.uniform(5,6)
+                    x0.append(pars_copy[key])
                 if key == 'exp_pos':
-                    pars_copy[key] = random.uniform(0,1)
+                    pars_copy[key] = random.uniform(7,8)
+                    x0.append(pars_copy[key])
                 if key == 'exp_neg':
-                    pars_copy[key] = random.uniform(0,1)
+                    pars_copy[key] = random.uniform(9,10)
+                    x0.append(pars_copy[key])
             
-            #make sure x0 has the correct order!
-            x0.append(pars_copy[key])
-        
         return(x0)
     
     
@@ -125,9 +131,9 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'a
             print(x0)
             
             #Fit model
-            xopt = scipy.optimize.fmin(calculate_prediction_error,x0,args=(data,),xtol=1e-6,ftol=1e-6)
+            xopt = scipy.optimize.fmin(calculate_prediction_error,x0,args=(data,pars,),xtol=1e-6,ftol=1e-6)
             
-            #Update Results output - SHOULD DEPEND ON PARS
+            #Update Results output - SHOULD DEPEND ON PARS, maybe use the fixparams and fitparams lists?
             #Results.x0_alpha_neg[i]=x0[0]
             #Results.x0_exponent[i]=x0[1]
             #Results.xopt_alpha_neg[i]=xopt[0]
