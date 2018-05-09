@@ -103,19 +103,19 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'a
             if np.isnan(pars_copy[key]):
                 #Priors
                 #UPDATING X0 FOR ALL PARS THAT WILL BE FITTED AFTER SAMPLING FROM PRIOR TO make sure x0 has the correct order and only values for parameters that will be fittd!
-                if key == 'alpha_pos':
+                if key == 'alpha_neg':
                     pars_copy[key] = random.uniform(1,2)
                     x0.append(pars_copy[key])
-                if key == 'alpha_neg':
+                if key == 'alpha_pos':
                     pars_copy[key] = random.uniform(3,4)
                     x0.append(pars_copy[key])
                 if key == 'beta':
                     pars_copy[key] = random.uniform(5,6)
                     x0.append(pars_copy[key])
-                if key == 'exp_pos':
+                if key == 'exp_neg':
                     pars_copy[key] = random.uniform(7,8)
                     x0.append(pars_copy[key])
-                if key == 'exp_neg':
+                if key == 'exp_pos':
                     pars_copy[key] = random.uniform(9,10)
                     x0.append(pars_copy[key])
             
