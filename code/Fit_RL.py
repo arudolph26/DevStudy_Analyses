@@ -1,3 +1,4 @@
+import copy
 import math
 import numpy as np
 import pandas as pd
@@ -16,11 +17,13 @@ def calculate_prediction_error(x0,data):
     
     EV = [0,0,0,0]
     Prediction_Error = 0
-    alphapos=x0[0]
-    alphaneg=x0[1]
+    
+    #FIGURE OUT HOW TO FIX AND NOT FIT THESE
+    alphaneg=x0[0]
+    alphapos=x0[1]
     beta=x0[2]
-    exppos=x0[3]
-    expneg=x0[4]
+    expneg=x0[3]
+    exppos=x0[4]
     choiceprob = np.zeros((len(TrialNum)))
     
     for i in range(len(TrialNum)):
@@ -60,7 +63,7 @@ def calculate_prediction_error(x0,data):
     return(neglogprob)
 
 
-def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_pos':np.nan, 'alpha_neg':np.nan, 'beta':np.nan, 'exp_pos':np.nan, 'exp_neg':np.nan}):
+def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'alpha_pos':np.nan, 'beta':np.nan,  'exp_neg':np.nan, 'exp_pos':np.nan}):
     
     data =  pd.read_csv(data_path+'ProbLearn'+str(subject)+'.csv')
     
@@ -87,29 +90,44 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_pos':np.nan, 'a
             
     model_name = 'LearningParamsFix_'+ '_'.join(fixparams) + '_Fit_'+ '_'.join(fitparams)
     
-    def sample_x0(...):
+    def sample_x0(pars):
         
+        pars_copy = copy.copy(pars)
         x0 = []
-        
         #Fix vs fit params
+        for key in sorted(pars_copy.keys()):
+            #if NaN then fit param; so sample from prior; otherwise leave as is
+            if np.isnan(pars_copy[key]):
+                #Priors
+                if key == 'alpha_pos':
+                    pars_copy[key] = random.uniform(0,.4)
+                if key == 'alpha_neg':
+                    pars_copy[key] = random.uniform(0,.4)
+                if key == 'beta':
+                    pars_copy[key] = random.uniform(0,1)
+                if key == 'exp_pos':
+                    pars_copy[key] = random.uniform(0,1)
+                if key == 'exp_neg':
+                    pars_copy[key] = random.uniform(0,1)
+            
+            #make sure x0 has the correct order!
+            x0.append(pars_copy[key])
         
-        #Priors
-        
-        return x0
+        return(x0)
     
     
     # chenge x0 depending on pars
     
     for i in range(n_fits):
         #Priors
-        x0=sample_x0(...)
+        x0=sample_x0(pars)
         try:
             print(x0)
             
             #Fit model
             xopt = scipy.optimize.fmin(calculate_prediction_error,x0,args=(data,),xtol=1e-6,ftol=1e-6)
             
-            #Update Results output
+            #Update Results output - SHOULD DEPEND ON PARS
             #Results.x0_alpha_neg[i]=x0[0]
             #Results.x0_exponent[i]=x0[1]
             #Results.xopt_alpha_neg[i]=xopt[0]
