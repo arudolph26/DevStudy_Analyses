@@ -124,11 +124,14 @@ def calculate_prediction_error(x0,data, pars):
     return(neglogprob)
 
 
-def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'alpha_pos':np.nan, 'beta':np.nan,  'exp_neg':np.nan, 'exp_pos':np.nan}):
+def select_optimal_parameters(subject, n_fits=10, pars = {'alpha_neg':np.nan, 'alpha_pos':np.nan, 'beta':np.nan,  'exp_neg':np.nan, 'exp_pos':np.nan}):
     
     data =  pd.read_csv(data_path+'ProbLearn'+str(subject)+'.csv')
     
-    Results = pd.DataFrame(np.nan, columns=list(pars.keys()), index=range(n_fits))
+    cols = ['x0_'+s for s in list(sorted(pars.keys()))] +['xopt_'+s for s in list(sorted(pars.keys()))] + ['neglogprob']
+    
+    
+    Results = pd.DataFrame(np.nan, columns=cols, index=range(n_fits))
     
     fixparams = extract_pars(pars)['fixparams']
     fitparams = extract_pars(pars)['fitparams']
