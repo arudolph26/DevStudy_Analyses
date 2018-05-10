@@ -44,7 +44,13 @@ def calculate_prediction_error(x0,data, pars):
     x0_dict = dict(zip(fitparams,list(x0)))
     
     #now we create a dictionary that will contain all the appropriate numbers for each parameter that will be used in the RPE and EV calculations below
-    all_pars_dict = {'alpha_neg':np.nan, 'alpha_pos':np.nan, 'beta':np.nan, 'exp_neg':np.nan, 'exp_pos':np.nan}
+    if 'alpha' in pars.keys():
+        if 'exp' in pars.key():
+            all_pars_dict = {'alpha':np.nan, 'beta':np.nan, 'exp':np.nan}
+        else:
+            all_pars_dict = {'alpha':np.nan, 'beta':np.nan, 'exp_neg':np.nan, 'exp_pos':np.nan}
+    else:
+        all_pars_dict = {'alpha_neg':np.nan, 'alpha_pos':np.nan, 'beta':np.nan, 'exp_neg':np.nan, 'exp_pos':np.nan}
     
     #we populate each element in this dictionary of all to-be-used parameters by going through each key; checking if it is in fixparams. If so we extract is from the params argument in the function call, otherwise we extract the sampled value from x0
     for par in sorted(all_pars_dict.keys()):
@@ -54,11 +60,17 @@ def calculate_prediction_error(x0,data, pars):
             all_pars_dict[par] = x0_dict[par]
     
     #finally we assign the to-be used parameters to objects to avoid too much typing in the rest of the loops
-    alphaneg=all_pars_dict['alpha_neg']
-    alphapos=all_pars_dict['alpha_pos']
+    if 'alpha' in all_pars_dict.keys():
+        alpha=all_pars_dict['alpha']
+    else:
+        alphaneg=all_pars_dict['alpha_neg']
+        alphapos=all_pars_dict['alpha_pos']
     beta=all_pars_dict['beta']
-    expneg=all_pars_dict['exp_neg']
-    exppos=all_pars_dict['exp_pos']
+    if 'exp' in all_pars_dict.keys():
+        exp=all_pars_dict['exp']
+    else:
+        expneg=all_pars_dict['exp_neg']
+        exppos=all_pars_dict['exp_pos']
       
     for i in range(len(TrialNum)):
         #First update the choice probabilities for each trial
@@ -73,16 +85,31 @@ def calculate_prediction_error(x0,data, pars):
         
         #If a machine has been played update the RPE      
         if Outcome[i] != 0:
-            
-            #ADD ADDITIONAL IF STATEMENT FOR SINGLE LEARNING RATE OPTION
-            
-            #If the outcome is better than expected use alphapos
+                        
             if Outcome[i] > EV[int(TrialNum[i]-1)]:
-                Prediction_Error = alphapos*(Outcome[i] - EV[int(TrialNum[i]-1)])**exppos
+            
+                if 'alpha' in vars() or 'alpha' in globals():
+                    if 'exp' in vars() or 'exp' in globals():
+                        Prediction_Error = alpha*(Outcome[i] - EV[int(TrialNum[i]-1)])**exp
+                    else:
+                        Prediction_Error = alpha*(Outcome[i] - EV[int(TrialNum[i]-1)])**exppos
+                elif 'exp' in vars() or 'exp' in globals():
+                    Prediction_Error = alphapos*(Outcome[i] - EV[int(TrialNum[i]-1)])**exp
+                else:
+                    Prediction_Error = alphapos*(Outcome[i] - EV[int(TrialNum[i]-1)])**exppos
             
             #If the outcome is worst than expected use alphaneg
             if Outcome[i] < EV[int(TrialNum[i]-1)]:
-                Prediction_Error = -1*alphaneg*(EV[int(TrialNum[i]-1)]-Outcome[i])**expneg #have to do it this way because you can't put a negative number to an exponent between 0 and 1
+                
+                if 'alpha' in vars() or 'alpha' in globals():
+                    if 'exp' in vars() or 'exp' in globals():
+                        Prediction_Error = -1*alpha*(EV[int(TrialNum[i]-1)]-Outcome[i])**exp #have to do it this way because you can't put a negative number to an exponent between 0 and 1
+                    else:
+                        Prediction_Error = -1*alpha*(EV[int(TrialNum[i]-1)]-Outcome[i])**expneg
+                elif 'exp' in vars() or 'exp' in globals():
+                    Prediction_Error = -1*alphaneg*(EV[int(TrialNum[i]-1)]-Outcome[i])**exp
+                else:
+                    Prediction_Error = -1*alphaneg*(EV[int(TrialNum[i]-1)]-Outcome[i])**expneg
                    
             if Outcome[i] == EV[int(TrialNum[i]-1)]:
                 Prediction_Error = 0
@@ -101,17 +128,7 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'a
     
     data =  pd.read_csv(data_path+'ProbLearn'+str(subject)+'.csv')
     
-    Results = pd.DataFrame({'x0_alpha_pos' : np.nan,
-                            'x0_alpha_neg' : np.nan,
-                            'x0_beta' : np.nan,
-                            'x0_exp_pos' : np.nan,
-                            'x0_exp_neg' : np.nan,
-                            'xopt_alpha_pos' : np.nan,
-                            'xopt_alpha_neg' : np.nan,
-                            'xopt_beta' : np.nan,
-                            'xopt_exp_pos' : np.nan,
-                            'xopt_exp_neg' : np.nan,
-                            'neglogprob' : np.nan}, index = range(n_fits))
+    Results = pd.DataFrame(np.nan, columns=list(pars.keys()), index=range(n_fits))
     
     fixparams = extract_pars(pars)['fixparams']
     fitparams = extract_pars(pars)['fitparams']
@@ -129,20 +146,26 @@ def select_optimal_parameters(subject, n_fits=50, pars = {'alpha_neg':np.nan, 'a
             if np.isnan(pars_copy[key]):
                 #Priors
                 #UPDATING X0 FOR ALL PARS THAT WILL BE FITTED AFTER SAMPLING FROM PRIOR TO make sure x0 has the correct order and only values for parameters that will be fittd!
+                if key == 'alpha':
+                    pars_copy[key] = random.uniform(0,1)
+                    x0.append(pars_copy[key])
                 if key == 'alpha_neg':
-                    pars_copy[key] = random.uniform(1,2)
+                    pars_copy[key] = random.uniform(0,1)
                     x0.append(pars_copy[key])
                 if key == 'alpha_pos':
-                    pars_copy[key] = random.uniform(3,4)
+                    pars_copy[key] = random.uniform(0,1)
                     x0.append(pars_copy[key])
                 if key == 'beta':
-                    pars_copy[key] = random.uniform(5,6)
+                    pars_copy[key] = random.uniform(0,5)
+                    x0.append(pars_copy[key])
+                if key == 'exp':
+                    pars_copy[key] = random.uniform(0,1)
                     x0.append(pars_copy[key])
                 if key == 'exp_neg':
-                    pars_copy[key] = random.uniform(7,8)
+                    pars_copy[key] = random.uniform(0,1)
                     x0.append(pars_copy[key])
                 if key == 'exp_pos':
-                    pars_copy[key] = random.uniform(9,10)
+                    pars_copy[key] = random.uniform(0,1)
                     x0.append(pars_copy[key])
             
         return(x0)
