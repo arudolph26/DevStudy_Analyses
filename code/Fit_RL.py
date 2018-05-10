@@ -41,7 +41,7 @@ def calculate_prediction_error(x0,data, pars):
     
     #because the length of x0 and the parameters the values in it correspond to will change depending on what is fixed vs. fit we need a named dictionary
     #we use the list of fitparams for this
-    x0_dict = dict(zip(fitparams,list(x0)))
+    x0_dict = dict(zip(fitparams,x0))
     
     #now we create a dictionary that will contain all the appropriate numbers for each parameter that will be used in the RPE and EV calculations below
     if 'alpha' in pars.keys():
@@ -124,7 +124,7 @@ def calculate_prediction_error(x0,data, pars):
     return(neglogprob)
 
 
-def select_optimal_parameters(subject, n_fits=10, pars = {'alpha_neg':np.nan, 'alpha_pos':np.nan, 'beta':np.nan,  'exp_neg':np.nan, 'exp_pos':np.nan}):
+def select_optimal_parameters(subject, n_fits=3, pars = {'alpha_neg':np.nan, 'alpha_pos':np.nan, 'beta':np.nan,  'exp_neg':np.nan, 'exp_pos':np.nan}):
     
     data =  pd.read_csv(data_path+'ProbLearn'+str(subject)+'.csv')
     
@@ -176,6 +176,7 @@ def select_optimal_parameters(subject, n_fits=10, pars = {'alpha_neg':np.nan, 'a
     for i in range(n_fits):
     
         x0=sample_x0(pars)
+        x0_dict = dict(zip(fitparams,x0))
         
         try:
             print(x0)
@@ -187,13 +188,15 @@ def select_optimal_parameters(subject, n_fits=10, pars = {'alpha_neg':np.nan, 'a
             xopt_dict = dict(zip(fitparams,list(xopt)))
             
             #fill in Results df with x0 and xopt for the fitted params
-            for key in sorted(pars.keys()):
-                    Results['x0_'+key][i] = pars[key]
-                    if key in fitparams:
-                        Results['xopt_'+key] = xopt_dict[key]
+            for key in fitparams:
+                Results['x0_'+key][i] = x0_dict[key]
+                Results['xopt_'+key][i] = xopt_dict[key]
+                
+            for key in fixparams:
+                Results['x0_'+key][i] = pars[key]
             
             #add neg log of fit to Results output
-            Results.neglogprob[i] = calculate_prediction_error(xopt,data)
+            Results.neglogprob[i] = calculate_prediction_error(xopt,data,pars)
             
         except:
             print("fmin error")
