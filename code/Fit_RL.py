@@ -45,10 +45,12 @@ def calculate_prediction_error(x0,data, pars):
     
     #now we create a dictionary that will contain all the appropriate numbers for each parameter that will be used in the RPE and EV calculations below
     if 'alpha' in pars.keys():
-        if 'exp' in pars.key():
+        if 'exp' in pars.keys():
             all_pars_dict = {'alpha':np.nan, 'beta':np.nan, 'exp':np.nan}
         else:
             all_pars_dict = {'alpha':np.nan, 'beta':np.nan, 'exp_neg':np.nan, 'exp_pos':np.nan}
+    elif 'exp' in pars.keys():
+        all_pars_dict = {'alpha_neg':np.nan, 'alpha_pos':np.nan, 'beta':np.nan, 'exp':np.nan}
     else:
         all_pars_dict = {'alpha_neg':np.nan, 'alpha_pos':np.nan, 'beta':np.nan, 'exp_neg':np.nan, 'exp_pos':np.nan}
     
