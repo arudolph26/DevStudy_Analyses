@@ -182,8 +182,11 @@ def select_optimal_parameters(subject, n_fits=3, pars = {'alpha_neg':np.nan, 'al
             print(x0)
             
             #Fit model
-            xopt = scipy.optimize.fmin(calculate_prediction_error,x0,args=(data,pars,),xtol=1e-6,ftol=1e-6)
-            
+            try:
+                xopt = scipy.optimize.fmin(calculate_prediction_error,x0,args=(data,pars,),xtol=1e-6,ftol=1e-6)
+            except OverflowError:
+                xopt = [float('inf')]*len(x0) 
+                
             #convert xopt to dictionary for easier update of Results df
             xopt_dict = dict(zip(fitparams,list(xopt)))
             
@@ -202,7 +205,7 @@ def select_optimal_parameters(subject, n_fits=3, pars = {'alpha_neg':np.nan, 'al
             print("fmin error")
     
     #write out sorted data
-    Results.sort_values(by=['neglogprob']).to_csv(output_path+ model_name+str(subject)+'.csv')
+    Results.sort_values(by=['neglogprob']).to_csv(output_path+ model_name+'_'+str(subject)+'.csv')
     
 # Based on http://zenkavi.github.io/DevStudy/output/reports/ExploratoryDVs.nb.html
 # the age difference in this task lies in learning from high variance negative feedback
