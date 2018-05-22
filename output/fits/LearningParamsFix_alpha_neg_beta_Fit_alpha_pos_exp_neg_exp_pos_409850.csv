@@ -1,0 +1,4 @@
+,x0_alpha_neg,x0_alpha_pos,x0_beta,x0_exp_neg,x0_exp_pos,xopt_alpha_neg,xopt_alpha_pos,xopt_beta,xopt_exp_neg,xopt_exp_pos,neglogprob
+0,0.5,0.6173283513855125,1.0,0.2633837128811056,0.6284568863591159,,inf,,inf,inf,
+1,0.5,0.5498935480298976,1.0,0.38810278784162167,0.8439154822545503,,inf,,inf,inf,
+2,0.5,0.7674540535348185,1.0,0.20479686552309562,0.03381753988906444,,inf,,inf,inf,
