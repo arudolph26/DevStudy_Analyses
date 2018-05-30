@@ -5,9 +5,9 @@ import pandas as pd
 import random
 import scipy.optimize
 
-data_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/Developmental study/Task/Dev_Learning_Study/Output/fMRI/'
+data_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/Sarah_Developmental study/Task/Dev_Learning_Study/Output/fMRI/'
 
-output_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy/output/fits/'
+output_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/fits/'
 
 
 def extract_pars(pars):
