@@ -1,0 +1,41 @@
+---
+title: "RL models comparison"
+output:
+github_document:
+toc: yes
+toc_float: yes
+---
+
+```{r}
+library(tidyverse)
+
+cbbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+theme_set(theme_bw())
+ggplot <- function(...) ggplot2::ggplot(...) + scale_fill_manual(values=cbbPalette) + scale_color_manual(values=cbbPalette)+theme(legend.position="bottom")
+
+input_dir = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_fits/'
+
+fig_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/figures/'
+
+process_fits = function(data){
+  require(tidyverse)
+  data = data %>% select(-contains("Unnamed"), -contains("X"))
+  return(data)
+}
+```
+
+```{r}
+fits = list.files(path=input_dir, pattern = "All")
+
+for(f in fits){
+  data = read.csv(paste0(input_dir, f))
+  data = process_fits(data)
+  p = data %>% 
+  ggplot(aes(neglogprob))+
+  geom_histogram()+
+  facet_wrap(~sub_id, scales='free')
+  p_name = gsub('.csv','',f)
+  p_name = gsub('LearningParams','Neglogs',p_name)
+  ggsave(paste0(p_name, '.jpeg'), plot=p, device = 'jpeg', path = fig_path, width = 30, height = 30, units = "in", limitsize = FALSE)
+}
+```
