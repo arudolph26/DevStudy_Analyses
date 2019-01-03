@@ -17,12 +17,16 @@ input_dir = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_
 
 fig_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/figures/'
 
+sem <- function(x) {sd(x, na.rm=T) / sqrt(length(x))}
+
 process_fits = function(data){
   require(tidyverse)
   data = data %>% select(-contains("Unnamed"), -contains("X"))
   return(data)
 }
 ```
+
+Save plot of neglogprob distributions for all subject for each model
 
 ```{r}
 fits = list.files(path=input_dir, pattern = "All")
@@ -38,4 +42,49 @@ for(f in fits){
   p_name = gsub('LearningParams','Neglogs',p_name)
   ggsave(paste0(p_name, '.jpeg'), plot=p, device = 'jpeg', path = fig_path, width = 30, height = 30, units = "in", limitsize = FALSE)
 }
+```
+
+Which is the best model?
+
+```{r}
+out = data.frame(mean_nlp=NA, sem_nlp = NA, model=NA)
+
+for(f in fits){
+  data = read.csv(paste0(input_dir, f))
+  data = process_fits(data)
+  data = data %>%
+    group_by(sub_id) %>%
+    slice(which.min(neglogprob)) %>%
+    select(neglogprob, sub_id, model) %>%
+    ungroup() %>%
+    summarise(mean_nlp = mean(neglogprob),
+              sem_nlp = sem(neglogprob),
+              model = unique(model))
+  out = rbind(out, data)
+}
+
+out = out %>% drop_na()
+```
+
+
+```{r}
+out %>% 
+  ggplot(aes(factor(model, levels = out[order(out$mean_nlp),'model']), mean_nlp))+
+  geom_point()+
+  geom_errorbar(aes(ymin=mean_nlp-sem_nlp, ymax=mean_nlp+sem_nlp))+
+  theme(axis.text.x = element_blank())+
+  xlab("")+
+  ylab("Mean Neglogprob")
+```
+
+```{r}
+out %>% 
+  arrange(mean_nlp) %>%
+  select(model, everything())
+```
+
+Do models differ in fit by age group?
+
+```{r}
+
 ```
