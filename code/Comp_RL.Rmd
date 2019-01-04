@@ -44,10 +44,18 @@ for(f in fits){
 }
 ```
 
+Look up df for AIC and BIC calculation
+
+```{r}
+num_pars_df = data.frame(model = c('LearningParams_Fit_alpha_Fix_beta-exp_','LearningParams_Fit_alpha_neg_Fix_alpha_pos-beta-exp_','LearningParams_Fit_alpha_neg-alpha_pos_Fix_beta-exp_','LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg_Fix_exp_pos_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_pos_Fix_exp_neg_','LearningParams_Fit_alpha_neg-alpha_pos-exp_Fix_beta_','LearningParams_Fit_alpha_neg-alpha_pos-exp_neg_Fix_beta-exp_pos_','LearningParams_Fit_alpha_neg-alpha_pos-exp_neg-exp_pos_Fix_beta_','LearningParams_Fit_alpha_neg-alpha_pos-exp_pos_Fix_beta-exp_neg_','LearningParams_Fit_alpha_neg-beta_Fix_alpha_pos-exp_','LearningParams_Fit_alpha_neg-beta-exp_neg_Fix_alpha_pos-exp_pos_','LearningParams_Fit_alpha_neg-beta-exp_pos_Fix_alpha_pos-exp_neg_','LearningParams_Fit_alpha_neg-exp_Fix_alpha_pos-beta_','LearningParams_Fit_alpha_neg-exp_neg_Fix_alpha_pos-beta-exp_pos_','LearningParams_Fit_alpha_neg-exp_neg-exp_pos_Fix_alpha_pos-beta_','LearningParams_Fit_alpha_neg-exp_pos_Fix_alpha_pos-beta-exp_neg_','LearningParams_Fit_alpha_pos_Fix_alpha_neg-beta-exp_','LearningParams_Fit_alpha_pos-beta-exp_Fix_alpha_neg_','LearningParams_Fit_alpha_pos-beta-exp_neg_Fix_alpha_neg-exp_pos_','LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_','LearningParams_Fit_alpha_pos-beta-exp_pos_Fix_alpha_neg-exp_neg_','LearningParams_Fit_alpha_pos-exp_Fix_alpha_neg-beta_','LearningParams_Fit_alpha_pos-exp_neg_Fix_alpha_neg-beta-exp_pos_','LearningParams_Fit_alpha_pos-exp_neg-exp_pos_Fix_alpha_neg-beta_','LearningParams_Fit_alpha_pos-exp_pos_Fix_alpha_neg-beta-exp_neg_','LearningParams_Fit_alpha-beta-exp_Fix_','LearningParams_Fit_alpha-beta-exp_neg_Fix_exp_pos_','LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha-beta-exp_pos_Fix_exp_neg_','LearningParams_Fit_alpha-exp_Fix_beta_','LearningParams_Fit_alpha-exp_neg_Fix_beta-exp_pos_','LearningParams_Fit_alpha-exp_neg-exp_pos_Fix_beta_','LearningParams_Fit_alpha-exp_pos_Fix_beta-exp_neg_','LearningParams_Fit_beta-exp_Fix_alpha_','LearningParams_Fit_beta-exp_neg-exp_pos_Fix_alpha_'), pars = c(1,1,2,3,4,4,5,4,3,3,4,3,2,3,3,2,2,3,2,1,3,3,4,3,2,2,3,2,2,3,4,3,2,2,3,2,2,3))
+num_pars_df = num_pars_df %>%
+  mutate(model = as.character(model))
+```
+
 Which is the best model?
 
 ```{r}
-out = data.frame(mean_nlp=NA, sem_nlp = NA, model=NA)
+out = data.frame(mean_nlp=NA, sem_nlp = NA, mean_aic=NA, sem_aic = NA, mean_bic=NA, sem_bic = NA, model=NA)
 
 for(f in fits){
   data = read.csv(paste0(input_dir, f))
@@ -56,16 +64,23 @@ for(f in fits){
     group_by(sub_id) %>%
     slice(which.min(neglogprob)) %>%
     select(neglogprob, sub_id, model) %>%
+    mutate(model = as.character(model)) %>%
+    left_join(num_pars_df, by='model') %>%
+    mutate(AIC = 2*neglogprob+2*pars,
+           BIC = 2*neglogprob+pars*log(180)) %>%
     ungroup() %>%
     summarise(mean_nlp = mean(neglogprob),
               sem_nlp = sem(neglogprob),
+              mean_aic = mean(AIC),
+              sem_aic = sem(AIC),
+              mean_bic = mean(BIC),
+              sem_bic = sem(BIC),
               model = unique(model))
   out = rbind(out, data)
 }
 
 out = out %>% drop_na()
 ```
-
 
 ```{r}
 out %>% 
