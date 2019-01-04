@@ -21,8 +21,22 @@ sem <- function(x) {sd(x, na.rm=T) / sqrt(length(x))}
 
 process_fits = function(data){
   require(tidyverse)
-  data = data %>% select(-contains("Unnamed"), -contains("X"))
+  data = data %>% select(-contains("Unnamed"), -X)
   return(data)
+}
+
+rbind.all.columns <- function(x, y) {
+  
+  if(ncol(x) == 0 | ncol(y) == 0){
+    out = plyr::rbind.fill(x, y)
+  } else{
+    x.diff <- setdiff(colnames(x), colnames(y))
+    y.diff <- setdiff(colnames(y), colnames(x))
+    x[, c(as.character(y.diff))] <- NA
+    y[, c(as.character(x.diff))] <- NA
+    out = rbind(x, y)
+  }
+  return(out)
 }
 ```
 
@@ -30,7 +44,9 @@ Save plot of neglogprob distributions for all subject for each model
 
 ```{r}
 fits = list.files(path=input_dir, pattern = "All")
+```
 
+```{r}
 for(f in fits){
   data = read.csv(paste0(input_dir, f))
   data = process_fits(data)
@@ -55,7 +71,7 @@ num_pars_df = num_pars_df %>%
 Which is the best model?
 
 ```{r}
-out = data.frame(mean_nlp=NA, sem_nlp = NA, mean_aic=NA, sem_aic = NA, mean_bic=NA, sem_bic = NA, model=NA)
+sub_pars = data.frame()
 
 for(f in fits){
   data = read.csv(paste0(input_dir, f))
@@ -63,43 +79,61 @@ for(f in fits){
   data = data %>%
     group_by(sub_id) %>%
     slice(which.min(neglogprob)) %>%
-    select(neglogprob, sub_id, model) %>%
     mutate(model = as.character(model)) %>%
     left_join(num_pars_df, by='model') %>%
     mutate(AIC = 2*neglogprob+2*pars,
-           BIC = 2*neglogprob+pars*log(180)) %>%
-    ungroup() %>%
-    summarise(mean_nlp = mean(neglogprob),
-              sem_nlp = sem(neglogprob),
-              mean_aic = mean(AIC),
-              sem_aic = sem(AIC),
-              mean_bic = mean(BIC),
-              sem_bic = sem(BIC),
-              model = unique(model))
-  out = rbind(out, data)
+           BIC = 2*neglogprob+pars*log(180))
+  sub_pars = rbind.all.columns(sub_pars,data.frame(data))
 }
 
-out = out %>% drop_na()
+sub_pars = sub_pars %>%
+  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult"))) %>%
+  drop_na(age_group)
 ```
 
 ```{r}
-out %>% 
-  ggplot(aes(factor(model, levels = out[order(out$mean_nlp),'model']), mean_nlp))+
+sub_pars %>%
+  select(model, BIC) %>%
+  group_by(model) %>%
+  summarise(mean_bic = mean(BIC), 
+            sem_bic = sem(BIC)) %>%
+  mutate(model = gsub("LearningParams_", "", model)) %>%
+  ggplot(aes(factor(model), mean_bic))+
   geom_point()+
-  geom_errorbar(aes(ymin=mean_nlp-sem_nlp, ymax=mean_nlp+sem_nlp))+
-  theme(axis.text.x = element_blank())+
+  geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic))+
+  theme(axis.text.x = element_text(angle = 90))+
   xlab("")+
-  ylab("Mean Neglogprob")
+  ylab("Mean BIC across subjects")
 ```
 
 ```{r}
-out %>% 
-  arrange(mean_nlp) %>%
-  select(model, everything())
+sub_pars %>%
+  select(model, BIC) %>%
+  group_by(model) %>%
+  summarise(mean_bic = mean(BIC), 
+            sem_bic = sem(BIC)) %>%
+  mutate(model = gsub("LearningParams_", "", model)) %>%
+  arrange(mean_bic)
 ```
 
-Do models differ in fit by age group?
+Do models differ in fit by age group? No. Models are consistently best fit to adults but the difference is very small.
 
 ```{r}
+sub_pars %>%
+  group_by(age_group, model) %>%
+  summarise(mean_bic = mean(BIC),
+            sem_bic = mean(BIC)) %>%
+  ggplot(aes(model,mean_bic, color=age_group))+
+  geom_point()+
+  geom_errorbar(aes(ymin = mean_bic-sem_bic, ymax = mean_bic+sem_bic))+
+  xlab("")+
+  ylab("Mean BIC across subjects")+
+  theme(axis.text.x = element_blank(),
+        legend.title = element_blank())
+```
 
+```{r}
+sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")%>% 
+  select_if(~sum(!is.na(.)) > 0)
 ```
