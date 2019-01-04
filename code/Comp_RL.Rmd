@@ -132,8 +132,54 @@ sub_pars %>%
         legend.title = element_blank())
 ```
 
+Age differences in parameters for best fitting model?
+
 ```{r}
 sub_pars %>%
   filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")%>% 
-  select_if(~sum(!is.na(.)) > 0)
+  select_if(~sum(!is.na(.)) > 0) %>%
+  select(-model, -pars, -neglogprob, -sub_id, -AIC, -BIC, -contains("x0")) %>%
+  mutate(age_group = factor(age_group, levels = c("kid", "teen", "adult"))) %>%
+  gather(par, value, -age_group) %>%
+  ggplot(aes(age_group, value))+
+  geom_boxplot()+
+  facet_wrap(~par)+
+  ylim(0,5)
+```
+
+Age differences in parameters for preferred model
+
+```{r}
+sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")%>% 
+  select_if(~sum(!is.na(.)) > 0) %>%
+  select(-model, -pars, -neglogprob, -sub_id, -AIC, -BIC, -contains("x0")) %>%
+  mutate(age_group = factor(age_group, levels = c("kid", "teen", "adult"))) %>%
+  gather(par, value, -age_group) %>%
+  ggplot(aes(age_group, value))+
+  geom_boxplot()+
+  facet_wrap(~par)+
+  ylim(0,5)
+```
+
+```{r}
+summary(lm(xopt_alpha ~ age_group, sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
+```
+
+```{r}
+summary(lm(xopt_beta ~ age_group, sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
+```
+
+Difference in exp_neg: exponent on loss. A loss doesn't feel as severe for kids and teens as it does for adults. 
+
+```{r}
+summary(lm(xopt_exp_neg ~ age_group, sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
+```
+
+```{r}
+summary(lm(xopt_exp_pos ~ age_group, sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
