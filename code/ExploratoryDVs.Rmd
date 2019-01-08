@@ -14,7 +14,9 @@ library(dplyr)
 library(tidyr)
 library(lme4)
 sem<-function(x)sd(x, na.rm=T)/sqrt(length(x[!is.na(x)]))
-render_this <- function(){rmarkdown::render('ExploratoryDVs.Rmd', html_notebook(toc = T, toc_float = T))}
+cbbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+theme_set(theme_bw())
+ggplot <- function(...) ggplot2::ggplot(...) + scale_fill_manual(values=cbbPalette) + scale_color_manual(values=cbbPalette)+theme(legend.position="bottom")
 ```
 
 This notebook contains exploratory analyses of behavioral data collected to investigate the relationship between risk taking behavior and probabilistic learning. 
@@ -84,7 +86,7 @@ machine_game_data_clean <- assign.machine.info(machine_game_data_clean)
 ##################
 #Demographics data
 ##################
-demog_data <- read.csv('/Users/zeynepenkavi/Dropbox/PoldrackLab/Developmental study/Final Redcap Data/DevelopmentalStudy_DATA_2015-03-25_1258.csv')
+demog_data <- read.csv('/Users/zeynepenkavi/Dropbox/PoldrackLab/Sarah_Developmental study/Final Redcap Data/DevelopmentalStudy_DATA_2015-03-25_1258.csv')
 
 # head(names(demog_data), 20)
 # str(demog_data$subj_id)
@@ -212,27 +214,33 @@ machine_game_data_clean %>%
 
 ```
 
-The multilevel model below, where the *absolute number of points* in each condition is regressed on age with random intercepts for each subject suggests the following conclusions on performance:   
-  
-- Kids do better in the low variance conditions compared to the high variance conditions. Kids collect more points in the low variance positive expected value machine than they they do in the high variance positive expected value machine (t = -2.477). They also loose less in the low variance negative expected value machine (t = -4.409) compared to what they loose in the negative expected value high variance machine (t = - 0.421).  
-- Adults and teens don't perform better than kids in the positive expected value machines; neither in the low variance positive expected condition (t = 1.717 and t = 1.427 respectively), nor in the high variance condition (t = 0.212 and t = 0.661).      
-- Adults do outperform the kids in the negative expected value conditions both in the low variance conditions (t = -3.064) and the high variance condition (t = -3.422). Teens do not differ from kids in either negative expected value condition.  
-- So everybody (including kids) does better in the low variance conditions ~~and is thus more sensitive to more frequent feedback but kids are worse in learning from negative feedback~~. **Finding the age difference in performance only when comparing negative to positive expected value seems problematic given the emphasis of the hypothesis on the age differences to different variances in the feedback schedules.** 
+Running separate models for positive and negative EV machines for ease of interpretation.
 
 ```{r}
-# No sig other than difference between conditions
 tmp <- machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(total_points = sum(Points_earned)) %>%
   do(assign.age.info(.)) %>%
   mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
-summary(lmer(abs(total_points) ~ age_group*facet_labels+(1|Sub_id), data = tmp))
 ```
+
+In the positive EV machines there is only a main effect of variance. All groups perform better is low variance condition. There are no age differences.
+
+```{r}
+summary(lm(total_points ~ age_group*facet_labels, data = tmp %>% filter(facet_labels %in% c("-10,+100", "-5,+495"))))
+```
+
+In the negative EV machines there is again the effect of variance: Everyone losses fewer points in the low variance condition. There is also a main effect for adults: Adults perform better than kids for both negative EV machines.
+
+```{r}
+summary(lm(total_points ~ age_group*facet_labels, data = tmp %>% filter(facet_labels %in% c("+10,-100", "+5,-495"))))
+```
+
 ```{r echo=FALSE}
 rm(tmp)
 ```
 
-The question is what difference in behavior is leading to this difference in performance?  
+So the age diffence in performance is driven by difference in performance in negative EV machines. The question is what difference in behavior in these conditions is leading to this difference in performance?  To anticipate possible cognitive processes that will be parameterized in RL models differences can lie in: how quickly the groups learn the probabilities, how much weight they put on the outcomes and/or how much like an optimal agent they behave.
 
 ## Proportion of playing
 
@@ -262,25 +270,6 @@ It is also not immediately apparent how to translate this to better performance/
 1. how this depends on the different machines and   
 2. how it changes throughout the task.
 
-Just to make sure that this crude measure is not capturing an interesting difference: Do the percentages of played trials differ from each other? No.  (Baseline in this regression is how frequently adults timeout so the significant differences only say that they play and pass more than they time out)
-
-```{r}
-tmp = machine_game_data_clean %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
-  group_by(Sub_id, Response) %>%
-  tally %>%
-  group_by(Sub_id) %>%
-  mutate(pct=(100*n)/sum(n)) %>%
-  do(assign.age.info(.)) %>%
-  ungroup()
-
-summary(lm(pct ~ Response*age_group, data = tmp))
-```
-```{r echo=FALSE}
-rm(tmp)
-```
-
 To get a better sense of overall behavior in different contingency states we break this proportion of playing down by machines.
 
 Now we can see age differences in playing frequency in different conditions, particularly in the negative expected value machines (bottom row).
@@ -308,9 +297,9 @@ machine_game_data_clean %>%
 
 The differences in points earned map directly on to proportion of choosing to play each machine:  
 
-- Adults (baseline in the regression below) play most for the low variance positive expected value condition (top left) then significantly less for the high variance positive expected value condition (top right, t = -3.368), even less for high variance negative expected value condition (bottom right, t = -6.842), and least for the low variance negative expected value condition (bottom left, t = -9.333). ~~This pattern reflects a sensitivity to low variance (better learning for low variance conditions comparing the equivalent expected values).~~
+- Adults (baseline in the regression below) play most for the low variance positive expected value condition (top left) then significantly less for the high variance positive expected value condition (top right), even less for high variance negative expected value condition (bottom right), and least for the low variance negative expected value condition (bottom left). **This pattern reflects a sensitivity to low variance (better learning for low variance conditions comparing the equivalent expected values).**
 - Teens do not differ significantly from adults in any condition.
-- Kids do not differ from adults in playing proportion in the positive expected value conditions (top row; low variance t = -1.633, high variance t = 0.225) but they do choose to play the machine for both of the negative expected value conditions (bottom row; low variance t = 3.015, high variance t = 3.517)
+- Kids do not differ from adults in playing proportion in the positive expected value conditions (top row) but they do choose to play the machine for both of the negative expected value conditions (bottom row)
 
 ```{r}
 tmp <- machine_game_data_clean %>%
@@ -362,7 +351,7 @@ machine_game_data_clean %>%
   xlab('')
 ```
 
-**But** it also showed that there is a lot of individual variabilitiy. The multilevel regression below with individual intercepts for each subject regressing the correct choices on age group and condition suggests that close to 40% variance might be due to random effects. It also shows that the fixed effects are not signigicantly different for kids in any condition. 
+**But** it also showed that there is a lot of individual variabilitiy. The multilevel regression below with individual intercepts for each subject regressing the correct choices on age group and condition suggests that close to 40% variance is due to random effects. It also shows that the fixed effects are not signigicantly different for kids in any condition. 
 
 ```{r}
 tmp = machine_game_data_clean %>%
