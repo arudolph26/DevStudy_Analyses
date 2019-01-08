@@ -324,66 +324,7 @@ Initially I tried defining these in terms of probability of playing a machine bu
 
 ## Learning 
 
-Recoding the behavior in this way gave a clearer picture of the age difference *in learning* between the conditions.
-
-```{r}
-machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
-         age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')))%>%
-  group_by(Sub_id, facet_labels, correct1_incorrect0) %>%
-  tally %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(pct_correct=(100*n)/sum(n)) %>%
-  filter(correct1_incorrect0 == 1) %>%
-  do(assign.age.info(.)) %>%
-  select(-n, -correct1_incorrect0) %>%
-  group_by(facet_labels, age_group) %>%
-  summarise(mean_pct_correct = mean(pct_correct, na.rm=T),
-            sem_pct_correct = sem(pct_correct)) %>%
-  ggplot(aes(facet_labels, mean_pct_correct, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_bar(stat='identity', position=position_dodge(0.9))+
-  geom_errorbar(aes(ymin=mean_pct_correct-sem_pct_correct, ymax=mean_pct_correct+sem_pct_correct), position = position_dodge(0.9), width=0.25)+
-  theme_bw()+
-  ylab('Average percent of optimal choice')+
-  labs(fill = 'Age group')+
-  xlab('')
-```
-
-**But** it also showed that there is a lot of individual variabilitiy. The multilevel regression below with individual intercepts for each subject regressing the correct choices on age group and condition suggests that close to 40% variance is due to random effects. It also shows that the fixed effects are not signigicantly different for kids in any condition. 
-
-```{r}
-tmp = machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
-         age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')))%>%
-  group_by(Sub_id, facet_labels, correct1_incorrect0) %>%
-  tally %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(pct_correct=(100*n)/sum(n)) %>%
-  filter(correct1_incorrect0 == 1) %>%
-  do(assign.age.info(.)) %>%
-  select(-n, -correct1_incorrect0)
-
-summary(lmer(pct_correct ~ age_group*facet_labels + (1|Sub_id), data = tmp))
-```
-
-```{r echo=FALSE}
-rm(tmp)
-```
-
-This large between subjects variability suggested that we should look at the behavior at a finer grain instead of just aggregating across age groups. Since we are interested in learning to begin with we look at change in choosing the *optimal* action for a machine across time.  
-
-Here is a plot of change in choosing the correct action for each machine depending on the number of times that machine has been encountered (centered as explained below)  
-
-Things to note for this plot:  
-- There is a lot of individual variability in learning (the thin lines in the background are all over the place)  
-- Aggregated for age groups it looks like there is no learning in the positive expected value machines (flat lines in the top row). **This seems confusing**  
-- Still learning in the high variance positive expected value condition appears lower on aggregate (top row left right comparison)  
-- Kids look like they learn best in the low variance negative expected value machine (slope of red line in bottom left quadrant)  
-- The age difference in learning appears only in the high variance negative expected value machine (difference between the three line in the bottom right quadrant)  
+Recoding the behavior in this way gave a clearer picture of the age difference *in learning of optimal behavior* between the conditions. Specifically we can now look at how the probability of a correct choice changes for each age group in each condition across trials.
 
 ```{r warning=FALSE, message=FALSE}
 machine_game_data_clean %>%
@@ -399,8 +340,39 @@ machine_game_data_clean %>%
   xlab("Relative trial number")+
   scale_y_continuous(breaks=c(0,1))+
   labs(col="Age group")+
-  ylab('Optimal choice')
+  ylab('Optimal choice')+
+  theme(legend.position = "bottom")
 ```
+
+```{r}
+tmp = machine_game_data_clean %>%
+  filter(Response %in% c(1,2)) %>%
+  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
+         age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')))
+```
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('-10,+100')), family=binomial))
+```
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('-5,+495')), family=binomial))
+```
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('+10,-100')), family=binomial))
+```
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('+5,-495')), family=binomial))
+```
+
+```{r echo=FALSE}
+rm(tmp)
+```
+
+
 
 Based on these graphs I checked for age difference in three variables:  
 - The intercept: whether they are more or less likely to choose the optimal action having seen half of the trials (since trial number is centered within machine).  
