@@ -7,11 +7,9 @@ toc_depts: 2
 ---
 
 ```{r setup_env, echo=FALSE, message=FALSE, warning=FALSE}
-library(ggplot2)
+library(tidyverse)
 library(gridExtra)
 library(GGally)
-library(dplyr)
-library(tidyr)
 library(lme4)
 sem<-function(x)sd(x, na.rm=T)/sqrt(length(x[!is.na(x)]))
 cbbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
@@ -330,10 +328,8 @@ Recoding the behavior in this way gave a clearer picture of the age difference *
 machine_game_data_clean %>%
   filter(Response %in% c(1,2)) %>%
   group_by(Sub_id, facet_labels) %>%
-  mutate(trial = (1:n())-23,
-         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
-  # ggplot(aes(trial, correct1_incorrect0))+
-  ggplot(aes(scale(), correct1_incorrect0))+
+  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
+  ggplot(aes(scale(Trial_number), correct1_incorrect0))+
   geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
   geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
   facet_wrap(~facet_labels)+
@@ -353,17 +349,25 @@ tmp = machine_game_data_clean %>%
          Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')))
 ```
 
+Adults are more likely to make correct decisions in low var positive EV machine.
+
 ```{r}
 summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('-10,+100')), family=binomial))
 ```
+
+The probability of making a correct response for the high var positive EV machine doesn't change for adults or kids but increases for teens across trials.
 
 ```{r}
 summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('-5,+495')), family=binomial))
 ```
 
+All groups show improvement across trials for the low var negative EV machine but adults learn faster than kids and teens.
+
 ```{r}
 summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('+10,-100')), family=binomial))
 ```
+
+Kids don't show learning across trials for the high var negative EV machine but adults and teens do. 
 
 ```{r}
 summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('+5,-495')), family=binomial))
@@ -373,20 +377,17 @@ summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), da
 rm(tmp)
 ```
 
+I tried to capture these effects in 'individual difference' variables by running the logistic regression separately for each subject in each condition. This wouldn't capture anything different than the above analyses but I wanted to see if there were any subject-specific indices that could be correlated with other measues. I looked at three parameters:
 
-
-Based on these graphs I checked for age difference in three variables:  
-- The intercept: whether they are more or less likely to choose the optimal action having seen half of the trials (since trial number is centered within machine).  
+- The intercept: whether they are more or less likely to choose the optimal action having seen half of the trials (p>0.5 if intercept>0 (i.e. log(0.5/0.5)))
 - The slope: which direction and how fast the sigmoid moves in (for learning this must be positive and the larger it is the better the learning)  
-- The learning index: where they are at 50% for each machine (switch point - I came up with this to see if there was a systematic change in both parameters that might be interesting. I'm not sure if it makes sense.)  
+- The learning index: where in the task (i.e. scaled trial number) they are at 50% for each machine (switch point - I came up with this to capture change in both parameters. I'm not sure if it makes sense.) The smaller the better (the sooner they learn the better choice).  
 
-The only significant differences were in the slopes.  
-- The slopes were higher for adults in both of the negative expected value conditions (t = 2.182 and t = 3.332) compared to the low variance positive expected value machine (because they are essentially 0 in the low variance positive expected condition.)  
-- The slopes for kids were lower from those of adults in the high variance negative expected value condition (t = -2.370)  
+Because each model is run only on 45 trials the fits aren't great and the parameter distributions have large variances.
 
 ```{r warning=FALSE, message = FALSE}
 get_learning_coef <- function(data){
-  model = glm(correct1_incorrect0 ~ trial, family = binomial(link=logit), data = data)
+  model = glm(correct1_incorrect0 ~ scale(Trial_number), family = binomial(link=logit), data = data)
   b0 = coef(model)[1]
   b1 = coef(model)[2]
   learnIndex = -b0/b1                   
@@ -397,85 +398,33 @@ get_learning_coef <- function(data){
 tmp = machine_game_data_clean %>%
   filter(Response %in% c(1,2)) %>%
   group_by(Sub_id, facet_labels) %>%
-  mutate(trial = (1:n())-23,
-         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
+  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
   do(get_learning_coef(.)) %>%
   do(assign.age.info(.)) 
 ```
 
-The age difference in slopes across the conditions looks as follows (again reflecting the large variability):
-
-```{r warning=FALSE, message=FALSE}
-machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(trial = (1:n())-23,
-         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
-  do(get_learning_coef(.)) %>%
-  do(assign.age.info(.)) %>%
-  select(-b0, -learnIndex) %>%
-  filter(b1<1) %>%
-  group_by(age_group, facet_labels) %>%
-  summarise(mean_b1 = mean(b1),
-            sem_b1 = sem(b1)) %>%
-  ggplot(aes(facet_labels, mean_b1, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_bar(stat='identity', position=position_dodge(0.9))+
-  geom_errorbar(aes(ymin=mean_b1-sem_b1, ymax=mean_b1+sem_b1), position = position_dodge(0.9), width=0.25)+
-  theme_bw()+
-  ylab('Average slope')+
-  labs(fill = 'Age group')+
-  xlab('')
-```
+(Error bars not shown because they are very large due to bad fits)
+As expected the difference between kids and adults in slopes for the high variance negative EV machine is visible here too.
 
 ```{r}
-summary(lmer(b1 ~ age_group*facet_labels + (1|Sub_id), data = tmp))
+tmp %>%
+  ungroup()%>%
+  select(facet_labels, age_group, b0, b1, learnIndex) %>%
+  gather(key, value, -facet_labels, -age_group) %>%
+  group_by(age_group, facet_labels, key) %>%
+  summarise(mv = median(value),
+            sv = sem(value)) %>%
+  ggplot(aes(facet_labels, mv, fill=factor(age_group, levels = c("kid", "teen", "adult"))))+
+  geom_bar(stat="identity", position = position_dodge())+
+  # geom_errorbar(aes(ymin = mv-sv, ymax = mv+sv), position = position_dodge(width = 0.9), width=0)+
+  facet_wrap(~key, scale="free")+
+  theme(legend.position = "bottom",
+        legend.title = element_blank())+
+  xlab("")+
+  ylab("Median value")
 ```
 
-For reference here are the distributions and regressions on the intercepts and the learn indices as well.
-
-```{r warning=FALSE, message = FALSE}
-machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(trial = (1:n())-23,
-         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
-  do(get_learning_coef(.)) %>%
-  do(assign.age.info(.)) %>%
-  select(-b1, -learnIndex) %>%
-  ggplot(aes(b0, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_density(position = 'identity', alpha = 0.5)+
-  theme_bw()+
-  facet_wrap(~facet_labels)+
-  labs(fill = 'Age group')
-```
-
-```{r}
-summary(lmer(b0 ~ age_group*facet_labels + (1|Sub_id), data = tmp))
-```
-
-```{r warning=FALSE, message = FALSE}
-machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(trial = (1:n())-23,
-         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
-  do(get_learning_coef(.)) %>%
-  do(assign.age.info(.)) %>%
-  select(-b1, -b0) %>%
-  ggplot(aes(learnIndex, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_density(position = 'identity', alpha = 0.5)+
-  theme_bw()+
-  facet_wrap(~facet_labels)+
-  labs(fill = 'Age group')
-```
-
-```{r}
-summary(lmer(learnIndex ~ age_group*facet_labels + (1|Sub_id), data = tmp))
-```
-
-```{r echo=FALSE}
-rm(tmp)
-```
+But it's not a good idea to look for group differences in these parameters as they are highly variable due to bad fits from few trials.
 
 ## Does this correlate with BART?
 
