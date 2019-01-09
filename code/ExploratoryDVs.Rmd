@@ -332,7 +332,8 @@ machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   mutate(trial = (1:n())-23,
          correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
-  ggplot(aes(trial, correct1_incorrect0))+
+  # ggplot(aes(trial, correct1_incorrect0))+
+  ggplot(aes(scale(), correct1_incorrect0))+
   geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
   geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
   facet_wrap(~facet_labels)+
