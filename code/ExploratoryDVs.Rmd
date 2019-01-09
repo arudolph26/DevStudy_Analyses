@@ -97,7 +97,8 @@ assign.age.info <- function(data){
   
   data %>%
     group_by(Sub_id) %>%
-    left_join(demog_data[,c('subj_id', 'calc_age')], by = c("Sub_id" = "subj_id"))
+    left_join(demog_data[,c('subj_id', 'calc_age')], by = c("Sub_id" = "subj_id")) %>%
+    mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
 }
 
 machine_game_data_clean <- assign.age.info(machine_game_data_clean)
@@ -105,6 +106,10 @@ machine_game_data_clean <- assign.age.info(machine_game_data_clean)
 # Check if there are any problems with the merged ages
 # summary(machine_game_data_clean$calc_age)
 # which(is.na(machine_game_data_clean$calc_age))
+
+machine_game_data_clean = machine_game_data_clean  %>%
+  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')))
 
 ##########
 #Bart data
@@ -134,7 +139,6 @@ First let's get a sense of the sample. Here is how many subjects we have who hav
 
 ```{r sample_info, warning=FALSE}
 machine_game_data_clean %>% 
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
   group_by(age_group) %>%
   summarise(min_age = min(calc_age),
             mean_age = mean(calc_age),
@@ -162,7 +166,6 @@ machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(total_points = sum(Points_earned)) %>%
   do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
   group_by(age_group) %>%
   summarise(mean_points = mean(total_points),
             sem_points = sem(total_points)) %>%
@@ -182,8 +185,7 @@ This difference is statistically significant: adults earn more points compared t
 tmp = machine_game_data_clean %>%
   group_by(Sub_id) %>%
   summarise(total_points = sum(Points_earned)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
+  do(assign.age.info(.))
 
 summary(lm(total_points~age_group, data=tmp))
 ```
@@ -198,7 +200,6 @@ machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(total_points = sum(Points_earned)) %>%
   do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
   group_by(age_group, facet_labels) %>%
   summarise(mean_points = mean(total_points),
             sem_points = sem(total_points)) %>%
@@ -218,8 +219,7 @@ Running separate models for positive and negative EV machines for ease of interp
 tmp <- machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(total_points = sum(Points_earned)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
+  do(assign.age.info(.))
 ```
 
 In the positive EV machines there is only a main effect of variance. All groups perform better is low variance condition. There are no age differences.
@@ -246,8 +246,6 @@ The first thing we can look at is how often do subjects play versus pass. It's h
 
 ```{r}
 machine_game_data_clean %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
   group_by(Sub_id, Response) %>%
   tally %>%
   group_by(Sub_id) %>%
@@ -256,7 +254,7 @@ machine_game_data_clean %>%
   group_by(age_group, Response) %>%
   dplyr::summarise(mean_pct = mean(pct),
             sem_pct = sem(pct)) %>%
-  ggplot(aes(Response, mean_pct, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  ggplot(aes(Response, mean_pct, fill = age_group))+
   geom_bar(stat='identity', position = position_dodge(0.9))+
   geom_errorbar(aes(ymin = mean_pct - sem_pct, ymax = mean_pct + sem_pct), position = position_dodge(width = 0.9), width=0.25)+
   theme_bw()+
@@ -274,8 +272,6 @@ Now we can see age differences in playing frequency in different conditions, par
 
 ```{r warning=FALSE, message=FALSE}
 machine_game_data_clean %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
   group_by(Sub_id, facet_labels, Response) %>%
   tally %>%
   group_by(Sub_id, facet_labels) %>%
@@ -284,7 +280,7 @@ machine_game_data_clean %>%
   group_by(age_group, facet_labels, Response) %>%
   dplyr::summarise(mean_pct = mean(pct),
             sem_pct = sem(pct)) %>%
-  ggplot(aes(Response, mean_pct, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  ggplot(aes(Response, mean_pct, fill = age_group))+
   geom_bar(stat='identity', position = position_dodge(0.9))+
   geom_errorbar(aes(ymin = mean_pct - sem_pct, ymax = mean_pct + sem_pct), position = position_dodge(width = 0.9), width=0.25)+
   theme_bw()+
@@ -301,8 +297,6 @@ The differences in points earned map directly on to proportion of choosing to pl
 
 ```{r}
 tmp <- machine_game_data_clean %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
   group_by(Sub_id, facet_labels, Response) %>%
   tally %>%
   group_by(Sub_id, facet_labels) %>%
@@ -326,9 +320,6 @@ Recoding the behavior in this way gave a clearer picture of the age difference *
 
 ```{r warning=FALSE, message=FALSE}
 machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
   ggplot(aes(scale(Trial_number), correct1_incorrect0))+
   geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
   geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
@@ -340,41 +331,28 @@ machine_game_data_clean %>%
   ylab('Optimal choice')+
   theme(legend.position = "bottom")
 ```
-
-```{r}
-tmp = machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
-         age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')))
-```
-
 Adults are more likely to make correct decisions in low var positive EV machine.
 
 ```{r}
-summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('-10,+100')), family=binomial))
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = machine_game_data_clean %>% filter(facet_labels %in% c('-10,+100')), family=binomial))
 ```
 
 The probability of making a correct response for the high var positive EV machine doesn't change for adults or kids but increases for teens across trials.
 
 ```{r}
-summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('-5,+495')), family=binomial))
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = machine_game_data_clean %>% filter(facet_labels %in% c('-5,+495')), family=binomial))
 ```
 
 All groups show improvement across trials for the low var negative EV machine but adults learn faster than kids and teens.
 
 ```{r}
-summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('+10,-100')), family=binomial))
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = machine_game_data_clean %>% filter(facet_labels %in% c('+10,-100')), family=binomial))
 ```
 
 Kids don't show learning across trials for the high var negative EV machine but adults and teens do. 
 
 ```{r}
-summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = tmp %>% filter(facet_labels %in% c('+5,-495')), family=binomial))
-```
-
-```{r echo=FALSE}
-rm(tmp)
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = machine_game_data_clean%>% filter(facet_labels %in% c('+5,-495')), family=binomial))
 ```
 
 I tried to capture these effects in 'individual difference' variables by running the logistic regression separately for each subject in each condition. This wouldn't capture anything different than the above analyses but I wanted to see if there were any subject-specific indices that could be correlated with other measues. I looked at three parameters:
@@ -396,9 +374,7 @@ get_learning_coef <- function(data){
 
 
 tmp = machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
   group_by(Sub_id, facet_labels) %>%
-  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
   do(get_learning_coef(.)) %>%
   do(assign.age.info(.)) 
 ```
@@ -414,7 +390,7 @@ tmp %>%
   group_by(age_group, facet_labels, key) %>%
   summarise(mv = median(value),
             sv = sem(value)) %>%
-  ggplot(aes(facet_labels, mv, fill=factor(age_group, levels = c("kid", "teen", "adult"))))+
+  ggplot(aes(facet_labels, mv, fill=age_group))+
   geom_bar(stat="identity", position = position_dodge())+
   # geom_errorbar(aes(ymin = mv-sv, ymax = mv+sv), position = position_dodge(width = 0.9), width=0)+
   facet_wrap(~key, scale="free")+
@@ -456,6 +432,8 @@ bart_data %>%
   ylab("Risk taking (adjusted pumps)")
 ```
 
+There aren't any meaningful correlations between slopes and mean adjusted pumps. *BUT* neither of these seem like good individual difference measures.
+
 ```{r warning=FALSE, message=FALSE}
 tmp = bart_data %>%
   group_by(Sub_id) %>%
@@ -464,48 +442,26 @@ tmp = bart_data %>%
   select(Sub_id, mean_adjusted_pumps)
 
 machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
   group_by(Sub_id, facet_labels) %>%
-  mutate(trial = (1:n())-23,
-         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
-  do(get_learning_coef(.)) %>%
-  do(assign.age.info(.)) %>%
-  left_join(tmp, by = 'Sub_id') %>%
-  filter(b1 < 0.5, b1> (-0.5)) %>%
-  ggplot(aes(mean_adjusted_pumps, b1, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_point()+
-  geom_smooth(method = 'lm')+
-  facet_wrap(~facet_labels)+
-  theme_bw()+
-  labs(col="Age group")+
-  ylab('Individual slope')
-```
-
-```{r warning=FALSE, message=FALSE}
-machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(trial = (1:n())-23,
-         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
   do(get_learning_coef(.)) %>%
   do(assign.age.info(.)) %>%
   left_join(tmp, by = 'Sub_id') %>%
   group_by(facet_labels, age_group) %>%
   summarise(cor = cor.test(b1, mean_adjusted_pumps)$estimate,
-            p_value = cor.test(b1, mean_adjusted_pumps)$p.value)
+            p_value = cor.test(b1, mean_adjusted_pumps)$p.value) %>%
+  arrange(cor)
 ```
 ```{r echo=FALSE}
 rm(tmp)
 ```
 
-
 ## Sensitivity to variance vs. expected value
 
 How should we define these?
 
+Function to calculate observed variance and observed expected value based on outcomes in trials that the subject has played.
 
 ```{r}
-
 get_obs_var_ev <- function(data){
   
   new_data = data
@@ -522,7 +478,7 @@ get_obs_var_ev <- function(data){
       #get all the trials until the current trial
       obs = new_data[1:i,]
       #filter only played trials; their belief should not be updated based on the trials they haven't played
-      obs = obs %>% filter(Response == 1) %>% ungroup() %>% select(Points_earned)
+      obs = obs %>% filter(Response == "play") %>% ungroup() %>% select(Points_earned)
       obs_var = var(obs)
       obs_probs =  as.numeric(prop.table(table(obs)))
       obs_rewards = as.numeric(names(prop.table(table(obs))))
@@ -534,18 +490,14 @@ get_obs_var_ev <- function(data){
   new_data$obs_var = ifelse(is.na(new_data$obs_var), 0, new_data$obs_var)
   return(new_data)
 }
+```
 
+
+```{r}
 tmp = machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   do(get_obs_var_ev(.))%>% 
-  mutate(play1_pass0 = ifelse(Response == 1, 1, 0))
-```
-
-```{r}
-tmp3 = machine_game_data_clean %>% filter(Sub_id == '100003', Trial_type==1)
-
-get_obs_var_ev(tmp3) %>% 
-  select(obs_var, obs_ev, Response, Points_earned)
+  mutate(play1_pass0 = ifelse(Response == "play", 1, 0))
 ```
 
 ```{r}
@@ -565,9 +517,10 @@ tmp %>%
 ```
 
 ```{r}
+tmp
 # This model is not really interesting
-# summary(glmer(play1_pass0 ~ scale(obs_var)+scale(obs_ev)+age_group+facet_labels+(1|Sub_id), 
-#       family = binomial(link=logit), data = tmp))
+summary(glmer(play1_pass0 ~ scale(obs_var)+scale(obs_ev)+age_group+facet_labels+(1|Sub_id),
+              family = binomial(link=logit), data = tmp))
 
 #Convergence problems begin even here
 # summary(glmer(play1_pass0 ~ scale(obs_var)+scale(obs_ev)+age_group+facet_labels+
@@ -591,6 +544,7 @@ tmp %>%
 tmp %>%
   group_by(Sub_id, facet_labels) %>%
   ggplot(aes(obs_ev, play1_pass0))+
+    # ggplot(aes(obs_ev, correct1_incorrect0))+
   geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
   geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
   facet_wrap(~facet_labels, scales='free')+
@@ -613,39 +567,6 @@ tmp %>%
   scale_y_continuous(breaks=c(0,1))+
   labs(col="Age group")+
   ylab('Play vs. pass')
-```
-
-```{r warning=FALSE, message=FALSE}
-tmp %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(trial = (1:n())-23) %>%
-  ggplot(aes(trial, obs_var))+
-  geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'lm', se = FALSE, alpha=0.2)+
-  geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'lm', se = FALSE, alpha=1, size=2)+
-  facet_wrap(~facet_labels, scales='free')+
-  theme_bw()+
-  xlab("Relative trial number")+
-  labs(col="Age group")+
-  ylab('Observed variance')
-```
-
-```{r warning=FALSE, message=FALSE}
-tmp %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(trial = 1:n()) %>%
-  ggplot(aes(trial, obs_ev))+
-  geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'lm', se = FALSE, alpha=0.2)+
-  geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'lm', se = FALSE, alpha=1, size=2)+
-  facet_wrap(~facet_labels, scales='free')+
-  theme_bw()+
-  xlab("Relative trial number")+
-  labs(col="Age group")+
-  ylab('Observed expected value')
-```
-
-```{r}
-summary(tmp$obs_ev)
-summary(tmp$obs_var)
 ```
 
 ```{r}
