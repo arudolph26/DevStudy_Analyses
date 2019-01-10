@@ -1,58 +1,44 @@
+1. Do people 'explore' the first five trials where the reward probabilities for each machine are presented?
 
-
-Check two things:
-1. Do people 'explore' the first five trials?
-
-```{r}
-names(machine_game_data_clean)
-with(machine_game_data_clean, table(Trial_type, gain_mag))
-```
-
+They explore less when they encounter a loss early on. In the high var pos EV machine they get 4 (small) losses in a row; in the low var negative EV machine they get a moderate loss in the first trial.
 
 ```{r}
-names(machine_game_data_clean)
-table(machine_game_data_clean$Response)
-
 machine_game_data_clean %>% 
   group_by(Sub_id, facet_labels) %>%
   slice(1:5) %>%
-  summarise(num_explored = sum(ifelse(Response == 1, 1,0))) %>%
+  summarise(num_explored = sum(ifelse(Response == "play", 1,0))) %>%
   do(assign.age.info(.)) %>%
   ungroup() %>%
   group_by(age_group, facet_labels) %>%
   summarise(mean_num_explored = mean(num_explored),
             sem_num_explored = sem(num_explored)) %>%
-  ggplot(aes(facet_labels, mean_num_explored, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_bar(stat="identity", , position = position_dodge(0.9))+
-  geom_errorbar(aes(ymax = mean_num_explored+sem_num_explored, ymin = mean_num_explored-sem_num_explored), , position = position_dodge(width = 0.9), width=0.25)+
-  labs(fill = 'Age group')+
-  theme_bw()
+  ggplot(aes(facet_labels, mean_num_explored, fill = age_group))+
+  geom_bar(stat="identity",position = position_dodge(0.9))+
+  geom_errorbar(aes(ymax = mean_num_explored+sem_num_explored, ymin = mean_num_explored-sem_num_explored), position = position_dodge(width = 0.9), width=0.25)+
+  labs(fill = 'Age group')
 ```
 
-2. Is the behavioral effect uniform across time?
+2. Is the difference in performance between the age groups uniform across time?
 
-No. The effect seems to be most prominent for the largest loss machine. Starting after the initial exploratory period (pseudo random trials for the first 10 representing the true distribution)
-
-So for the project focus on this machine only.
+No. As expected from the [previous notebook](http://zenkavi.github.io/DevStudy_Analyses/output/reports/ExploratoryDVs.nb.html) the difference exists only for the high var negative EV machine and grows over time due to improvement in adult performance and lack of change in kid performance.
 
 ```{r}
 machine_game_data_clean %>%
   group_by(facet_labels, Sub_id) %>%
   mutate(relative_trial_num = 1:n()) %>%
   ungroup() %>%
-  mutate(play1_pass0 = ifelse(Response == 1,1, 0)) %>%
   group_by(relative_trial_num, facet_labels, age_group) %>%
-  summarise(mean_play = mean(play1_pass0),
-            sem_play = sem(play1_pass0)) %>%
+  summarise(mean_correct = mean(correct1_incorrect0),
+            sem_correct = sem(correct1_incorrect0)) %>%
   filter(relative_trial_num<46) %>%
-  ggplot(aes(relative_trial_num, mean_play, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
+  ggplot(aes(relative_trial_num, mean_correct, col = age_group))+
   geom_point(alpha = 0.5)+
   geom_line()+
-  geom_errorbar(aes(ymax = mean_play+sem_play, ymin = mean_play-sem_play), alpha = 0.25)+
+  geom_errorbar(aes(ymax = mean_correct+sem_correct, ymin = mean_correct-sem_correct), alpha = 0.25)+
   facet_wrap(~facet_labels)+
   theme_bw()+
   labs(col = 'Age group')+
-  ylab("Proportion of participants that play")+
+  ylab("Proportion of participants that respond correctly")+
   xlab("Relative trial number")
 ```
 
@@ -62,89 +48,11 @@ Because they are confused. It's the first trial.
 
 ```{r}
 machine_game_data_clean %>%
+  # arrange(Trial_number)
   group_by(facet_labels, Sub_id) %>%
   mutate(relative_trial_num = 1:n()) %>%
-  filter(facet_labels == '+5,-495') %>%
-  arrange(relative_trial_num) 
-```
-
-Why are people playing the high variance negative EV machine after initial exploration?
-
-What are the trial numbers for this machine? (same for everyone except for one person, 406989)
-
-```{r}
-with(machine_game_data_clean[machine_game_data_clean$facet_labels == '+5,-495',], table(Trial_number))
-```
-
-Since basically everyone has the trial numbers does the proportion of subjects who play differ between the age groups depending on the how many trials of that type they have seen?
-
-```{r}
-machine_game_data_clean %>%
-  filter(Sub_id != 406989 & facet_labels == '+5,-495') %>%
-  mutate(play1_pass0 = ifelse(Response == 1,1, 0),
-         trials_since_last = ifelse(Trial_number>4, Trial_number - lag(Trial_number, default = 0), 0)) %>%
-  group_by(trials_since_last, age_group) %>%
-  summarise(mean_play = mean(play1_pass0),
-            sem_play = sem(play1_pass0)) %>%
-  ggplot(aes(trials_since_last, mean_play, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_point(alpha = 0.5)+
-  geom_line()+
-  geom_errorbar(aes(ymax = mean_play+sem_play, ymin = mean_play-sem_play), alpha = 0.25)+
-  theme_bw()+
-  labs(col = 'Age group')+
-  ylab("Proportion of participants that play")+
-  xlab("Trials since last trial of this type")
-```
-
-```{r}
-machine_game_data_clean %>%
-  filter(Sub_id != 406989 & facet_labels == '+5,-495') %>%
-  mutate(play1_pass0 = ifelse(Response == 1,1, 0),
-         trials_since_last = ifelse(Trial_number>4, Trial_number - lag(Trial_number, default = 0), 0)) %>%
-  group_by(Trial_number, age_group) %>%
-  summarise(mean_play = mean(play1_pass0),
-            sem_play = sem(play1_pass0),
-            trials_since_last = unique(trials_since_last))%>%
-  ggplot(aes(Trial_number, mean_play, group = age_group))+
-  geom_point(aes(col = factor(trials_since_last)))+
-  geom_errorbar(aes(ymax = mean_play+sem_play, ymin = mean_play-sem_play), alpha = 0.25)+
-  geom_line(aes(group = age_group, alpha = 0.5), col = 'gray')+
-  theme_bw()
-```
-
-Relationship between when it was last seen (not necessarily played) and relative trial number.
-
-```{r}
-machine_game_data_clean %>%
-  filter(Sub_id == 100003 & facet_labels == '+5,-495') %>%
-  mutate(relative_trial_number = 1:n(),
-         trials_since_last_of_machine = ifelse(Trial_number>4, Trial_number - lag(Trial_number, default = 0), 0))%>%
-  ggplot(aes(relative_trial_number, trials_since_last_of_machine))+
-  geom_point()+
-  theme_bw()
-```
-
-Zooming in to the high variance negative EV machine.
-
-```{r}
-machine_game_data_clean %>%
-  filter(facet_labels == "+5,-495")%>%
-  group_by(Sub_id) %>%
-  mutate(relative_trial_num = 1:n()) %>%
-  ungroup() %>%
-  mutate(play1_pass0 = ifelse(Response == 1,1, 0)) %>%
-  group_by(relative_trial_num, age_group) %>%
-  summarise(mean_play = mean(play1_pass0),
-            sem_play = sem(play1_pass0)) %>%
-  filter(relative_trial_num<46) %>%
-  ggplot(aes(relative_trial_num, mean_play, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_point(alpha = 0.5)+
-  geom_line()+
-  geom_errorbar(aes(ymax = mean_play+sem_play, ymin = mean_play-sem_play), alpha = 0.25)+
-  theme_bw()+
-  labs(col = 'Age group')+
-  ylab("Proportion of participants that play")+
-  xlab("Relative trial number")
+  # filter(facet_labels == '+5,-495') %>%
+  arrange(relative_trial_num)
 ```
 
 How about trials since last played?
@@ -158,15 +66,14 @@ library(zoo)
 machine_game_data_clean %>%
   filter(facet_labels == '+5,-495') %>%
   group_by(Sub_id) %>%
-  mutate(play1_pass0 = ifelse(Response == 1, 1, 0),
-         relative_trial_number = 1:n(),
-         played_trial_number = ifelse(Response == 1, Trial_number, NA)) %>%
+  mutate(relative_trial_number = 1:n(),
+         played_trial_number = ifelse(Response == "play", Trial_number, NA)) %>%
   mutate(played_trial_number = na.locf(played_trial_number, na.rm=F)) %>%
   filter(relative_trial_number > 1) %>%
   mutate(trials_since_last_played = Trial_number - lag(played_trial_number)) %>%
   group_by(trials_since_last_played, age_group) %>%
-  summarise(mean_played = mean(play1_pass0, na.rm = T),
-            sem_played = sem(play1_pass0)) %>%
+  summarise(mean_played = mean(correct1_incorrect0, na.rm = T),
+            sem_played = sem(correct1_incorrect0)) %>%
   ggplot(aes(trials_since_last_played, mean_played, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
   geom_smooth(alpha=0.5)+
   theme_bw()+
@@ -174,185 +81,10 @@ machine_game_data_clean %>%
   
 ```
 
-```{r}
-with(machine_game_data_clean[machine_game_data_clean$facet_labels=='+5,-495',], table(Trial_number))  
-```
-
-```{r}
-machine_game_data_clean %>%
-   filter(age_group == 'kid', facet_labels == '+5,-495') %>%
-  mutate(play1_pass0 = ifelse(Response == 1, 1, 0),
-         relative_trial_num  = 1:n()) %>%
-  ggplot(aes(relative_trial_num, play1_pass0))+
-  geom_point()+
-  facet_wrap(~ Sub_id)+
-  theme_bw()+
-  xlab('Relative trial number')+
-  ylab('Play or pass')
-    
-```
-```{r}
-write.csv(machine_game_data_clean, '/Users/zeynepenkavi/Dropbox/SU-Classes/Autumn16/PSYC204/models/data/machine_game_data_clean.csv')
-```
-
-```{r}
-tmp <- machine_game_data_clean %>%
-  filter(facet_labels == '+5,-495')%>%
-  group_by(Sub_id) %>%
-  summarise(total_plays = sum(ifelse(Response ==1,1,0)))
-
-tmp
-
-bart_data %>%
-  group_by(Sub_id) %>%
-  do(adjusted.pumps(.)) %>%
-  left_join(tmp, by="Sub_id") %>%
-  do(assign.age.info(.)) %>%
-  ggplot(aes(mean_adjusted_pumps, total_plays, col = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_point(alpha=0.25)+
-  geom_smooth(method = "lm", se=F)+
-  theme_bw()+
-  labs(col = "Age group")+
-  xlab("Optimally risky choices in risk taking task")+
-  ylab("Times played large loss machine")
-```
-
 -------------------
 Leftovers from other nb
 
-## Sensitivity to variance vs. expected value
-
-Sensitivity to variance is defined as the difference in proportion of playing machines of same expected value.  
-Sensitivity to expected value is defined as the difference in proportion of playing machines of same variance.
-
-var sensitivty: left col - right col
-ev sensitivity: top row - bottom row
-
-positive var sensitivity: more sensitive to low variance
-
-```{r}
-machine_game_data_clean %>%
-  # mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-  #        Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')),
-  #        facet_labels = ifelse(facet_labels == '-10,+100', 'low_var_pos_ev', ifelse(facet_labels == '-5,+495', 'high_var_pos_ev', ifelse(facet_labels == '+10,-100','low_var_neg_ev', ifelse(facet_labels == '+5,-495', 'high_var_neg_ev',NA))))) %>%
-  filter(Response %in% c(1,2)) %>%
-  mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
-         age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')),
-         facet_labels = ifelse(facet_labels == '-10,+100', 'low_var_pos_ev', ifelse(facet_labels == '-5,+495', 'high_var_pos_ev', ifelse(facet_labels == '+10,-100','low_var_neg_ev', ifelse(facet_labels == '+5,-495', 'high_var_neg_ev',NA)))))%>%
-  # group_by(Sub_id, facet_labels, Response) %>%
-  group_by(Sub_id, facet_labels, correct1_incorrect0) %>%
-  tally %>%
-  group_by(Sub_id, facet_labels) %>%
-  # mutate(pct_play=(100*n)/sum(n)) %>%
-  mutate(pct_correct=(100*n)/sum(n)) %>%
-  # filter(Response == 'play') %>%
-  filter(correct1_incorrect0 == 1) %>%
-  do(assign.age.info(.)) %>%
-  select(-n) %>%
-  # spread(facet_labels, pct_play)%>%
-  spread(facet_labels, pct_correct)%>%
-  mutate(var_sensitivity_pos = low_var_pos_ev - high_var_pos_ev,
-         var_sensitivity_neg = low_var_neg_ev - high_var_neg_ev,
-         ev_sensitivity_low = low_var_pos_ev - low_var_neg_ev,
-         ev_sensitivity_high = high_var_pos_ev - high_var_neg_ev) %>%
-  group_by(age_group) %>%
-  summarise(mean__var_sensitivity_pos = mean(var_sensitivity_pos,na.rm=T),
-         mean__var_sensitivity_neg = mean(var_sensitivity_neg,na.rm=T),
-         mean__ev_sensitivity_low = mean(ev_sensitivity_low,na.rm=T),
-         mean__ev_sensitivity_high = mean(ev_sensitivity_high,na.rm=T),
-         sem__var_sensitivity_pos = sem(var_sensitivity_pos),
-         sem__var_sensitivity_neg = sem(var_sensitivity_neg),
-         sem__ev_sensitivity_low = sem(ev_sensitivity_low),
-         sem__ev_sensitivity_high = sem(ev_sensitivity_high)) %>%
-  gather(key, value, -age_group) %>%
-  separate(key, c('stat', 'var'), sep="__") %>%
-  spread(stat, value) %>%
-  ggplot(aes(var, mean, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_bar(stat='identity', position=position_dodge(0.9))+
-  geom_errorbar(aes(ymin=mean-sem, ymax=mean+sem), position = position_dodge(0.9), width=0.25)+
-  theme_bw()+
-  ylab('Average difference in optimal choice')+
-  labs(fill = 'Age group')+
-  xlab('')
-```
-
-
-Since we are interested in differences in learning we must quantify with respect to changes in time.  
-
-Because there are optimal answers for each of these machines (playing for positive expected value machines and not playing for negative expected value machines) we can recode the responses as correct vs. incorrect and model learning across time for each condition as the slope of the logistic regression of correct responses over time. The larger this slope the better is the learning.
-
-```{r warning = FALSE, message=FALSE}
-machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(trial = 1:n(),
-         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
-  ggplot(aes(trial, correct1_incorrect0))+
-  geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
-  geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
-  facet_wrap(~facet_labels)+
-  theme_bw()+
-  xlab("Relative trial number")+
-  scale_y_continuous(breaks=c(0,1))+
-  labs(col="Age group")
-```
-
-
-```{r warning=FALSE, message=FALSE}
-machine_game_data_clean %>%
-  filter(Response %in% c(1,2)) %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(trial = 1:n(),
-         correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0))) %>%
-  do(get_learning_coef(.)) %>%
-  arrange(-b1) %>%
-  do(assign.age.info(.)) %>%
-  filter(b1<1) %>%
-  group_by(age_group, facet_labels) %>%
-  summarise(mean_b1 = mean(b1),
-            sem_b1 = sem(b1)) %>%
-  ggplot(aes(facet_labels, mean_b1, fill = factor(age_group, levels=c('kid', 'teen', 'adult'))))+
-  geom_bar(stat='identity', position=position_dodge(0.9))+
-  geom_errorbar(aes(ymin=mean_b1-sem_b1, ymax=mean_b1+sem_b1), position = position_dodge(0.9), width=0.25)+
-  theme_bw()+
-  ylab('Average slope')+
-  labs(fill = 'Age group')+
-  xlab('')
-
-```
-_________________
-
-Going back to task behavior: Are these differences in frequency of playing significant? A hierarchical regression suggests that compared to adults kids play more frequently in the '+5,-495' condition and less frequently in the '-10,+100' condition. (Teens are not different from adults.)
-
-In other words kids are more sensitive to small but frequent losses and less sensitive to large but infrequent losses compared to adults.
-
-So they update the expected value of e.g. the high variance negative machine slower compared to adults (which would have translated to an exponent <1 on the prediction error had the model fitting worked); they are less sensitive to the magnitude of change in the prediction error (and more affected by frequency of feedback). (*Is this interpretation correct?*)
-
-The full multilevel model capturing this behavioral difference in terms of percent of playing each machine can be captured by the following model. Taking the adult behavior in the -10,+100 condition as baseline we can see that the interaction between kids in negative expected value trials are the only significant ones.
-
-```{r eval=FALSE}
-tmp <- machine_game_data_clean %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
-  group_by(Sub_id, facet_labels, Response) %>%
-  tally %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(pct_play=(100*n)/sum(n)) %>%
-  filter(Response == 'play') %>%
-  do(assign.age.info(.))
-
-summary(lmer(pct_play ~ age_group*facet_labels + (1|Sub_id), data = tmp))
-rm(tmp)
-```
-
-Let's consider the optimal action for each machine for a minute: To maximize rewards one must always play the positive expected value machines and never play the negative expected value machines. So this underweighing of large magnitudes and overweighing of frequency of losses results in kids behaving more suboptimally compared to adults (though note that adults are also pretty far from 0 or 100 in playing any machine). I need to think about whether these two (sensitivity to magnitude versus to frequency) have dissociable roles. I'm not sure contrasting which machines would answer this because the variance and magnitude are perfectly correlated in the experimental setup. 
-
-One data point that I thought might be helpful was to compare the decrease in playing between low variance positive EV to low variance negative EV (-10, +100 vs +10,-100) with the decrease in playing between low variance positive EV and high variance negative EV (-10, +100 vs +5, -495). Since playing is lower in general for +10,-100 it seems that everyone is more sensitive to the frequency of losses than their magnitude and the decrease in adult's playing proportion is even larger than the kids'. It seems that kids are not more sensitive to the frequency of losses compared to adults either (as I may have implied above). It does, however, also seem to be the case that between the magnitude and frequency they change their behavior more based on the frequency than the magnitude. But it's not clear to me whether their suboptimal behavior in the +5,-495 condition compared to adults is due to kids' lack of sensitivity to the magnitude of change or whether they learn better from more frequent feedback (i.e. a comparative overweighing of frequency of change) since these two change together in the experiment.
-
-Since I'm not sure how to resolve this for now let's move on to other exploratory DVs. Percentage of time playing each machine gives us a sense of the global behavior but we are probably looking for a finer measure that would tell us more about how the behavior of a single subject changes from trial to trial (that we could also use parametrically for imaging analyses) depending on their observations. 
-
-Without any advanced models a simple statistic that we can calculate to capture change in behavior depending on the observed outcome is to count how many trials it takes a subject to play a machine again.  
+ 
 
 ## Average number of trials to play again post outcome
 
@@ -365,7 +97,7 @@ count.postoutcome.trials <- function(subject_data){
   
   gain_trials = which(subject_data$Points_earned>0)
   
-  play_trials= which(subject_data$Response == 1)
+  play_trials= which(subject_data$Response == "play")
   
   post_loss_trials = play_trials[which(play_trials %in% loss_trials)+1]
   
@@ -384,111 +116,43 @@ count.postoutcome.trials <- function(subject_data){
   
   return(data.frame(num_trials_post_loss = num_trials_post_loss, num_trials_post_gain = num_trials_post_gain))
 }
-
-# subject_data <- machine_game_data_clean[1:180,]
-# tmp <- count.postoutcome.trials(subject_data)
 ```
 
-This graph shows the average number of trials it takes a subject to play a given machine after experiencing a loss or a gain. For almost everyone and for every machine the average number of trials it takes a subject to play following a loss (red dot) is higher than the average number of trials it take them to play following a gain (blue dot). This suggests that subjects are responding to outcomes in a way overweights their most recent experience with the machine. I think this serves as a (weak) sanity check for our intuitions modeling this data using simple prediction error models that are updated after each trial.
+This graph shows the average number of trials it takes a subject to play a given machine after experiencing a loss or a gain.   
+
+For everyone and for every machine the average number of trials it takes a subject to play following a loss is higher than the average number of trials it take them to play following a gain. This suggests that subjects are responding to outcomes in a way overweights their most recent experience with the machine.   
+
+I think this serves as a (weak) sanity check for our intuitions modeling this data using simple prediction error models that are updated after each trial.
 
 One thought that is not necessarily immediately pertinent but that I puzzled over is how this graph would have looked like if subjects were taking all their experiences with the machine in to account (instead of overweighing their most recent experience). I have a vague intuition that in that case the difference in responding between the experiences (gain/loss) would be 0. That is, if one takes in to account all their experiences then they would distinguish between the positive and negative EV machines and either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. Relatedly then, this difference in response patterns depending on the observed outcome could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses. I'm not sure where I'm going with this but perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.
 
-```{r eval=FALSE}
-machine_game_data_clean %>%
-  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
+```{r}
+tmp = machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
   do(count.postoutcome.trials(.))  %>%
   do(assign.age.info(.)) %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
-            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
-  gather(key, value, -Sub_id, -facet_labels) %>%
-  ggplot(aes(factor(Sub_id), value, color=factor(key, levels = c("mean_post_loss", "mean_post_gain"))))+
+  ungroup() %>%
+  select(facet_labels, age_group, num_trials_post_loss, num_trials_post_gain, Sub_id) %>%
+  gather(key, value, -facet_labels, -age_group, -Sub_id) %>%
+  mutate(key = gsub("num_trials_post_", "", key)) 
+
+tmp %>%
+  group_by(facet_labels, age_group, key) %>%
+  summarise(mean_post = mean(value, na.rm=T),
+            sem_post = sem(value)) %>%
+  ggplot(aes(age_group, mean_post, shape=key, col=age_group))+
   geom_point()+
-  theme_bw()+
+  geom_errorbar(aes(ymin = mean_post-sem_post, ymax = mean_post+sem_post), width=0)+
   facet_wrap(~facet_labels)+
-  scale_x_discrete(labels=NULL)+
-  xlab('Subjects')+
-  labs(color = NULL)
+  xlab("Number of trials until next play")+
+  theme(legend.title = element_blank())+
+  guides(color=FALSE)
 ```
 
-As our finer trial-by-trial measure, however, we have hypothesized that the driver of age differences would lie in post loss behavior. The previous plot also supports this strategy since there is less variability in post gain behavior (blue dots) compared to the post loss behavior. So let's see if there are age difference in post loss behavior.
+Reflecting the global behavior in proportion of playing in each condition adults take longer to play after large losses in the high variance negative EV condition compared to kids while kids are less sensitive to the magnitude of loss.
 
-Indeed, reflecting the global behavior in proportion of playing in each condition adults are less likely to play after large losses in the high variance negative EV condition compared to kids while kids are less sensitive to the magnitude of loss. This, however is only a marginal effect based on the simple effects below and there aren't other significant age differences in other conditions.
-
-```{r eval=FALSE}
-machine_game_data_clean %>%
-  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
-  do(count.postoutcome.trials(.))  %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
-            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
-  select(Sub_id, facet_labels, mean_post_loss) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  group_by(age_group, facet_labels) %>%
-  summarise(sem_post_loss = sem(mean_post_loss),
-            mean_post_loss = mean(mean_post_loss, na.rm=T))%>%
-  ggplot(aes(facet_labels, mean_post_loss, fill=age_group)) +
-  geom_bar(stat='identity', position=position_dodge(0.9))+
-  geom_errorbar(aes(ymin=mean_post_loss-sem_post_loss, ymax=mean_post_loss+sem_post_loss), position = position_dodge(0.9), width=0.25)+
-  theme_bw()+
-  xlab('Machine')+
-  ylab("Average number of trials post loss")+
-  labs(fill='Age group')
-```
-
-Statistical tests for the above graph: Only in the last condition is the effect marginal.
-
-```{r eval=FALSE}
-tmp <- machine_game_data_clean %>%
-  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
-  do(count.postoutcome.trials(.))  %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
-            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
-  select(Sub_id, facet_labels, mean_post_loss) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  filter(facet_labels == '-10,+100')
-
-summary(lm(mean_post_loss ~ age_group, data=tmp))
-rm(tmp)
-
-tmp <- machine_game_data_clean %>%
-  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
-  do(count.postoutcome.trials(.))  %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
-            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
-  select(Sub_id, facet_labels, mean_post_loss) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  filter(facet_labels == '-5,+495')
-
-summary(lm(mean_post_loss ~ age_group, data=tmp))
-rm(tmp)
-
-tmp <- machine_game_data_clean %>%
-  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
-  do(count.postoutcome.trials(.))  %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
-            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
-  select(Sub_id, facet_labels, mean_post_loss) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  filter(facet_labels == '+10,-100')
-
-summary(lm(mean_post_loss ~ age_group, data=tmp))
-rm(tmp)
-
-tmp <- machine_game_data_clean %>%
-  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
-  do(count.postoutcome.trials(.))  %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
-            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
-  select(Sub_id, facet_labels, mean_post_loss) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  filter(facet_labels == '+5,-495')
-
-summary(lm(mean_post_loss ~ age_group, data=tmp))
-rm(tmp)
+```{r}
+summary(lm(value~age_group*facet_labels,tmp %>%filter(key=="loss")))
 ```
 
 Since we're not finding strong age differences on this potentially still somewhat coarse measure of sensitivity to magnitude of loss and we have some evidence/apriori assumptions built in prediction error models that subjects overweight their most recent experience perhaps a better DV would be the probability that a subject plays after each loss. That is, how often does a subject play immediately after a loss.
