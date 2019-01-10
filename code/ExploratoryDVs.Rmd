@@ -457,11 +457,16 @@ rm(tmp)
 
 ## Sensitivity to variance vs. expected value
 
-How should we define these?
+Does it makes sense to look at these separately?  
 
-Function to calculate observed variance and observed expected value based on outcomes in trials that the subject has played.
+Since the machines differ in the variance of the outcomes and expected values it might seem sensible to look at which of these attributes has a larger effect on performance.  
+
+It's tempting to tease apart the relative importance of these attributes for the high variance negative EV machine where we observe the performance difference between age groups.  
+
+**BUT** these attributes are correlated. So we can't look at their effects separately in the same model.   
 
 ```{r}
+#Function to calculate observed variance and observed expected value based on outcomes in trials that the subject has played.
 get_obs_var_ev <- function(data){
   
   new_data = data
@@ -492,13 +497,29 @@ get_obs_var_ev <- function(data){
 }
 ```
 
-
 ```{r}
 tmp = machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
-  do(get_obs_var_ev(.))%>% 
-  mutate(play1_pass0 = ifelse(Response == "play", 1, 0))
+  do(get_obs_var_ev(.))
 ```
+
+```{r}
+tmp %>%
+  ggplot(aes(obs_var, obs_ev))+
+  geom_point()+
+  facet_wrap(~facet_labels, scales="free")+
+  xlab("Observed variance")+
+  ylab("Observed EV")
+```
+
+What we are interested in is the effect of beliefs about the machines on behavior. These beliefs can be summarized quantitatively in an 'expected value.'  
+
+The cognitive processes that can differ with respect to this expected value can be how quickly it approaches the true expected value of a machine (the rate at which one incorporates each new data point to existing beliefs) and how truthfully the expected values are evaluated (is the utility of the expected value the same as its value).   
+
+These two processes can be captured as the learning rate and the exponent on the prediction error in an RL model.
+
+Plotting the effect of EV on choice to confirm that it makes sense and captures the behavioral effect:  
+The higher the EV of a machine the more likely it is to be played. This is the correct action for the positive EV machines but incorrect action for the negative EV machines. The behavioral effect in the high var negative EV machine is captured again with the diverging lines for age groups at low EVs.
 
 ```{r warning=FALSE, message=FALSE}
 tmp %>%
@@ -512,39 +533,4 @@ tmp %>%
   ylab('Correct')+
   theme(legend.position = "bottom",
         legend.title = element_blank())
-```
-
-```{r warning=FALSE, message=FALSE}
-tmp %>%
-  ggplot(aes(obs_var, correct1_incorrect0))+
-  geom_line(aes(group = Sub_id, col= age_group),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
-  geom_line(aes(col= age_group),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
-  facet_wrap(~facet_labels, scales='free')+
-  theme_bw()+
-  xlab("Variance of played trials")+
-  scale_y_continuous(breaks=c(0,1))+
-  labs(col="Age group")+
-  ylab('Correct')
-```
-
-```{r}
-# This model is not really interesting since we are interested in the relative effect of observed EV and var across age groups
-# summary(glmer(correct1_incorrect0 ~ scale(obs_var)+scale(obs_ev)+age_group+facet_labels+(1|Sub_id),              family = binomial(link=logit), data = tmp))
-
-#Convergence problems begin even here
-# summary(glmer(correct1_incorrect0 ~ scale(obs_var)+scale(obs_ev)+age_group+facet_labels+
-#                 scale(obs_var):age_group+
-#                 scale(obs_ev):age_group+
-#                 (1|Sub_id),
-#       family = binomial(link=logit), data = tmp))
-
-# The 3 way interactions (age*facet*var and age*facet*ev) are of interest here
-# BUT This seems to take forever; won't converge
-# glmer(correct1_incorrect0 ~ scale(obs_var)+scale(obs_ev)+age_group+facet_labels+
-#         scale(obs_ev):age_group:facet_labels+
-#         scale(obs_var):age_group:facet_labels+(1|Sub_id), 
-#       family = binomial(link=logit), data = tmp)
-
-# Estimate var and ev parameters for each subject in each condition separately and compare those
-# This is very crude but just trying
 ```
