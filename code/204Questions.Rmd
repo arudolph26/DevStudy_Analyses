@@ -1,3 +1,15 @@
+---
+title: "204 questions re dev study"
+output: 
+html_document:
+toc: true
+toc_depts: 2
+---
+
+```{r setup_env, echo=FALSE, message=FALSE, warning=FALSE}
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
+```
+
 1. Do people 'explore' the first five trials where the reward probabilities for each machine are presented?
 
 They explore less when they encounter a loss early on. In the high var pos EV machine they get 4 (small) losses in a row; in the low var negative EV machine they get a moderate loss in the first trial.
@@ -81,16 +93,11 @@ machine_game_data_clean %>%
   
 ```
 
--------------------
-Leftovers from other nb
-
- 
-
 ## Average number of trials to play again post outcome
 
 If subjects are sensitive to losses and learning something about the machines in a way that overweights their most recent experience with the machine (e.g. a simple prediction error model that had been used for this data before) one sanity check is to compare how many trials it takes subjects to play a machine again after a loss versus a gain. Presumably the former would be higher than the latter, that is one would hesitate to play a machine again after a loss but more likely to play it after a gain.
 
-```{r eval=FALSE, func_def, warning=FALSE}
+```{r}
 count.postoutcome.trials <- function(subject_data){
   
   loss_trials = which(subject_data$Points_earned<0)
@@ -155,243 +162,6 @@ Reflecting the global behavior in proportion of playing in each condition adults
 summary(lm(value~age_group*facet_labels,tmp %>%filter(key=="loss")))
 ```
 
-Since we're not finding strong age differences on this potentially still somewhat coarse measure of sensitivity to magnitude of loss and we have some evidence/apriori assumptions built in prediction error models that subjects overweight their most recent experience perhaps a better DV would be the probability that a subject plays after each loss. That is, how often does a subject play immediately after a loss.
-
-```{r eval=FALSE}
-#What is the probability that you'll play after a loss trial
-#The higher this is in the high var negative EV condition the worse your performance
-mean.postloss.play.prob <- function(subject_data){
-  
-  Sub_id = unique(subject_data$Sub_id)
-  
-  loss_trials = which(subject_data$Points_earned<0)
-  
-  mean_post_loss_prob <- mean(ifelse(subject_data$Response[loss_trials+1] == 1, 1, 0), na.rm=T)
-  
-  return(data.frame(mean_post_loss_prob=mean_post_loss_prob))
-}
-```
-
-The graph suggests that adults are more likely to play after a loss in the positive EV trials and less so in the negative EV trials though none of these are statistically significant.
-
-```{r eval=FALSE}
-machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  do(mean.postloss.play.prob(.)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  group_by(age_group, facet_labels) %>%
-  summarise(sem_post_loss_prob = sem(mean_post_loss_prob),
-            mean_post_loss_prob = mean(mean_post_loss_prob)) %>%
-  ggplot(aes(facet_labels, mean_post_loss_prob, fill=age_group))+
-  geom_bar(stat = 'identity', position = position_dodge(0.9))+
-  geom_errorbar(aes(ymin=mean_post_loss_prob - sem_post_loss_prob, ymax=mean_post_loss_prob + sem_post_loss_prob), position=position_dodge(0.9), width=0.25)+
-  theme_bw()+
-  labs(fill = 'Age group')+
-  xlab('Machine')+
-  ylab('Mean playing prob post loss trial')
-```
-
-Statisitcal test for this graph: none of the differences are significant.
-
-```{r eval=FALSE}
-tmp <- machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  do(mean.postloss.play.prob(.)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  filter(facet_labels == '-10,+100')
-
-summary(lm(mean_post_loss_prob ~ age_group, data=tmp))
-rm(tmp)
-
-tmp <- machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  do(mean.postloss.play.prob(.)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  filter(facet_labels == '-5,+495')
-
-summary(lm(mean_post_loss_prob ~ age_group, data=tmp))
-rm(tmp)
-
-tmp <- machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  do(mean.postloss.play.prob(.)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  filter(facet_labels == '+10,-100')
-
-summary(lm(mean_post_loss_prob ~ age_group, data=tmp))
-rm(tmp)
-
-tmp <- machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  do(mean.postloss.play.prob(.)) %>%
-  do(assign.age.info(.)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  filter(facet_labels == '+5,-495')
-
-summary(lm(mean_post_loss_prob ~ age_group, data=tmp))
-rm(tmp)
-```
-
-Quick look at how this relates to BART data:
-
-```{r eval=FALSE}
-adjusted.pumps <- function(subject_data){
-  subject_data_adjusted = subject_data[subject_data$exploded == 0,]
-  subject_pumps <- subject_data_adjusted %>% 
-    group_by(trial.num) %>%
-    summarise(total_pumps = sum(finished))
-  out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps))
-  return(out)
-}
-```
-
-Increase in number of pumps with age
-
-```{r eval=FALSE}
-bart_data %>%
-  group_by(Sub_id) %>%
-  do(adjusted.pumps(.)) %>%
-  do(assign.age.info(.)) %>%
-  ggplot(aes(x=calc_age, y = mean_adjusted_pumps))+
-  geom_point()+
-  theme_bw()+
-  geom_smooth(method = "lm") +
-  xlab("Age")+
-  ylab("Risk taking (adjusted pumps)")
-```
-
-
-```{r eval=FALSE}
-tmp <- machine_game_data_clean %>%
-  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
-  do(count.postoutcome.trials(.))  %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
-            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
-  select(Sub_id, facet_labels, mean_post_loss) %>%
-  do(assign.age.info(.)) 
-
-bart_data %>%
-  group_by(Sub_id) %>%
-  do(adjusted.pumps(.)) %>%
-  left_join(tmp, by = 'Sub_id') %>%
-  filter(!is.na(facet_labels)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  ggplot(aes(x = mean_adjusted_pumps, y = mean_post_loss))+
-  geom_point(aes(col=age_group))+
-  geom_smooth(method = "lm",col='black')+
-  facet_wrap(~facet_labels)+
-  theme_bw()+
-  ylab("Average number of trials post loss")+
-  xlab("Risk taking (Adjusted pumps)")+
-  ylim(0,10)+
-  labs(col="Age group")
-
-rm(tmp)
-```
-
-```{r eval=FALSE}
-tmp <- machine_game_data_clean %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
-  group_by(Sub_id, facet_labels, Response) %>%
-  tally %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(pct=(100*n)/sum(n)) %>%
-  do(assign.age.info(.)) %>%
-  filter(Response == "play")
-
-bart_data %>%
-  group_by(Sub_id) %>%
-  do(adjusted.pumps(.)) %>%
-  left_join(tmp, by = 'Sub_id') %>%
-  select(Sub_id, mean_adjusted_pumps, pct, age_group, facet_labels) %>%
-  filter(!is.na(pct)) %>%
-  mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult'))) %>%
-  ggplot(aes(x=mean_adjusted_pumps, y = pct))+
-  geom_point(aes(col=age_group))+
-  geom_smooth(method="lm", color='black')+
-  facet_wrap(~facet_labels)+
-  theme_bw()+
-  ylab("Percentage of playing")+
-  xlab("Risk taking (adjusted pumps)")+
-  labs(col="Age group")
-
-rm(tmp)
-```
-
------
-Thought of regressing total points on average number of trials after a loss to see if it could explain the performance difference but I think they might be necessarily correlated by definition. ???
-
-```{r eval=FALSE}
-tmp <- machine_game_data_clean %>%
-  group_by_(.dots = list(~Sub_id, ~facet_labels)) %>%
-  do(count.postoutcome.trials(.))  %>%
-  summarise(mean_post_loss = mean(num_trials_post_loss, na.rm=T),
-            mean_post_gain = mean(num_trials_post_gain, na.rm=T)) %>%
-  select(Sub_id, facet_labels, mean_post_loss) %>%
-  left_join(summarise(group_by(machine_game_data_clean, Sub_id, facet_labels), total_points = sum(Points_earned)), by = c("Sub_id", "facet_labels")) %>%
-  do(assign.age.info(.))
-
-summary(lm(total_points ~ age_group*mean_post_loss*facet_labels, data=tmp))
-with(tmp, cor.test(total_points, mean_post_loss))
-```
-
-
-```{r eval=FALSE}
-#Does this correlate with age or bart adjusted pumps? No.
-
-adjusted.pumps <- function(subject_data){
-  subject_data_adjusted = subject_data[subject_data$exploded == 0,]
-  subject_pumps <- subject_data_adjusted %>% 
-    group_by(trial.num) %>%
-    summarise(total_pumps = sum(finished))
-  out <- data.frame(Sub_id = unique(subject_data$Sub_id), mean_adjusted_pumps = mean(subject_pumps$total_pumps))
-  return(out)
-}
-
-#subject_data <- bart_data[c(bart_data$Sub_id == 100003),]
-#adjusted.pumps(subject_data)
-
-bart_pumps <- ddply(bart_data, .(Sub_id), adjusted.pumps)
-
-mean_postloss_trials <- merge(mean_postloss_trials, bart_pumps, all.x = T, by= 'Sub_id')
-
-ggpairs(mean_postloss_trials, (which(names(mean_postloss_trials) %in% c('calc_age', 'mean_post_loss', 'mean_adjusted_pumps'))))
-```
-
-The average number of trials it takes you play a machine again after a loss is 'contaminated' with your memory for it. A closely related measure that could get around memory effects (though they might be of interest since they are presumably necessary for learning) and capture a 'purer' reaction to loss is to check how the probability of playing immediately after a loss trial differs between the groups.
-Do we have any theories on how this should behave throughout the task if you are learning something about the machines?
-
-
-## Mean p(play) post loss
-Operationalized as: Number of times you played immediately after experiencing a loss/Number of loss trials
-
-```{r eval=FALSE}
-mean.postloss.play.prob <- function(subject_data){
-  
-  Sub_id = unique(subject_data$Sub_id)
-  
-  loss_trials = which(subject_data$Points_earned<0)
-  
-  mean_post_loss_prob <- mean(ifelse(subject_data$Response[loss_trials+1] == 2, 1, 0), na.rm=T)
-  
-  out <- data.frame(Sub_id = Sub_id, mean_post_loss_prob = mean_post_loss_prob)
-  
-  return(out)
-}
-
-# subject_data <- machine_game_data_clean[1:180,]
-#tmp <- mean.postloss.play.prob(subject_data)
-
-mean_postloss_trials <- merge(mean_postloss_trials, ddply(machine_game_data_clean, .(Sub_id), mean.postloss.play.prob), all.x=T, by='Sub_id')
-
-ggpairs(mean_postloss_trials, (which(names(mean_postloss_trials) %in% c('calc_age', 'mean_post_loss', 'mean_adjusted_pumps', 'mean_post_loss_prob'))))
-```
-
 ## How many people experience multiple losses (for each machine)
 
 ```{r eval=FALSE}
@@ -408,66 +178,65 @@ loss.per.machine <- function(subject_data){
   return(out)
 }
 
-#subject_data <- machine_game_data_clean[1:180,]
-#tmp <- loss.per.machine(subject_data)
+loss_per_machine = machine_game_data_clean %>%
+  group_by(Sub_id) %>%
+  do(loss.per.machine(.)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(facet_labels = ifelse(machine == 1, "+5,-495", ifelse(machine == 2, "-5,+495", ifelse(machine == 3, "-10,+100", ifelse(machine == 4, "+10,-100", NA)))))
+```
 
-loss_per_machine <- ddply(machine_game_data_clean, .(Sub_id), loss.per.machine)
-
-loss_per_machine$facet_labels <- with(loss_per_machine, ifelse(machine == 1, "+5,-495", ifelse(machine == 2, "-5,+495", ifelse(machine == 3, "-10,+100", ifelse(machine == 4, "+10,-100", NA)))))
-
-head(loss_per_machine)
-
+```{r}
 loss_per_machine %>%
-  ggplot(aes(num_loss))+
-  geom_histogram()+
+  ggplot(aes(num_loss, fill=age_group))+
+  geom_histogram(position = "identity", alpha=0.5)+
   facet_wrap(~facet_labels)+
-  theme_bw()
+  theme(legend.position = "bottom",
+        legend.title=element_blank())
+```
 
-#With machine do people experience a single loss most frequently?
+#Which machine do people experience a single loss most frequently?
+
+```{r}
 with(loss_per_machine[loss_per_machine$num_loss == 1,], table(facet_labels))
 ```
 
 ## Cross-talk between machines
-are you less likely to play overall after a loss or only less likely to play that machine
 
-```{r eval=FALSE}
-mean_postloss_play_prob_per_machine <- ddply(machine_game_data_clean, .(Sub_id, Trial_type), mean.postloss.play.prob)
+Are subjects less likely to play overall after a loss or only less likely to play that machine after a loss for that machine?
 
-mean_postloss_play_prob_per_machine$facet_labels <- with(mean_postloss_play_prob_per_machine, ifelse(Trial_type == 1, "+5,-495", ifelse(Trial_type == 2, "-5,+495", ifelse(Trial_type == 3, "-10,+100", ifelse(Trial_type == 4, "+10,-100", NA)))))
+```{r}
+mean.postloss.play.prob <- function(subject_data){
+  
+  Sub_id = unique(subject_data$Sub_id)
+  
+  loss_trials = which(subject_data$Points_earned<0)
+  
+  mean_post_loss_prob <- mean(ifelse(subject_data$Response[loss_trials+1] == "play", 1, 0), na.rm=T)
+  
+  return(data.frame(mean_post_loss_prob=mean_post_loss_prob))
+}
+```
 
-mean_postloss_play_prob_per_machine %>% ggplot(aes(mean_post_loss_prob, fill = facet_labels))+
-  geom_histogram(alpha = 0.5)+
-  theme_bw()#+
-#facet_wrap(~facet_labels)
+Probability of playing following a loss depends on machine type. Looking at all trials masks this difference. Subjects seem to learn machine specifically and cross-talk isn't evident here.
 
-mean_postloss_trials%>% ggplot(aes(mean_post_loss_prob))+
-  geom_histogram()+
-  theme_bw()
+```{r}
+tmp = machine_game_data_clean %>%
+  group_by(Sub_id) %>%
+  do(mean.postloss.play.prob(.)) %>%
+  mutate(facet_labels = "all_trials")
 
-tmp <- mean_postloss_trials[,c("Sub_id", "mean_post_loss_prob")]
-tmp$Trial_type <- 0
-tmp$facet_labels <- 'Overall'
-tmp <- tmp[,c(3,1,2,4)]
-tmp <- rbind(tmp, mean_postloss_play_prob_per_machine)
-
-tmp %>% ggplot(aes(mean_post_loss_prob, fill = facet_labels))+
-  geom_histogram(alpha=0.5)+
-  theme_bw()
-
-
-pairwise.t.test(tmp$mean_post_loss_prob, tmp$facet_labels)
-
-t.test(tmp$mean_post_loss_prob[tmp$facet_labels=='Overall'], tmp$mean_post_loss_prob[tmp$facet_labels=='-10,+100'])
-
-t.test(tmp$mean_post_loss_prob[tmp$facet_labels=='Overall'], tmp$mean_post_loss_prob[tmp$facet_labels=='+10,-100'])
-
-t.test(tmp$mean_post_loss_prob[tmp$facet_labels=='Overall'], tmp$mean_post_loss_prob[tmp$facet_labels=='-5,+495'])
-
-t.test(tmp$mean_post_loss_prob[tmp$facet_labels=='Overall'], tmp$mean_post_loss_prob[tmp$facet_labels=='+5,-495'])
-
-#Less likely to play after a loss trial in the low varince positive EV machine and more likely to play after a loss trial in the low variance positive EV machine
-
-#What is optimal here? Is this pattern 'rational'?
-#I don't think so. In the positive EV machine the optimal thing would be to always play. The decrease in probability in playing (from 0.5) after experiencing small losses would lead one to make less than one could
-#Conversely in the low variance negative expected value machine one should never play. But the increase in probability in playing after losses 
+machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(mean.postloss.play.prob(.)) %>%
+  rbind(tmp) %>%
+  do(assign.age.info(.)) %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(mp = mean(mean_post_loss_prob,na.rm=T),
+            sp = sem(mean_post_loss_prob)) %>%
+  ggplot(aes(facet_labels, mp, fill=age_group))+
+  geom_bar(stat="identity",position=position_dodge())+
+  geom_errorbar(width=0, aes(ymin = mp-sp, ymax = mp+sp), position = position_dodge(width=0.9))+
+  xlab("")+
+  ylab("Post loss play probability")+
+  theme(legend.title = element_blank())
 ```
