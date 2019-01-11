@@ -1,5 +1,5 @@
 ---
-title: "Developmental changes in sensitivity to high variance feedback relates to differences in risky decision making"
+title: "Developmental differences in sensitivity to high variance feedback"
 output: 
 html_document:
 toc: true
@@ -9,6 +9,14 @@ toc_depts: 2
 ```{r setup_env, echo=FALSE, message=FALSE, warning=FALSE}
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
 ```
+
+This notebook contains exploratory analyses of behavioral data collected to investigate the relationship between risk taking behavior and probabilistic learning.  
+
+The sample consists of three age groups: kids, teens and adults and we hypothesize that sensitivity to learn from high variance feedback improves with age (and this is related to better risky decisions).  
+
+Subjects completed a probabilistic learning task in the scanner, a risky decision making task (BART) outside the scanner and numerous questionnaires. The focus of this notebook is on the first task.  
+
+The plan of analysis is to establish that adults are more sensitive to high variance feedback in the probabilistic learning task and relate this (modeled) sensitivity to behavior in BART.  
 
 # Sample info
 
@@ -24,11 +32,10 @@ machine_game_data_clean %>%
             n = n()/180)
 ```
 
-# Performance in probabilistic learning task
+# Performance in RL task
 
-We first examine the behavior in the probabilistic learning task.   
+In this task subjects are presented with a fractal in each trial. The fractals represent different machines (single-armed bandits). Subjects choose to play or pass in each trial. Each machine yields a probabilistic reward. There are four machines in total. Two with positive and two with negative expected value. One of each of these machines has a low variance reward schedule while the other has a high variance reward schedule. 
 
-In this task subjects are presented with a fractal in each trial. The fractals represent different machines. Subjects choose to play or pass in each trial. Each machine yields a probabilistic reward. There are four machines in total. Two with positive and two with negative expected value. One of each of these machines has a low variance reward schedule while the other has a high variance reward schedule. More clearly:  
 - One machine gives \$5 90% of the time and -\$495 %10 of the time  
 - One machine gives -\$5 90% of the time and \$495 %10 of the time  
 - One machine gives \$10 50% of the time and -$100 %50 of the time  
@@ -56,7 +63,7 @@ machine_game_data_clean %>%
 
 ```
 
-This difference is statistically significant: adults earn more points compared to the kids (t = 2.771).
+This difference is statistically significant: adults earn more points compared to the kids.
 
 ```{r}
 tmp = machine_game_data_clean %>%
@@ -99,13 +106,13 @@ tmp <- machine_game_data_clean %>%
   do(assign.age.info(.))
 ```
 
-In the positive EV machines there is only a main effect of variance. All groups perform better is low variance condition. There are no age differences.
+In the positive EV machines there is a main effect for the high variance machine. Subjects earn fewer points in the high variance condition compared to the low variance condition. There are no age differences.
 
 ```{r}
 summary(lm(total_points ~ age_group*facet_labels, data = tmp %>% filter(facet_labels %in% c("-10,+100", "-5,+495"))))
 ```
 
-In the negative EV machines there is again the effect of variance: Everyone losses fewer points in the low variance condition. There is also a main effect for adults: Adults perform better than kids for both negative EV machines.
+In the negative EV machines there is again a main effect for the high variance machine: Everyone losses fewer points in the low variance condition. There is also a main effect for adults: Adults perform better than kids for both negative EV machines.
 
 ```{r}
 summary(lm(total_points ~ age_group*facet_labels, data = tmp %>% filter(facet_labels %in% c("+10,-100", "+5,-495"))))
@@ -115,11 +122,13 @@ summary(lm(total_points ~ age_group*facet_labels, data = tmp %>% filter(facet_la
 rm(tmp)
 ```
 
-So the age diffence in performance is driven by difference in performance in negative EV machines. The question is what difference in behavior in these conditions is leading to this difference in performance?  To anticipate possible cognitive processes that will be parameterized in RL models differences can lie in: how quickly the groups learn the probabilities, how much weight they put on the outcomes and/or how much like an optimal agent they behave.
+**So the age diffence in performance is driven by difference in performance in negative EV machines. The question is what difference in behavior in these conditions is leading to this difference in performance?**    
+
+To anticipate possible cognitive processes that will be parameterized in RL models differences can lie in: how quickly the groups learn the probabilities, how much weight they put on the outcomes and/or how much like an optimal agent they behave.
 
 ## Proportion of playing
 
-The first thing we can look at is how often do subjects play versus pass. It's hard to see any age differences when we just look at frequency of overall playing as below.   
+The first thing we can look at is how often subjects play versus pass. It's hard to see any age differences when we just look at frequency of overall playing as below.   
 
 ```{r}
 machine_game_data_clean %>%
@@ -140,6 +149,7 @@ machine_game_data_clean %>%
 ```
 
 It is also not immediately apparent how to translate this to better performance/learning in this task but one way to think about it: If people learned perfectly they should play half of the time (always for the positive expected value trial and never for the negative expected value trials). The fact that all play proportions are above 50% suggests that nobody learns perfectly and that adults might be closest to it. But this is very crude and a better way to look at it would be to see   
+
 1. how this depends on the different machines and   
 2. how it changes throughout the task.
 
@@ -168,9 +178,9 @@ machine_game_data_clean %>%
 
 The differences in points earned map directly on to proportion of choosing to play each machine:  
 
-- Adults (baseline in the regression below) play most for the low variance positive expected value condition (top left) then significantly less for the high variance positive expected value condition (top right), even less for high variance negative expected value condition (bottom right), and least for the low variance negative expected value condition (bottom left). **This pattern reflects a sensitivity to low variance (better learning for low variance conditions comparing the equivalent expected values).**
-- Teens do not differ significantly from adults in any condition.
-- Kids do not differ from adults in playing proportion in the positive expected value conditions (top row) but they do choose to play the machine for both of the negative expected value conditions (bottom row)
+- Adults play less than kids for both negative EV machines. 
+- Everyone plays the high var positive EV machine less than the low var positive EV machine.
+- Everyone plays the low var negative EV machines less than the low var positive EV machine.
 
 ```{r}
 tmp <- machine_game_data_clean %>%
@@ -189,7 +199,7 @@ rm(tmp)
 
 This is not surprising given what the number of points earned already showed. But now that we are looking at a behavioral measure instead of an outcome measure we might be able to quantify constructs of interest like sensitivity to variance or sensitivity to the expected values of the machines.  
 
-Initially I tried defining these in terms of probability of playing a machine but as I worked through this I have changed my mind about the dependent variable these changes should be defined by (or rather the coding of the dependent variable). I kept confusing myself about when playing a machine was 'good' or suggested learning. So I recoded the choices to be `correct` when a subject chooses to play a positive expected value machine and pass a negative expected value machine and `incorrect` when the reverse is true. If a subject is learning they should be learning to play the positive expected machines and to pass the others.
+As a first step to translate raw playing behavior to learning I recoded the choices to be `correct` when a subject chooses to play a positive expected value machine and pass a negative expected value machine and `incorrect` when the reverse is true. If a subject is learning they should be learning to play the positive expected machines and to pass the others.
 
 ## Learning 
 
@@ -208,6 +218,9 @@ machine_game_data_clean %>%
   ylab('Optimal choice')+
   theme(legend.position = "bottom")
 ```
+
+Looking at learning effects separately for each machine to avoid interpreting messy three-way interactions.
+
 Adults are more likely to make correct decisions in low var positive EV machine.
 
 ```{r}
@@ -256,7 +269,7 @@ tmp = machine_game_data_clean %>%
   do(assign.age.info(.)) 
 ```
 
-(Error bars not shown because they are very large due to bad fits)
+(Error bars not shown because they are very large due to bad fits).  
 As expected the difference between kids and adults in slopes for the high variance negative EV machine is visible here too.
 
 ```{r}
@@ -277,9 +290,9 @@ tmp %>%
   ylab("Median value")
 ```
 
-But it's not a good idea to look for group differences in these parameters as they are highly variable due to bad fits from few trials.
+**But it's not a good idea to look for group differences in these parameters as they are highly variable due to bad fits from few trials.**
 
-## Does this correlate with BART?
+## Correlation with BART
 
 Quick look at how this relates to BART data:
 
@@ -309,7 +322,7 @@ bart_data %>%
   ylab("Risk taking (adjusted pumps)")
 ```
 
-There aren't any meaningful correlations between slopes and mean adjusted pumps. *BUT* neither of these seem like good individual difference measures.
+**There aren't any meaningful correlations between slopes and mean adjusted pumps. *BUT* neither of these seem like good individual difference measures.**
 
 ```{r warning=FALSE, message=FALSE}
 tmp = bart_data %>%
@@ -332,7 +345,7 @@ machine_game_data_clean %>%
 rm(tmp)
 ```
 
-## Sensitivity to variance vs. expected value
+## Variance vs. EV sensitivity
 
 Does it makes sense to look at these separately?  
 
@@ -340,7 +353,7 @@ Since the machines differ in the variance of the outcomes and expected values it
 
 It's tempting to tease apart the relative importance of these attributes for the high variance negative EV machine where we observe the performance difference between age groups.  
 
-**BUT** these attributes are correlated. So we can't look at their effects separately in the same model.   
+**BUT these attributes are correlated. So we can't look at their effects separately in the same model.**   
 
 ```{r}
 #Function to calculate observed variance and observed expected value based on outcomes in trials that the subject has played.
@@ -410,4 +423,166 @@ tmp %>%
   ylab('Correct')+
   theme(legend.position = "bottom",
         legend.title = element_blank())
+```
+
+## Initial exploration
+
+Do people 'explore' the first five trials where the reward probabilities for each machine are presented?
+
+They explore less when they encounter a loss early on. In the high var pos EV machine they get 4 (small) losses in a row; in the low var negative EV machine they get a moderate loss in the first trial.
+
+```{r}
+machine_game_data_clean %>% 
+  group_by(Sub_id, facet_labels) %>%
+  slice(1:5) %>%
+  summarise(num_explored = sum(ifelse(Response == "play", 1,0))) %>%
+  do(assign.age.info(.)) %>%
+  ungroup() %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(mean_num_explored = mean(num_explored),
+            sem_num_explored = sem(num_explored)) %>%
+  ggplot(aes(facet_labels, mean_num_explored, fill = age_group))+
+  geom_bar(stat="identity",position = position_dodge(0.9))+
+  geom_errorbar(aes(ymax = mean_num_explored+sem_num_explored, ymin = mean_num_explored-sem_num_explored), position = position_dodge(width = 0.9), width=0.25)+
+  labs(fill = 'Age group')
+```
+
+## Memory effect
+
+Can we think of this as a 'memory effect'? The more trials since the last time you have played, the more interference? 
+
+For positive EV machines this is true for all groups.
+
+For negative EV machines adults and teens continue to make correct choices even if a lot of trials have passed since they last played that machine. Kids don't seem to remember that the machine is 'bad' and are more likely to make an incorrect choice the longer it's been since they last played it.
+
+```{r warning=FALSE, message=FALSE}
+machine_game_data_clean %>%
+  group_by(Sub_id) %>%
+  mutate(played_trial_number = ifelse(Response == "play", Trial_number, NA)) %>%
+  mutate(played_trial_number = na.locf(played_trial_number, na.rm=F)) %>%
+  filter(Trial_number > 1) %>%
+  mutate(trials_since_last_played = Trial_number - lag(played_trial_number)) %>%
+  group_by(trials_since_last_played,facet_labels, age_group) %>%
+  summarise(mean_correct = mean(correct1_incorrect0, na.rm = T),
+            sem_correct = sem(correct1_incorrect0)) %>%
+  drop_na() %>%
+  ggplot(aes(trials_since_last_played, mean_correct, col = age_group))+
+  # geom_smooth(alpha=0.5, method='lm')+
+  # geom_point()+
+  geom_line(stat='smooth', method = 'glm', method.args = list(family = "binomial"), alpha=1, size=2)+
+  facet_wrap(~facet_labels)+
+  theme(legend.title = element_blank())+
+  xlab("Trials since last played")+
+  ylab("Mean Correct")
+  
+```
+
+## Post-loss behavior
+
+If subjects are sensitive to losses and learning something about the machines in a way that overweights their most recent experience with the machine (e.g. a simple prediction error model that had been used for this data before) one sanity check is to compare how many trials it takes subjects to play a machine again after a loss versus a gain. Presumably the former would be higher than the latter, that is one would hesitate to play a machine again after a loss but more likely to play it after a gain.
+
+```{r}
+count.postoutcome.trials <- function(subject_data){
+  
+  loss_trials = which(subject_data$Points_earned<0)
+  
+  gain_trials = which(subject_data$Points_earned>0)
+  
+  play_trials= which(subject_data$Response == "play")
+  
+  post_loss_trials = play_trials[which(play_trials %in% loss_trials)+1]
+  
+  post_gain_trials = play_trials[which(play_trials %in% gain_trials)+1]
+  
+  num_trials_post_loss = post_loss_trials - loss_trials
+  
+  num_trials_post_gain = post_gain_trials - gain_trials
+  
+  if(length(num_trials_post_gain)>length(num_trials_post_loss)){
+    num_trials_post_loss <- c(num_trials_post_loss, rep(NA, length(num_trials_post_gain) - length(num_trials_post_loss)))
+  }
+  else if(length(num_trials_post_gain)<length(num_trials_post_loss)){
+    num_trials_post_gain <- c(num_trials_post_gain, rep(NA, length(num_trials_post_loss) - length(num_trials_post_gain)))
+  }
+  
+  return(data.frame(num_trials_post_loss = num_trials_post_loss, num_trials_post_gain = num_trials_post_gain))
+}
+```
+
+This graph shows the average number of trials it takes a subject to play a given machine after experiencing a loss or a gain.   
+
+For everyone and for every machine the average number of trials it takes a subject to play following a loss is higher than the average number of trials it take them to play following a gain. This suggests that subjects are responding to outcomes in a way overweights their most recent experience with the machine.   
+
+I think this serves as a (weak) sanity check for our intuitions modeling this data using simple prediction error models that are updated after each trial.
+
+One thought that is not necessarily immediately pertinent but that I puzzled over is how this graph would have looked like if subjects were taking all their experiences with the machine in to account (instead of overweighing their most recent experience). I have a vague intuition that in that case the difference in responding between the experiences (gain/loss) would be 0. That is, if one takes in to account all their experiences then they would distinguish between the positive and negative EV machines and either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. Relatedly then, this difference in response patterns depending on the observed outcome could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses. I'm not sure where I'm going with this but perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.
+
+```{r}
+tmp = machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(count.postoutcome.trials(.))  %>%
+  do(assign.age.info(.)) %>%
+  ungroup() %>%
+  select(facet_labels, age_group, num_trials_post_loss, num_trials_post_gain, Sub_id) %>%
+  gather(key, value, -facet_labels, -age_group, -Sub_id) %>%
+  mutate(key = gsub("num_trials_post_", "", key)) 
+
+tmp %>%
+  group_by(facet_labels, age_group, key) %>%
+  summarise(mean_post = mean(value, na.rm=T),
+            sem_post = sem(value)) %>%
+  ggplot(aes(age_group, mean_post, shape=key, col=age_group))+
+  geom_point()+
+  geom_errorbar(aes(ymin = mean_post-sem_post, ymax = mean_post+sem_post), width=0)+
+  facet_wrap(~facet_labels)+
+  xlab("Number of trials until next play")+
+  theme(legend.title = element_blank())+
+  guides(color=FALSE)
+```
+
+Reflecting the global behavior in proportion of playing in each condition adults take longer to play after large losses in the high variance negative EV condition compared to kids while kids are less sensitive to the magnitude of loss.
+
+```{r}
+summary(lm(value~age_group*facet_labels,tmp %>%filter(key=="loss")))
+```
+
+## Cross-talk between machines
+
+Are subjects less likely to play overall after a loss or only less likely to play that machine after a loss for that machine?
+
+```{r}
+mean.postloss.play.prob <- function(subject_data){
+  
+  Sub_id = unique(subject_data$Sub_id)
+  
+  loss_trials = which(subject_data$Points_earned<0)
+  
+  mean_post_loss_prob <- mean(ifelse(subject_data$Response[loss_trials+1] == "play", 1, 0), na.rm=T)
+  
+  return(data.frame(mean_post_loss_prob=mean_post_loss_prob))
+}
+```
+
+Probability of playing following a loss depends on machine type. Looking at all trials masks this difference. Subjects seem to learn machine specifically and cross-talk isn't evident here.
+
+```{r}
+tmp = machine_game_data_clean %>%
+  group_by(Sub_id) %>%
+  do(mean.postloss.play.prob(.)) %>%
+  mutate(facet_labels = "all_trials")
+
+machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(mean.postloss.play.prob(.)) %>%
+  rbind(tmp) %>%
+  do(assign.age.info(.)) %>%
+  group_by(age_group, facet_labels) %>%
+  summarise(mp = mean(mean_post_loss_prob,na.rm=T),
+            sp = sem(mean_post_loss_prob)) %>%
+  ggplot(aes(facet_labels, mp, fill=age_group))+
+  geom_bar(stat="identity",position=position_dodge())+
+  geom_errorbar(width=0, aes(ymin = mp-sp, ymax = mp+sp), position = position_dodge(width=0.9))+
+  xlab("")+
+  ylab("Post loss play probability")+
+  theme(legend.title = element_blank())
 ```
