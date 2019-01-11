@@ -6,7 +6,7 @@ toc: yes
 toc_float: yes
 ---
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
 
 cbbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
@@ -68,6 +68,8 @@ num_pars_df = num_pars_df %>%
   mutate(model = as.character(model))
 ```
 
+## Model comparison
+
 Which is the best model?
 
 ```{r}
@@ -106,6 +108,11 @@ sub_pars %>%
   ylab("Mean BIC across subjects")
 ```
 
+How to read model names: Parameters that are fit are listed following the `Fit` keyword in the model name, parameters that are fixed are listed following the `Fix` keyword in the model name.  
+
+For example in `Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_` the parameters `alpha_pos`, `beta`, `exp_neg` and `exp_pos` are fitted to data while `alpha_neg` is fixed.  
+
+
 ```{r}
 sub_pars %>%
   select(model, BIC) %>%
@@ -115,6 +122,8 @@ sub_pars %>%
   mutate(model = gsub("LearningParams_", "", model)) %>%
   arrange(mean_bic)
 ```
+
+### Age differences in fit
 
 Do models differ in fit by age group? No. Models are consistently best fit to adults but the difference is very small.
 
@@ -132,7 +141,12 @@ sub_pars %>%
         legend.title = element_blank())
 ```
 
-Age differences in parameters for best fitting model?
+## Age differences in parameters
+
+### Best fitting model
+
+The model with the lowest BIC is `it_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_`
+
 
 ```{r}
 sub_pars %>%
@@ -147,7 +161,29 @@ sub_pars %>%
   ylim(0,5)
 ```
 
-Age differences in parameters for preferred model
+```{r}
+summary(lm(xopt_alpha_pos ~ age_group, sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
+```
+
+```{r}
+summary(lm(xopt_beta ~ age_group, sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
+```
+
+```{r}
+summary(lm(xopt_exp_neg ~ age_group, sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
+```
+
+```{r}
+summary(lm(xopt_exp_pos ~ age_group, sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
+```
+
+Since the BIC of this model is not much lower than another model where none of the parameters are fixed ...
+
+### Preferred model
 
 ```{r}
 sub_pars %>%
@@ -162,17 +198,21 @@ sub_pars %>%
   ylim(0,5)
 ```
 
+**No difference in alpha**
+
 ```{r}
 summary(lm(xopt_alpha ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
+
+**Difference in beta: ...**
 
 ```{r}
 summary(lm(xopt_beta ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
 
-Difference in exp_neg: exponent on loss. A loss doesn't feel as severe for kids and teens as it does for adults. 
+**Difference in exp_neg: exponent on loss. A loss doesn't feel as severe for kids and teens as it does for adults.** 
 
 ```{r}
 summary(lm(xopt_exp_neg ~ age_group, sub_pars %>%

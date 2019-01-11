@@ -6,7 +6,7 @@ toc: true
 toc_depts: 2
 ---
 
-```{r setup_env, echo=FALSE, message=FALSE, warning=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
 ```
 
@@ -594,3 +594,6 @@ machine_game_data_clean %>%
 ```
 
 ## RL modeling
+
+Details of model comparison can be found in a separate [notebook](http://zenkavi.github.io/DevStudy_Analyses/output/reports/Comp_RL.nb.html).
+
