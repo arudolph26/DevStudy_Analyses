@@ -38,15 +38,27 @@ rbind.all.columns <- function(x, y) {
   }
   return(out)
 }
-```
 
-Save plot of neglogprob distributions for all subject for each model
+pos_log <- function(column){
+  col_min = min(column, na.rm=T)
+  a = 1-col_min
+  column = column+a
+  return(log(column))
+}
+
+neg_log <- function(column){
+  col_max = max(column, na.rm=T)
+  column = col_max+1-column
+  return(log(column))
+}
+```
 
 ```{r}
 fits = list.files(path=input_dir, pattern = "All")
 ```
 
 ```{r eval=FALSE}
+# Save plot of neglogprob distributions for all subject for each model
 for(f in fits){
   data = read.csv(paste0(input_dir, f))
   data = process_fits(data)
@@ -60,13 +72,32 @@ for(f in fits){
 }
 ```
 
-Look up df for AIC and BIC calculation
-
 ```{r}
+#Look up df for AIC and BIC calculation
 num_pars_df = data.frame(model = c('LearningParams_Fit_alpha_Fix_beta-exp_','LearningParams_Fit_alpha_neg_Fix_alpha_pos-beta-exp_','LearningParams_Fit_alpha_neg-alpha_pos_Fix_beta-exp_','LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg_Fix_exp_pos_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_pos_Fix_exp_neg_','LearningParams_Fit_alpha_neg-alpha_pos-exp_Fix_beta_','LearningParams_Fit_alpha_neg-alpha_pos-exp_neg_Fix_beta-exp_pos_','LearningParams_Fit_alpha_neg-alpha_pos-exp_neg-exp_pos_Fix_beta_','LearningParams_Fit_alpha_neg-alpha_pos-exp_pos_Fix_beta-exp_neg_','LearningParams_Fit_alpha_neg-beta_Fix_alpha_pos-exp_','LearningParams_Fit_alpha_neg-beta-exp_neg_Fix_alpha_pos-exp_pos_','LearningParams_Fit_alpha_neg-beta-exp_pos_Fix_alpha_pos-exp_neg_','LearningParams_Fit_alpha_neg-exp_Fix_alpha_pos-beta_','LearningParams_Fit_alpha_neg-exp_neg_Fix_alpha_pos-beta-exp_pos_','LearningParams_Fit_alpha_neg-exp_neg-exp_pos_Fix_alpha_pos-beta_','LearningParams_Fit_alpha_neg-exp_pos_Fix_alpha_pos-beta-exp_neg_','LearningParams_Fit_alpha_pos_Fix_alpha_neg-beta-exp_','LearningParams_Fit_alpha_pos-beta-exp_Fix_alpha_neg_','LearningParams_Fit_alpha_pos-beta-exp_neg_Fix_alpha_neg-exp_pos_','LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_','LearningParams_Fit_alpha_pos-beta-exp_pos_Fix_alpha_neg-exp_neg_','LearningParams_Fit_alpha_pos-exp_Fix_alpha_neg-beta_','LearningParams_Fit_alpha_pos-exp_neg_Fix_alpha_neg-beta-exp_pos_','LearningParams_Fit_alpha_pos-exp_neg-exp_pos_Fix_alpha_neg-beta_','LearningParams_Fit_alpha_pos-exp_pos_Fix_alpha_neg-beta-exp_neg_','LearningParams_Fit_alpha-beta-exp_Fix_','LearningParams_Fit_alpha-beta-exp_neg_Fix_exp_pos_','LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha-beta-exp_pos_Fix_exp_neg_','LearningParams_Fit_alpha-exp_Fix_beta_','LearningParams_Fit_alpha-exp_neg_Fix_beta-exp_pos_','LearningParams_Fit_alpha-exp_neg-exp_pos_Fix_beta_','LearningParams_Fit_alpha-exp_pos_Fix_beta-exp_neg_','LearningParams_Fit_beta-exp_Fix_alpha_','LearningParams_Fit_beta-exp_neg-exp_pos_Fix_alpha_'), pars = c(1,1,2,3,4,4,5,4,3,3,4,3,2,3,3,2,2,3,2,1,3,3,4,3,2,2,3,2,2,3,4,3,2,2,3,2,2,3))
 num_pars_df = num_pars_df %>%
   mutate(model = as.character(model))
 ```
+
+The behavior in the machine game task lends itself to prediction error modeling as frequently done in the literature. 
+
+In this approach the probability of playing a machine is modeled as: 
+
+$p(k_{t} = 1) = \frac{e^{\beta*(EV_t)}}{1+e^{\beta*(EV_t)}}$  
+
+where the $EV_t$ is updated after observing the reward ($r$) in each trial at a learning rate ($\alpha$) by a prediction error that can be distorted non-linearly by an exponent ($\gamma$)  
+
+${EV_{t+1}} = {EV_t} + \alpha * (r - {EV_t})^\gamma$  
+
+The parameters of the model are:  
+
+- $\alpha$ - learning rate. Higher values mean faster learning. Can be - allowed to vary for gains and losses as $\alpha_{pos}$ and $\alpha_{neg}$   
+- $\gamma$ - value concavity exponent. Higher values mean less distortion of prediction error. Can be omitted (i.e. fixed to 1) and allowed to vary for gains and losses as $exp_{pos}$ and $exp_{neg}$  
+- $\beta$ - inverse temperature. Higher values mean subjects are choosing based on expected value, lower means the choice is driven less by EV and more by random guessing (for $\beta = 0$ all choices are equally likely).  
+
+To determine the best model we ran 38 models where these parameters were allowed to vary for gains and losses and were either estimated for each subject or fixed for all subjects.  
+
+Each model was fit 50 times for each subject minimizing negative log probability. Fit quality is evaluated using BIC for each fit. 
 
 ## Model comparison
 
@@ -89,23 +120,27 @@ for(f in fits){
 }
 
 sub_pars = sub_pars %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult"))) %>%
+  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
+         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
   drop_na(age_group)
 ```
 
-```{r}
+```{r message = FALSE, warning = FALSE}
 sub_pars %>%
   select(model, BIC) %>%
   group_by(model) %>%
   summarise(mean_bic = mean(BIC), 
             sem_bic = sem(BIC)) %>%
-  mutate(model = gsub("LearningParams_", "", model)) %>%
+  mutate(model = gsub("LearningParams_", "", model),
+         min_col = factor(ifelse(mean_bic == min(mean_bic, na.rm=T), 1,0))) %>%
   ggplot(aes(factor(model), mean_bic))+
-  geom_point()+
-  geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic))+
-  theme(axis.text.x = element_text(angle = 90))+
+  geom_point(aes(col = min_col))+
+  geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic, col=min_col))+
+  theme(axis.text.x = element_text(angle = 90),
+        legend.position = "none")+
   xlab("")+
-  ylab("Mean BIC across subjects")
+  ylab("Mean BIC across subjects")+
+  scale_color_manual(values = c("black", "red"))
 ```
 
 How to read model names: Parameters that are fit are listed following the `Fit` keyword in the model name, parameters that are fixed are listed following the `Fix` keyword in the model name.  
@@ -145,81 +180,140 @@ sub_pars %>%
 
 ### Best fitting model
 
-The model with the lowest BIC is `it_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_`
+The model with the lowest BIC is `Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_`
 
+**Log transformed** parameter distributions
 
-```{r}
+```{r warning=FALSE, message=FALSE}
 sub_pars %>%
   filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")%>% 
   select_if(~sum(!is.na(.)) > 0) %>%
   select(-model, -pars, -neglogprob, -sub_id, -AIC, -BIC, -contains("x0")) %>%
-  mutate(age_group = factor(age_group, levels = c("kid", "teen", "adult"))) %>%
+  mutate(xopt_alpha_pos_log = pos_log(xopt_alpha_pos),
+         xopt_beta_log = pos_log(xopt_beta),
+         xopt_exp_neg_log = neg_log(xopt_exp_neg),
+         xopt_exp_pos_log = pos_log(xopt_exp_pos)) %>%
+  select(-xopt_alpha_pos, -xopt_beta, -xopt_exp_neg, -xopt_exp_pos) %>%
   gather(par, value, -age_group) %>%
-  ggplot(aes(age_group, value))+
-  geom_boxplot()+
-  facet_wrap(~par)+
-  ylim(0,5)
+  ggplot(aes(value))+
+  geom_density(aes(fill=age_group), color=NA, alpha=0.5)+
+  facet_wrap(~par, scales='free')+
+  xlab("")+
+  theme(legend.position = "none")
 ```
 
+```{r warning=FALSE, message=FALSE}
+sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")%>% 
+  select_if(~sum(!is.na(.)) > 0) %>%
+  select(-model, -pars, -neglogprob, -sub_id, -AIC, -BIC, -contains("x0")) %>%
+  mutate(xopt_alpha_pos_log = pos_log(xopt_alpha_pos),
+         xopt_beta_log = pos_log(xopt_beta),
+         xopt_exp_neg_log = neg_log(xopt_exp_neg),
+         xopt_exp_pos_log = pos_log(xopt_exp_pos)) %>%
+  select(-xopt_alpha_pos, -xopt_beta, -xopt_exp_neg, -xopt_exp_pos) %>%
+  gather(par, value, -age_group) %>%
+  ggplot(aes(age_group, log(value)))+
+  geom_boxplot(aes(fill=age_group))+
+  facet_wrap(~par, scales="free")+
+  xlab("")+
+  theme(legend.position = "none")
+```
+
+No age difference in learning rates for gains.
+
 ```{r}
-summary(lm(xopt_alpha_pos ~ age_group, sub_pars %>%
+summary(lm(pos_log(xopt_alpha_pos) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
 ```
 
+No age difference in how much the decision relies on EV.
+
 ```{r}
-summary(lm(xopt_beta ~ age_group, sub_pars %>%
+summary(lm(pos_log(xopt_beta) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
 ```
 
+No age difference in value distortion of losses.
+
 ```{r}
-summary(lm(xopt_exp_neg ~ age_group, sub_pars %>%
+summary(lm(neg_log(xopt_exp_neg) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
 ```
 
+**Adults distort the values of gains less than kids.**
+
 ```{r}
-summary(lm(xopt_exp_pos ~ age_group, sub_pars %>%
+summary(lm(pos_log(xopt_exp_pos) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
 ```
 
-Since the BIC of this model is not much lower than another model where none of the parameters are fixed ...
+The BIC of this model is not much lower than another model where none of the parameters are fixed ...
 
 ### Preferred model
 
-```{r}
+```{r warning=FALSE, message=FALSE}
+sub_pars %>%
+  filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")%>% 
+  filter(xopt_exp_pos > (-3))%>%
+  select_if(~sum(!is.na(.)) > 0) %>%
+  select(-model, -pars, -neglogprob, -sub_id, -AIC, -BIC, -contains("x0")) %>%
+  mutate(xopt_alpha_log = pos_log(xopt_alpha),
+         xopt_beta_log = pos_log(xopt_beta),
+         xopt_exp_neg_log = neg_log(xopt_exp_neg),
+         xopt_exp_pos_log = pos_log(xopt_exp_pos)) %>%
+  select(-xopt_alpha, -xopt_beta, -xopt_exp_neg, -xopt_exp_pos) %>%
+  gather(par, value, -age_group) %>%
+  ggplot(aes(value))+
+  geom_density(aes(fill=age_group), color=NA, alpha=0.5)+
+  facet_wrap(~par, scales='free')+
+  xlab("")+
+  theme(legend.position = "none")
+```
+
+```{r warning=FALSE, message=FALSE}
 sub_pars %>%
   filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")%>% 
   select_if(~sum(!is.na(.)) > 0) %>%
+  filter(xopt_exp_pos > (-3))%>%
   select(-model, -pars, -neglogprob, -sub_id, -AIC, -BIC, -contains("x0")) %>%
-  mutate(age_group = factor(age_group, levels = c("kid", "teen", "adult"))) %>%
+  mutate(xopt_alpha_log = pos_log(xopt_alpha),
+         xopt_beta_log = pos_log(xopt_beta),
+         xopt_exp_neg_log = neg_log(xopt_exp_neg),
+         xopt_exp_pos_log = pos_log(xopt_exp_pos)) %>%
+  select(-xopt_alpha, -xopt_beta, -xopt_exp_neg, -xopt_exp_pos) %>%
   gather(par, value, -age_group) %>%
   ggplot(aes(age_group, value))+
-  geom_boxplot()+
-  facet_wrap(~par)+
-  ylim(0,5)
+  geom_boxplot(aes(fill=age_group))+
+  facet_wrap(~par, scales="free")+
+  xlab("")+
+  theme(legend.position = "none")
 ```
 
-**No difference in alpha**
+No difference in alpha
 
 ```{r}
-summary(lm(xopt_alpha ~ age_group, sub_pars %>%
+summary(lm(pos_log(xopt_alpha) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
 
-**Difference in beta: ...**
+**Adults make decisions based more on EV compared to kids**
 
 ```{r}
-summary(lm(xopt_beta ~ age_group, sub_pars %>%
+summary(lm(pos_log(xopt_beta) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
 
-**Difference in exp_neg: exponent on loss. A loss doesn't feel as severe for kids and teens as it does for adults.** 
+**Adults distort negative outcomes less. A negative outcome doesn't feel as bad as it is for kids** 
 
 ```{r}
-summary(lm(xopt_exp_neg ~ age_group, sub_pars %>%
+summary(lm(neg_log(xopt_exp_neg) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
 
+No difference in distortion of positive prediction errors.
+
 ```{r}
-summary(lm(xopt_exp_pos ~ age_group, sub_pars %>%
+summary(lm(pos_log(xopt_exp_pos) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
