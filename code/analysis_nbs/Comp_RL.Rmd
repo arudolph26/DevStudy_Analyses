@@ -91,7 +91,7 @@ ${EV_{t+1}} = {EV_t} + \alpha * (r - {EV_t})^\gamma$
 
 The parameters of the model are:  
 
-- $\alpha$ - learning rate. Higher values mean faster learning. Can be - allowed to vary for gains and losses as $\alpha_{pos}$ and $\alpha_{neg}$   
+- $\alpha$ - learning rate. Higher values mean faster learning. Can be allowed to vary for gains and losses as $\alpha_{pos}$ and $\alpha_{neg}$   
 - $\gamma$ - value concavity exponent. Higher values mean less distortion of prediction error. Can be omitted (i.e. fixed to 1) and allowed to vary for gains and losses as $exp_{pos}$ and $exp_{neg}$  
 - $\beta$ - inverse temperature. Higher values mean subjects are choosing based on expected value, lower means the choice is driven less by EV and more by random guessing (for $\beta = 0$ all choices are equally likely).  
 
@@ -143,7 +143,7 @@ sub_pars %>%
   scale_color_manual(values = c("black", "red"))
 ```
 
-How to read model names: Parameters that are fit are listed following the `Fit` keyword in the model name, parameters that are fixed are listed following the `Fix` keyword in the model name.  
+How to read model names: Parameters that are fitted are listed following the `Fit` keyword in the model name, parameters that are fixed are listed following the `Fix` keyword in the model name.  
 
 For example in `Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_` the parameters `alpha_pos`, `beta`, `exp_neg` and `exp_pos` are fitted to data while `alpha_neg` is fixed.  
 
@@ -241,14 +241,14 @@ summary(lm(neg_log(xopt_exp_neg) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
 ```
 
-**Adults distort the values of gains less than kids.**
+**Adults distort positive prediction errors less than kids.**
 
 ```{r}
 summary(lm(pos_log(xopt_exp_pos) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_")))
 ```
 
-The BIC of this model is not much lower than another model where none of the parameters are fixed ...
+The BIC of the best model is not much lower than several other models. One of these models that is comparable (**is there a way to test this?**) in fit is `Fit_alpha-beta-exp_neg-exp_pos_Fix_` where none of the parameters is fixied. Since I don't really have a theoretical reason for fixing any parameter or fixing it any of the parameters at values that I have I prefer this model that is free of this restrictions. 
 
 ### Preferred model
 
@@ -317,3 +317,5 @@ No difference in distortion of positive prediction errors.
 summary(lm(pos_log(xopt_exp_pos) ~ age_group, sub_pars %>%
   filter(model == "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
+
+**The best fitting model and the preferred model suggest that age differences lie in different parameters. How should this be resolved?**
