@@ -68,7 +68,7 @@ for(f in fits){
   facet_wrap(~sub_id, scales='free')
   p_name = gsub('.csv','',f)
   p_name = gsub('LearningParams','Neglogs',p_name)
-  ggsave(paste0(p_name, '.jpeg'), plot=p, device = 'jpeg', path = fig_path, width = 30, height = 30, units = "in", limitsize = FALSE)
+  ggsave(paste0(p_name, '.jpeg'), plot=p, device = 'jpeg', path = paste0(fig_path, 'neglogs'), width = 30, height = 30, units = "in", limitsize = FALSE)
 }
 ```
 
@@ -319,3 +319,32 @@ summary(lm(pos_log(xopt_exp_pos) ~ age_group, sub_pars %>%
 ```
 
 **The best fitting model and the preferred model suggest that age differences lie in different parameters. How should this be resolved?**
+
+Stability of parameters
+
+```{r}
+tmp = read.csv(paste0(input_dir, "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_All.csv"))
+```
+
+
+```{r eval=FALSE}
+for(cur_sub in unique(tmp$sub_id)){
+  p = tmp %>%
+    select(sub_id, Unnamed..0, contains('xopt'), neglogprob) %>%
+    rename(fit_num = Unnamed..0) %>%
+    group_by(sub_id) %>%
+    mutate(min_col = factor(ifelse(neglogprob == min(neglogprob, na.rm=T),1,NA))) %>%
+    gather(key, value, -sub_id, -fit_num, -neglogprob, -min_col) %>%
+    filter(sub_id == cur_sub) %>%
+    ggplot(aes(fit_num, value))+
+    geom_line(aes(group=sub_id), alpha=0.5)+
+    geom_point(aes(col=min_col))+
+    facet_wrap(~key, scales="free")+
+    theme(legend.position = "none")
+  p_name = paste0(cur_sub, '_Fit_alpha-beta-exp_neg-exp_pos_Fix')
+  ggsave(paste0(p_name, '.jpeg'), plot=p, device = 'jpeg', path = paste0(fig_path, 'pars'), units = "in", limitsize = FALSE)
+}
+
+```
+
+BART correlation

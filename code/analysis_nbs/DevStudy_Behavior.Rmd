@@ -443,9 +443,9 @@ machine_game_data_clean %>%
   do(assign.age.info(.)) %>%
   ungroup() %>%
   group_by(age_group, facet_labels) %>%
-  summarise(mean_num_explored = mean(num_explored),
-            sem_num_explored = sem(num_explored)) %>%
-  ggplot(aes(facet_labels, mean_num_explored/5*100, fill = age_group))+
+  summarise(mean_num_explored = mean(num_explored/5*100),
+            sem_num_explored = sem(num_explored/5*100)) %>%
+  ggplot(aes(facet_labels, mean_num_explored, fill = age_group))+
   geom_bar(stat="identity",position = position_dodge(0.9))+
   geom_errorbar(aes(ymax = mean_num_explored+sem_num_explored, ymin = mean_num_explored-sem_num_explored), position = position_dodge(width = 0.9), width=0.25)+
   theme(legend.title = element_blank())+
