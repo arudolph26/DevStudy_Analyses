@@ -5,5 +5,5 @@
 .DS_STORE
 !/.gitignore
 .script
-/pars
-/neglogs
+*/pars
+*/neglogs
