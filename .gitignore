@@ -1,3 +1,4 @@
+DevStudy.Rproj
 .Rproj
 .Rproj.user
 .Rhistory
@@ -6,5 +7,6 @@
 .DS_STORE
 !/.gitignore
 .script
-*/pars
-*/neglogs
+output/figures/pars/*
+output/figures/neglogs/*
+old/
