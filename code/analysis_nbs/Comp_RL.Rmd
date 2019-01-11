@@ -46,7 +46,7 @@ Save plot of neglogprob distributions for all subject for each model
 fits = list.files(path=input_dir, pattern = "All")
 ```
 
-```{r}
+```{r eval=FALSE}
 for(f in fits){
   data = read.csv(paste0(input_dir, f))
   data = process_fits(data)

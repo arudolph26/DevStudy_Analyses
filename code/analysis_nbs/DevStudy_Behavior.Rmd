@@ -408,7 +408,7 @@ The cognitive processes that can differ with respect to this expected value can 
 
 These two processes can be captured as the learning rate and the exponent on the prediction error in an RL model.
 
-Plotting the effect of EV on choice to confirm that it makes sense and captures the behavioral effect:  
+Before moving on to modeling results here I plot the effect of observed EV (not model based) on choice to confirm that it makes sense and captures the behavioral effect:  
 The higher the EV of a machine the more likely it is to be played. This is the correct action for the positive EV machines but incorrect action for the negative EV machines. The behavioral effect in the high var negative EV machine is captured again with the diverging lines for age groups at low EVs.
 
 ```{r warning=FALSE, message=FALSE}
@@ -425,7 +425,11 @@ tmp %>%
         legend.title = element_blank())
 ```
 
-## Initial exploration
+## Additional behavioral patterns
+
+Though I focus on learning behavior and specifically difference in learning for the high variance negative EV machine there are other possible behavioral patterns that might also differ between the age groups. Here I list some examples.
+
+### Initial exploration
 
 Do people 'explore' the first five trials where the reward probabilities for each machine are presented?
 
@@ -441,19 +445,23 @@ machine_game_data_clean %>%
   group_by(age_group, facet_labels) %>%
   summarise(mean_num_explored = mean(num_explored),
             sem_num_explored = sem(num_explored)) %>%
-  ggplot(aes(facet_labels, mean_num_explored, fill = age_group))+
+  ggplot(aes(facet_labels, mean_num_explored/5*100, fill = age_group))+
   geom_bar(stat="identity",position = position_dodge(0.9))+
   geom_errorbar(aes(ymax = mean_num_explored+sem_num_explored, ymin = mean_num_explored-sem_num_explored), position = position_dodge(width = 0.9), width=0.25)+
-  labs(fill = 'Age group')
+  theme(legend.title = element_blank())+
+  ylab("Percentage of exploration")+
+  xlab("")
 ```
 
-## Memory effect
+### Memory effect
 
-Can we think of this as a 'memory effect'? The more trials since the last time you have played, the more interference? 
+How does performance change depending on the delay between the last time a machine was played?  
 
-For positive EV machines this is true for all groups.
+Can we think of this as a 'memory effect'? The more trials since the last time you have played a machine, the more forgetting/interference? 
 
-For negative EV machines adults and teens continue to make correct choices even if a lot of trials have passed since they last played that machine. Kids don't seem to remember that the machine is 'bad' and are more likely to make an incorrect choice the longer it's been since they last played it.
+For positive EV machines this is true for all groups. This is evident in the decreasing probability of a correct response the longer it has been since the last time a machine was played.
+
+For negative EV machines adults and teens continue to make correct choices even if a lot of trials have passed since they last played that machine. Kids don't seem to remember that the machine is 'bad' and are more likely to make an incorrect choice (and play the machine) the longer it's been since they last played it.
 
 ```{r warning=FALSE, message=FALSE}
 machine_game_data_clean %>%
@@ -477,9 +485,9 @@ machine_game_data_clean %>%
   
 ```
 
-## Post-loss behavior
+### Post-loss behavior
 
-If subjects are sensitive to losses and learning something about the machines in a way that overweights their most recent experience with the machine (e.g. a simple prediction error model that had been used for this data before) one sanity check is to compare how many trials it takes subjects to play a machine again after a loss versus a gain. Presumably the former would be higher than the latter, that is one would hesitate to play a machine again after a loss but more likely to play it after a gain.
+If subjects are sensitive to losses and learning something about the machines in a way that overweights their most recent experience with the machine one sanity check is to compare how many trials it takes subjects to play a machine again after a loss versus a gain. Presumably the former would be higher than the latter. One might hesitate to play a machine again after a loss but be more likely to play it after a gain.
 
 ```{r}
 count.postoutcome.trials <- function(subject_data){
@@ -509,13 +517,9 @@ count.postoutcome.trials <- function(subject_data){
 }
 ```
 
-This graph shows the average number of trials it takes a subject to play a given machine after experiencing a loss or a gain.   
+The plot below shows the average number of trials it takes a subject to play a given machine after experiencing a loss or a gain.   
 
 For everyone and for every machine the average number of trials it takes a subject to play following a loss is higher than the average number of trials it take them to play following a gain. This suggests that subjects are responding to outcomes in a way overweights their most recent experience with the machine.   
-
-I think this serves as a (weak) sanity check for our intuitions modeling this data using simple prediction error models that are updated after each trial.
-
-One thought that is not necessarily immediately pertinent but that I puzzled over is how this graph would have looked like if subjects were taking all their experiences with the machine in to account (instead of overweighing their most recent experience). I have a vague intuition that in that case the difference in responding between the experiences (gain/loss) would be 0. That is, if one takes in to account all their experiences then they would distinguish between the positive and negative EV machines and either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. Relatedly then, this difference in response patterns depending on the observed outcome could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses. I'm not sure where I'm going with this but perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.
 
 ```{r}
 tmp = machine_game_data_clean %>%
@@ -532,8 +536,8 @@ tmp %>%
   summarise(mean_post = mean(value, na.rm=T),
             sem_post = sem(value)) %>%
   ggplot(aes(age_group, mean_post, shape=key, col=age_group))+
-  geom_point()+
-  geom_errorbar(aes(ymin = mean_post-sem_post, ymax = mean_post+sem_post), width=0)+
+  geom_point(size=2)+
+  geom_errorbar(aes(ymin = mean_post-sem_post, ymax = mean_post+sem_post), width=0, size=2)+
   facet_wrap(~facet_labels)+
   xlab("Number of trials until next play")+
   theme(legend.title = element_blank())+
@@ -546,7 +550,9 @@ Reflecting the global behavior in proportion of playing in each condition adults
 summary(lm(value~age_group*facet_labels,tmp %>%filter(key=="loss")))
 ```
 
-## Cross-talk between machines
+*One thought that is not necessarily immediately pertinent but that I puzzled over is how this graph would have looked like if subjects were taking all their experiences with the machine in to account (instead of overweighing their most recent experience). I have a vague intuition that in that case the difference in responding between the experiences (gain/loss) would be 0. That is, if one takes in to account all their experiences then they would distinguish between the positive and negative EV machines and either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. Relatedly then, this difference in response patterns depending on the observed outcome could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses. I'm not sure where I'm going with this but perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.*
+
+### Cross-talk between machines
 
 Are subjects less likely to play overall after a loss or only less likely to play that machine after a loss for that machine?
 
@@ -586,3 +592,5 @@ machine_game_data_clean %>%
   ylab("Post loss play probability")+
   theme(legend.title = element_blank())
 ```
+
+## RL modeling
