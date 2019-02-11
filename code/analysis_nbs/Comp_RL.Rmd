@@ -62,6 +62,20 @@ fits = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_All.csv',
          
          'LearningParams_Fit_alpha-beta_Fix_exp_All.csv',
          'LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_All.csv')
+
+# #The ones I have 
+# "LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_All.csv"
+# "LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_All.csv"
+# "LearningParams_Fit_alpha-beta-exp_Fix_All.csv" 
+# "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_All.csv" 
+# 
+# #The ones I lack: exp=1/no exp
+# "LearningParams_Fit_alpha-beta_Fix_All.csv"  
+# 'LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_All.csv'
+# 
+# #I sub them with: exp = 0.5
+# 'LearningParams_Fit_alpha-beta_Fix_exp_All.csv'
+# 'LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_All.csv'
 ```
 
 ```{r eval=FALSE}
@@ -102,7 +116,8 @@ The parameters of the model are:
 - $\gamma$ - value concavity exponent. Higher values mean less distortion of prediction error. Can be omitted (i.e. fixed to 1) and allowed to vary for gains and losses as $exp_{pos}$ and $exp_{neg}$  
 - $\beta$ - inverse temperature. Higher values mean subjects are choosing based on expected value, lower means the choice is driven less by EV and more by random guessing (for $\beta = 0$ all choices are equally likely).  
 
-To determine the best model we ran 38 models where these parameters were allowed to vary for gains and losses and were either estimated for each subject or fixed for all subjects.  
+To determine the best model we ran 38 models where these parameters were allowed to vary for gains and losses and were either estimated for each subject or fixed for all subjects. 
+Of these we are going to focus on 6 where no parameter is fixed to an arbitarary value but either fit for every subject or omitted from the model (only for exponents).
 
 Each model was fit 50 times for each subject minimizing negative log probability. Fit quality is evaluated using BIC for each fit. 
 
