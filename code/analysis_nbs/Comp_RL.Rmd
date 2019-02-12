@@ -288,4 +288,53 @@ summary(lm(pos_log(xopt_exp_pos) ~ age_group, best_sub_pars %>%
   filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
 
-BART correlation
+## BART correlation
+
+Do these parameters correlate with "risk taking" as measured by BART?
+
+```{r}
+workspace_scripts = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/'
+
+source(paste0(workspace_scripts, 'bart_data.R'))
+```
+
+```{r}
+adjusted.pumps <- function(subject_data){
+  subject_data_adjusted = subject_data[subject_data$exploded == 0,]
+  subject_pumps <- subject_data_adjusted %>% 
+    group_by(trial.num) %>%
+    summarise(total_pumps = sum(finished))
+  out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps))
+  return(out)
+}
+```
+
+Correlation between adjusted pumps and parameters:
+
+```{r warning=FALSE, message=FALSE}
+best_sub_pars %>%
+  filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_") %>%
+  select(sub_id, xopt_alpha, xopt_beta, xopt_exp_pos, xopt_exp_neg) %>%
+  left_join(bart_data %>%
+  group_by(Sub_id) %>%
+  do(adjusted.pumps(.)) %>%
+    rename(sub_id=Sub_id), by="sub_id") %>%
+  gather(key, value, -sub_id, -mean_adjusted_pumps) %>%
+  ggplot(aes(mean_adjusted_pumps, pos_log(value)))+
+  geom_point()+
+  facet_wrap(~key, scales='free')
+```
+
+```{r}
+best_sub_pars %>%
+  filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_") %>%
+  select(sub_id, xopt_alpha, xopt_beta, xopt_exp_pos, xopt_exp_neg) %>%
+  left_join(bart_data %>%
+  group_by(Sub_id) %>%
+  do(adjusted.pumps(.)) %>%
+    rename(sub_id=Sub_id), by="sub_id") %>%
+  gather(key, value, -sub_id, -mean_adjusted_pumps) %>%
+  group_by(key) %>%
+  drop_na() %>%
+  summarise(bart_cor = cor(mean_adjusted_pumps, pos_log(value)))
+```
