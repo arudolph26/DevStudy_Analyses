@@ -604,3 +604,5 @@ In line with the above analyses where the behavioral difference lay in the high 
 1. exponent over negative prediction errors: **Adults distort negative outcomes less. A negative outcome doesn't feel as bad as it is for kids** 
 
 2. inverse softmax temperature: **Adults make decisions based more on EV compared to kids**
+
+Therefore the trial level EVs from this model will be used as a parametric regressor for the imaging analyses.
