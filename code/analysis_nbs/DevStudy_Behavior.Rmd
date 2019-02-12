@@ -597,3 +597,10 @@ machine_game_data_clean %>%
 
 Details of model comparison can be found in a separate [notebook](http://zenkavi.github.io/DevStudy_Analyses/output/reports/Comp_RL.nb.html).
 
+Based on a comparison of 6 models the best fitting model is a 4 parameter model with one learning rate ($\alpha$) and two exponents ($\gamma$) weighing positive and negative prediction errors separately (along with the inverse softmax temperature $\beta$ ).
+
+In line with the above analyses where the behavioral difference lay in the high variance negative EV machine the age difference in the parameters is found in:
+
+1. exponent over negative prediction errors: **Adults distort negative outcomes less. A negative outcome doesn't feel as bad as it is for kids** 
+
+2. inverse softmax temperature: **Adults make decisions based more on EV compared to kids**
