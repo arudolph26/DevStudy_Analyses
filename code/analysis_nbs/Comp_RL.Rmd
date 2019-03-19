@@ -240,11 +240,15 @@ best_sub_pars %>%
          xopt_exp_pos_log = pos_log(xopt_exp_pos)) %>%
   select(-xopt_alpha, -xopt_beta, -xopt_exp_neg, -xopt_exp_pos) %>%
   gather(par, value, -age_group) %>%
+  mutate(par = ifelse(par == "xopt_alpha_log", "log(\u03b1)", ifelse(par == "xopt_beta_log", "log(\u03b2)", ifelse(par == "xopt_exp_neg_log", "log(\u03b3_loss)", ifelse(par == "xopt_exp_pos_log", "log(\u03b3_gain)",par))))) %>%
   ggplot(aes(value))+
   geom_density(aes(fill=age_group), color=NA, alpha=0.5)+
   facet_wrap(~par, scales='free')+
   xlab("")+
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  ylab("")
+
+ggsave("RL_models_par_dist.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
 ```{r warning=FALSE, message=FALSE}
