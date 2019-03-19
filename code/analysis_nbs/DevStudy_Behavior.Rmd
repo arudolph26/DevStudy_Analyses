@@ -593,6 +593,46 @@ machine_game_data_clean %>%
   theme(legend.title = element_blank())
 ```
 
+### Response time differences
+
+```{r}
+machine_game_data_clean %>%
+  ggplot(aes(log(Reaction_time))) +
+  geom_density(aes(fill = age_group), alpha=0.5, color=NA) +
+  facet_wrap(~facet_labels)+
+  theme(legend.title = element_blank())+
+  ylab("")+
+  xlab("Log Response Time")
+```
+
+```{r}
+machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(mean_log_rt = mean(log(Reaction_time)),
+            sem_log_rt = sem(log(Reaction_time))) %>%
+  do(assign.age.info(.)) %>%
+  ggplot(aes(age_group, mean_log_rt))+
+  geom_boxplot(aes(fill=age_group))+
+  facet_wrap(~facet_labels)+
+  theme(legend.position = "none")+
+  ylab("Mean Log Rt")+
+  xlab("Age group")
+```
+
+Both teens and adults are faster than kids in all conditions but the high var negative EV.
+
+```{r}
+#summary(lmer(log(Reaction_time) ~ age_group*facet_labels +(1|Sub_id), data = machine_game_data_clean))
+
+summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "-10,+100")))
+
+summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "-5,+495")))
+
+summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "+10,-100")))
+
+summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "+5,-495")))
+```
+
 ## RL modeling
 
 Details of model comparison can be found in a separate [notebook](http://zenkavi.github.io/DevStudy_Analyses/output/reports/Comp_RL.nb.html).
@@ -605,4 +645,56 @@ In line with the above analyses where the behavioral difference lay in the high 
 
 2. inverse softmax temperature: **Adults make decisions based more on EV compared to kids**
 
-Therefore the trial level EVs from this model will be used as a parametric regressor for the imaging analyses.
+Therefore the trial level PEs from this model will be used as a parametric regressor for the imaging analyses.
+
+```{r}
+#Parameter estimate plots
+fits = "LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_All.csv"
+for(f in fits){
+  data = read.csv(paste0(input_dir, f))
+  data = process_fits(data)
+  p = data %>% 
+    ggplot(aes(neglogprob))+
+    geom_histogram()+
+    facet_wrap(~sub_id, scales='free')
+  
+  data %>%
+    ggplot(aes(xopt_alpha))+
+    xlim(-0.25,2)+
+    ylim(0,3)+
+    geom_density(aes(group=factor(sub_id)), color="gray")+
+    geom_density(fill="black")+
+    theme(legend.position = "none")
+  
+  data %>%
+    # filter(sub_id %in% c(100009, 200056, 408952)) %>%
+    ggplot(aes(xopt_beta))+
+    geom_density(aes(group=factor(sub_id)), color="gray")+
+    geom_density(fill="black")+
+    theme(legend.position = "none")+
+    xlim(-1,3)+
+    ylim(0,3)
+  
+  data %>%
+    # filter(sub_id %in% c(100009, 200056, 408952)) %>%
+    ggplot(aes(xopt_exp_pos))+
+    geom_density(aes(group=factor(sub_id)), color="gray")+
+    geom_density(fill="black")+
+    theme(legend.position = "none")+
+    xlim(-10, 10)+
+    ylim(0,3)
+  
+  data %>%
+    # filter(sub_id %in% c(100009, 200056, 408952)) %>%
+    ggplot(aes(xopt_exp_neg))+
+    geom_density(aes(group=factor(sub_id)), color="gray")+
+    geom_density(fill="black")+
+    theme(legend.position = "none")+
+    xlim(-20, 10)+
+    ylim(0,3)
+  
+  p_name = gsub('.csv','',f)
+  p_name = gsub('LearningParams','Neglogs',p_name)
+  ggsave(paste0(p_name, '.jpeg'), plot=p, device = 'jpeg', path = paste0(fig_path, 'neglogs'), width = 30, height = 30, units = "in", limitsize = FALSE)
+}
+```

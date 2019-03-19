@@ -149,15 +149,18 @@ best_sub_pars %>%
   group_by(model) %>%
   summarise(mean_bic = mean(BIC), 
             sem_bic = sem(BIC)) %>%
-  mutate(min_col = factor(ifelse(mean_bic == min(mean_bic, na.rm=T), 1,0))) %>%
-  ggplot(aes(factor(model), mean_bic))+
+  mutate(min_col = factor(ifelse(mean_bic == min(mean_bic, na.rm=T), 1,0)),
+         x_axis = ifelse(model == "Fit_alpha-beta_Fix_exp_", "\u03b1 , \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_", "\u03b1_gain, \u03b1_loss, \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss", ifelse(model == "Fit_alpha-beta-exp_Fix_", "\u03b1, \u03b2, \u03b3", ifelse(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", model))))))) %>%
+  ggplot(aes(factor(x_axis), mean_bic))+
   geom_point(aes(col = min_col))+
   geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic, col=min_col))+
-  theme(axis.text.x = element_text(angle = 45),
-        legend.position = "none")+
+  theme(legend.position = "none")+
   xlab("")+
   ylab("Mean BIC across subjects")+
-  scale_color_manual(values = c("black", "red"))
+  scale_color_manual(values = c("black", "red"))+
+  scale_x_discrete(labels = function(x) str_wrap(x, width=5))
+
+ggsave("RL_models_comp.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
 How to read model names: Parameters that are fitted are listed following the `Fit` keyword in the model name, parameters that are fixed are listed following the `Fix` keyword in the model name.  
@@ -209,13 +212,16 @@ best_sub_pars %>%
   group_by(age_group, model) %>%
   summarise(mean_bic = mean(BIC),
             sem_bic = mean(BIC)) %>%
-  ggplot(aes(model,mean_bic, color=age_group))+
+  mutate(x_axis = ifelse(model == "Fit_alpha-beta_Fix_exp_", "\u03b1 , \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_", "\u03b1_gain, \u03b1_loss, \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss", ifelse(model == "Fit_alpha-beta-exp_Fix_", "\u03b1, \u03b2, \u03b3", ifelse(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", model))))))) %>%
+  ggplot(aes(factor(x_axis),mean_bic, color=age_group))+
   geom_point()+
   geom_errorbar(aes(ymin = mean_bic-sem_bic, ymax = mean_bic+sem_bic))+
   xlab("")+
   ylab("Mean BIC across subjects")+
   theme(axis.text.x = element_blank(),
         legend.title = element_blank())
+
+ggsave("RL_models_comp_age.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
 ## Age differences in parameters
