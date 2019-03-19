@@ -23,10 +23,10 @@ tmp = read.table('~/Downloads/tmp.txt')
 head(tmp)
 
 tmp = tmp %>%
-  # mutate(V1 = gsub("/oak/stanford/groups/russpold/data/ds000054/0.0.4/derivatives/level_1/","",V1)) %>%
-  select(V11) %>% 
-  mutate(V11 = gsub("./level1-39331547-", "", V11),
-         V11 = gsub(".err", "", V11))
-# separate(V1, into=c("a", "b", "c"), sep="/")
+  mutate(V1 = gsub("/oak/stanford/groups/russpold/data/ds000054/0.0.4/derivatives/level_2/","",V1)) %>%
+  # select(V11) %>% 
+  # mutate(V11 = gsub("./level1-39331547-", "", V11),
+         # V11 = gsub(".err", "", V11))
+separate(V1, into=c("a", "b", "c"), sep="/")
 
 
