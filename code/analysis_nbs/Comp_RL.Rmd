@@ -154,7 +154,8 @@ best_sub_pars %>%
   ggplot(aes(factor(x_axis), mean_bic))+
   geom_point(aes(col = min_col))+
   geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic, col=min_col))+
-  theme(legend.position = "none")+
+  theme(legend.position = "none",
+        panel.grid=element_blank())+
   xlab("")+
   ylab("Mean BIC across subjects")+
   scale_color_manual(values = c("black", "red"))+
@@ -219,7 +220,8 @@ best_sub_pars %>%
   xlab("")+
   ylab("Mean BIC across subjects")+
   theme(axis.text.x = element_blank(),
-        legend.title = element_blank())
+        legend.title = element_blank(),
+        panel.grid = element_blank())
 
 ggsave("RL_models_comp_age.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
@@ -245,7 +247,8 @@ best_sub_pars %>%
   geom_density(aes(fill=age_group), color=NA, alpha=0.5)+
   facet_wrap(~par, scales='free')+
   xlab("")+
-  theme(legend.position = "none")+
+  theme(legend.position = "none",
+        panel.grid=element_blank())+
   ylab("")
 
 ggsave("RL_models_par_dist.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
@@ -263,11 +266,16 @@ best_sub_pars %>%
          xopt_exp_pos_log = pos_log(xopt_exp_pos)) %>%
   select(-xopt_alpha, -xopt_beta, -xopt_exp_neg, -xopt_exp_pos) %>%
   gather(par, value, -age_group) %>%
+  mutate(par = ifelse(par == "xopt_alpha_log", "log(\u03b1)", ifelse(par == "xopt_beta_log", "log(\u03b2)", ifelse(par == "xopt_exp_neg_log", "log(\u03b3_loss)", ifelse(par == "xopt_exp_pos_log", "log(\u03b3_gain)",par))))) %>%
   ggplot(aes(age_group, value))+
   geom_boxplot(aes(fill=age_group))+
   facet_wrap(~par, scales="free")+
   xlab("")+
-  theme(legend.position = "none")
+  ylab("")+
+  theme(legend.position = "none",
+        panel.grid = element_blank())
+
+ggsave("RL_models_par_box.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
 No difference in alpha
@@ -296,6 +304,30 @@ No difference in distortion of positive prediction errors.
 ```{r}
 summary(lm(pos_log(xopt_exp_pos) ~ age_group, best_sub_pars %>%
   filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
+```
+
+```{r}
+model_name = "Fit_alpha-beta-exp_neg-exp_pos_Fix_"
+```
+
+```{r warning=FALSE, message=FALSE}
+all_sub_pars %>%
+  filter(model == model_name) %>%
+  select_if(~sum(!is.na(.)) > 0) %>%
+  select(-model, -pars, -neglogprob, -AIC, -BIC, -contains("x0")) %>%
+  gather(par, value, -age_group, -sub_id) %>%
+  mutate(par = ifelse(par == "xopt_alpha", "\u03b1", ifelse(par == "xopt_beta", "\u03b2", ifelse(par == "xopt_exp_neg", "\u03b3_loss", ifelse(par == "xopt_exp_pos", "\u03b3_gain",par))))) %>%
+  ggplot(aes(value))+
+  xlim(-0.25,2)+
+  ylim(0,4)+
+  geom_line(aes(group = factor(sub_id), color=age_group), stat="density", size=0.5, alpha=0.3)+
+  geom_density(fill="black", alpha=0.8)+
+  facet_wrap(~par)+
+  theme(legend.position = "none")+
+  ylab("")+
+  xlab("")
+
+ggsave("RL_models_par_subs.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
 ## BART correlation
