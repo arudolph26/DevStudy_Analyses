@@ -285,7 +285,7 @@ summary(lm(pos_log(xopt_alpha) ~ age_group, best_sub_pars %>%
   filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
 ```
 
-**Adults make decisions based more on EV compared to kids**
+No difference in how much the difference relies on EV.
 
 ```{r}
 summary(lm(pos_log(xopt_beta) ~ age_group, best_sub_pars %>%

@@ -31,72 +31,25 @@ tmp = tmp %>%
 separate(V1, into=c("a", "b", "c"), sep="/")
 ########################################################################################
 
-library(pspline)
+design = read.csv('~/Downloads/sub-100009_run-001_level1_design_matrix.csv')
 
-design = read.table('~/Dropbox/PoldrackLab/DevStudy_ServerScripts/level_1/design.mat')
+design = read.csv('~/Downloads/sub-411477_run-004_level1_design_matrix.csv')
 
-design = design %>%
-  mutate(TR=1:n()) %>%
-  rename(m1=V1, m1_td = V2, m2 = V3, m2_td = V4, m3 = V5, m3_td = V6, m4 = V7, m4_td = V8, m1_rt = V9, m1_rt_td = V10, m2_rt = V11, m2_rt_td = V12, m3_rt = V13, m3_rt_td = V14, m4_rt = V15, m4_rt_td = V16, pe_lv = V17, pe_lv_td = V18, pe_hv = V19, pe_hv_td = V20, junk = V21, junk_td = V22, scrub = V23) %>%
-  gather(reg, value, -TR) %>%
-  mutate(reg = factor(reg, levels = c("m1", "m1_td", "m2", "m2_td", "m3", "m3_td", "m4","m4_td", "m1_rt", "m1_rt_td", "m2_rt", "m2_rt_td", "m3_rt", "m3_rt_td", "m4_rt", "m4_rt_td", "pe_lv", "pe_lv_td", "pe_hv", "pe_hv_td", "junk", "junk_td", "scrub"), labels = c("m1", "m1_td", "m2", "m2_td", "m3", "m3_td", "m4","m4_td", "m1_rt", "m1_rt_td", "m2_rt", "m2_rt_td", "m3_rt", "m3_rt_td", "m4_rt", "m4_rt_td", "pe_lv", "pe_lv_td", "pe_hv", "pe_hv_td", "junk", "junk_td", "scrub")))
-
+design = read.csv('~/Downloads/sub-200061_run-002_level1_design_matrix.csv')
 
 design %>%
-  ggplot(aes(y=TR, x=factor(reg)))+
+  gather(reg, value, -X) %>%
+  mutate(reg = gsub("_", " ", reg),
+         reg = factor(reg, levels = c("m1", "m1 derivative","m2", "m2 derivative","m3", "m3 derivative", "m4", "m4 derivative", "m1 rt", "m1 rt derivative",  "m2 rt", "m2 rt derivative",  "m3 rt", "m3 rt derivative",  "m4 rt", "m4 rt derivative", "gain","gain derivative","loss", "loss derivative","junk", "junk derivative","rot x", "rot x td", "rot x sq", "rot x sq td", "rot y", "rot y td", "rot y sq", "rot y sq td", "rot z", "rot z td", "rot z sq", "rot z sq td", "trans x", "trans x td", "trans x sq", "trans x sq td", "trans y", "trans y td", "trans y sq", "trans y sq td", "trans z", "trans z td", "trans z sq", "trans z sq td", "framewise displacement", "std dvars", "scrub","drift 1", "drift 2", "constant"))) %>%
+  ggplot(aes(y=X, x=factor(reg)))+
   geom_tile(aes(fill=value), color=NA)+
+  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
   scale_fill_gradient()+
   xlab("")+
   ylab("")+
   theme(axis.text.y = element_blank(),
         legend.position = "none",
         axis.ticks = element_blank(),
-        axis.text.x = element_text(angle=90),
+        axis.text.x = element_text(angle=90, margin = margin(t=-18),hjust=0.95,vjust=0.2),
         panel.border = element_blank(),
         panel.grid = element_blank())
-
-mov = read.table('~/Dropbox/PoldrackLab/DevStudy_ServerScripts/level_1/prefiltered_func_data_mcf.par')
-
-time = c(1:216)
-
-mov$V1_td = predict(sm.spline(time, mov$V1), time, 1)  
-mov$V2_td = predict(sm.spline(time, mov$V2), time, 1)
-mov$V3_td = predict(sm.spline(time, mov$V3), time, 1)  
-mov$V4_td = predict(sm.spline(time, mov$V4), time, 1)
-mov$V5_td = predict(sm.spline(time, mov$V5), time, 1)  
-mov$V6_td = predict(sm.spline(time, mov$V6), time, 1)
-mov$V1_sq = mov$V1^2
-mov$V2_sq = mov$V2^2
-mov$V3_sq = mov$V3^2
-mov$V4_sq = mov$V4^2
-mov$V5_sq = mov$V5^2
-mov$V6_sq = mov$V6^2
-mov$V1_sq_td = predict(sm.spline(time, mov$V1_sq), time, 1)  
-mov$V2_sq_td = predict(sm.spline(time, mov$V2_sq), time, 1)
-mov$V3_sq_td = predict(sm.spline(time, mov$V3_sq), time, 1)  
-mov$V4_sq_td = predict(sm.spline(time, mov$V4_sq), time, 1)
-mov$V5_sq_td = predict(sm.spline(time, mov$V5_sq), time, 1)  
-mov$V6_sq_td = predict(sm.spline(time, mov$V6_sq), time, 1)
-
-
-mov %>%
-  mutate(TR=1:216) %>%
-  gather(reg, value, -TR) %>%
-  mutate(reg = gsub("V", "mov", reg))%>%
-  rbind(design)  %>%
-  mutate(reg = factor(reg, levels = c("m1", "m1_td", "m2", "m2_td", "m3", "m3_td", "m4","m4_td", "m1_rt", "m1_rt_td", "m2_rt", "m2_rt_td", "m3_rt", "m3_rt_td", "m4_rt", "m4_rt_td", "pe_lv", "pe_lv_td", "pe_hv", "pe_hv_td", "junk", "junk_td", "scrub", "mov1", "mov1_td", "mov2", "mov2_td", "mov3", "mov3_td", "mov4", "mov4_td", "mov5", "mov5_td", "mov6", "mov6_td", "mov1_sq", "mov1_sq_td", "mov2_sq", "mov2_sq_td", "mov3_sq", "mov3_sq_td", "mov4_sq", "mov4_sq_td", "mov5_sq", "mov5_sq_td", "mov6_sq", "mov6_sq_td"),
-                      labels = c("m1", "m1_td", "m2", "m2_td", "m3", "m3_td", "m4","m4_td", "m1_rt", "m1_rt_td", "m2_rt", "m2_rt_td", "m3_rt", "m3_rt_td", "m4_rt", "m4_rt_td", "pe_lv", "pe_lv_td", "pe_hv", "pe_hv_td", "junk", "junk_td", "scrub", "mov1", "mov1_td", "mov2", "mov2_td", "mov3", "mov3_td", "mov4", "mov4_td", "mov5", "mov5_td", "mov6", "mov6_td", "mov1_sq", "mov1_sq_td", "mov2_sq", "mov2_sq_td", "mov3_sq", "mov3_sq_td", "mov4_sq", "mov4_sq_td", "mov5_sq", "mov5_sq_td", "mov6_sq", "mov6_sq_td"))) %>%
-  ggplot(aes(y=TR, x=reg))+
-  geom_tile(aes(fill=value), color=NA)+
-  scale_fill_gradient()+
-  xlab("")+
-  ylab("")+
-  theme(axis.text.y = element_blank(),
-        legend.position = "none",
-        axis.ticks = element_blank(),
-        axis.text.x = element_text(angle=90),
-        panel.border = element_blank(),
-        panel.grid = element_blank())
-
-ggsave("design_eg.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
-
