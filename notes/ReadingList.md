@@ -1,7 +1,3 @@
-**Davidow, J. Y., Insel, C., & Somerville, L. H. (2018). Adolescent development of value-guided goal pursuit. Trends in Cognitive Sciences.***
-"many studies have shown that the ventral striatum response to the anticipation and *receipt* of rewards is elevated during adolescence"
-***Is VStr response for gains is larger for teens***
-
 **Crone, E. A., Zanolie, K., Van Leijenhorst, L., Westenberg, P. M., & Rombouts, S. A. (2008). Neural mechanisms supporting flexible performance adjustment during development. Cognitive, Affective, & Behavioral Neuroscience, 8(2), 165-177.**
 - Simplified WCST
 - Comparing neural response (ACC, DLPFC and OFC) to different types of feedback
@@ -94,7 +90,7 @@ Hypotheses:
 - Compared 3 RL models: Single alpha, to alphas for +/- RPE and anticorrelated valuation with 4 alphas chosen/unchosen and +/- RPE
 - "For the fMRI analysis, we estimated one single set of canonical model parameters for all participants"
 - No behavioral differences (neither in overall performance nor in number of switches)
-- Chose the most complicated model based on AIC (which doesn't penalize for model complexity)
+- Chose the most complicated model based on AIC (which doesn't penalize for model complexity) and found that alpha for chosen - RPE is higher for adolescents
 
 **Luna, B. et al. (2015) An integrative model of the maturation of cognitive control. Annu. Rev. Neurosci. 38, 151–170**
 
@@ -107,6 +103,9 @@ Hypotheses:
 **Davidow, J.Y. et al. (2016) An upside to reward sensitivity: the hippocampus supports enhanced reinforcement learning in adolescence. Neuron 92, 93–99**
 
 **Palminteri, S. et al. (2016) The computational development of reinforcement learning during adolescence. PLoS Comput. Biol. 12, e1004953**
+- Task: rewards and punishments with partial or complete feedback
+- Adolescents learn less from counterfactual information and less from punishments (compared to the symmetric learning of adults)
+- Tested 3 models: Standard Q, Q with counterfactual info, Q with counterfactual and contextual
 
 **Somerville, L.H. (2016) Searching for signatures of brain maturity: what are we searching for? Neuron 92, 1164–1167**
 
@@ -115,6 +114,10 @@ Hypotheses:
 **Crone, E.A. and Steinbeis, N. (2017) Neural perspectives on cognitive control development during childhood and adolescence. Trends Cogn. Sci. 21, 205–215**
 
 **Schreuders, E. et al. (2018) Contributions of reward sensitivity to ventral striatum activity across adolescence and early adulthood. Child Dev. 89, 797–810**
+
+**Davidow, J. Y., Insel, C., & Somerville, L. H. (2018). Adolescent development of value-guided goal pursuit. Trends in Cognitive Sciences.***
+"many studies have shown that the ventral striatum response to the anticipation and *receipt* of rewards is elevated during adolescence"
+***Is VStr response for gains is larger for teens***
 
 **Sherman, L., Steinberg, L., & Chein, J. (2018). Connecting brain responsivity and real-world risk taking: Strengths and limitations of current methodological approaches. Developmental cognitive neuroscience, 33, 27-41.**
 - Review of ‘individual difference’ studies of neural markers for (only) adolescent risk taking

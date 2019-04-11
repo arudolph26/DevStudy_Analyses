@@ -166,15 +166,16 @@ machine_game_data_clean %>%
   mutate(pct=(100*n)/sum(n)) %>%
   do(assign.age.info(.)) %>%
   group_by(age_group, facet_labels, Response) %>%
-  dplyr::summarise(mean_pct = mean(pct),
+ summarise(mean_pct = mean(pct),
             sem_pct = sem(pct)) %>%
   ggplot(aes(Response, mean_pct, fill = age_group))+
   geom_bar(stat='identity', position = position_dodge(0.9))+
   geom_errorbar(aes(ymin = mean_pct - sem_pct, ymax = mean_pct + sem_pct), position = position_dodge(width = 0.9), width=0.25)+
-  theme_bw()+
   ylab('Percentage of trials')+
   facet_wrap(~facet_labels)+
   labs(fill = 'Age group')
+
+ggsave("Prop_played.jpeg", device = "jpeg", path = fig_path, width = 8, height = 5, units = "in", dpi = 450)
 ```
 
 The differences in points earned map directly on to proportion of choosing to play each machine:  
@@ -208,12 +209,16 @@ Recoding the behavior in this way gave a clearer picture of the age difference *
 
 ```{r warning=FALSE, message=FALSE}
 machine_game_data_clean %>%
-  ggplot(aes(scale(Trial_number), correct1_incorrect0))+
+  group_by(Sub_id, facet_labels) %>%
+  mutate(rel_tm = 1:n()) %>%
+  # ggplot(aes(scale(Trial_number), correct1_incorrect0))+
+    ggplot(aes(rel_tm, correct1_incorrect0))+
   geom_line(aes(group = Sub_id, col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=0.2)+
   geom_line(aes(col= factor(age_group, levels=c('kid', 'teen', 'adult'))),stat='smooth', method = 'glm', method.args = list(family = "binomial"), se = FALSE, alpha=1, size=2)+
   facet_wrap(~facet_labels)+
   theme_bw()+
-  xlab("Relative trial number")+
+  # xlab("Relative trial number")+
+  xlab("Trial number")+
   scale_y_continuous(breaks=c(0,1))+
   labs(col="Age group")+
   ylab('Correct choice')+

@@ -72,4 +72,5 @@ machine_game_data_clean <- assign.age.info(machine_game_data_clean)
 
 machine_game_data_clean = machine_game_data_clean  %>%
   mutate(correct1_incorrect0 = ifelse(facet_labels %in% c('-10,+100', '-5,+495') & Response ==1,1,ifelse(facet_labels %in% c('+10,-100', '+5,-495') & Response ==2,1,0)),
-         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass')))
+         Response = factor(Response, levels = c(0,1,2) ,labels=c('time-out', 'play', 'pass'))) %>%
+  filter(Sub_id != "406989")
