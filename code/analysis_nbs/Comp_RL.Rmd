@@ -251,7 +251,29 @@ So if there isn't really difference in fits then
 1. How well do they actually account for the behavior?
 
 ```{r}
-best_sub_pars
+input_dir = "/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_preds/"
+
+models = c('Fit_alpha_neg-alpha_pos-beta-exp_Fix',"Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix","Fit_alpha-beta-exp_Fix","Fit_alpha-beta-exp_neg-exp_pos_Fix","Fit_alpha-beta_Fix_exp","Fit_alpha_neg-alpha_pos-beta_Fix_exp" )
+
+all_preds = data.frame()
+
+for(i in 1:length(models)){
+  cur_preds = read.csv(paste0(input_dir,list.files(input_dir, models[i])))
+  cur_preds = cur_preds %>%
+    select(-X, -Unnamed..0 )
+  all_preds = rbind(all_preds, cur_preds)
+  }
+
+preds %>%
+  filter(Response != 0) %>%
+  mutate(play1_pass0 = ifelse(Response == 1, 1, 0),
+         pred_play1_pass0 = ifelse(choiceprob>0.5, 1, ifelse(choiceprob<0.5, 0, ifelse(choiceprob == 0.5, rbinom(1,1,.5), NA))),
+         pred_correct = ifelse(play1_pass0 == pred_play1_pass0, 1,0)) %>%
+  group_by(sub_id) %>%
+  summarise(correct_pct=mean(pred_correct)) %>%
+  ggplot(aes(correct_pct)) +
+  geom_histogram()
+  
 ```
 
 2. Do the models tell the same story when checking for age differences across parameter?
