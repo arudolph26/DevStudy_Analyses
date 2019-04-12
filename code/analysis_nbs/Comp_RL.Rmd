@@ -251,7 +251,7 @@ So if there isn't really difference in fits then
 1. How well do they actually account for the behavior?
 
 ```{r}
-
+best_sub_pars
 ```
 
 2. Do the models tell the same story when checking for age differences across parameter?
