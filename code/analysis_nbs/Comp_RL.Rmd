@@ -59,7 +59,6 @@ fits = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_All.csv',
          'LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_All.csv',
          'LearningParams_Fit_alpha-beta-exp_Fix_All.csv',
          'LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_All.csv',
-         
          'LearningParams_Fit_alpha-beta_Fix_exp_All.csv',
          'LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_All.csv')
 ```
