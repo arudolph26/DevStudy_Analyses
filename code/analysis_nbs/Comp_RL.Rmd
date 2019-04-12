@@ -183,7 +183,9 @@ To do this we calculate a Bayes Factors as listed in [Wagenmaakers (2007)](https
 
 $BF_{01} = exp(\frac{BIC_1 - BIC_0}{2})$
 
-the smaller this is the more evidence for H1. Here we take the simpler model to be H1 and the more complicated one as H0. The percentage of participants with weak evidence for H0 is:
+the smaller this is the more evidence for H1 (the 4 parameter model with a single learning rate and two exponents). Here we take the simpler model to be H1 and the more complicated one as H0 (the 5 parameter model with two learning rates and two exponents). $BF_{01}$ < 3 suggests weak evidence for H0 and therefore a preference for H1.  
+
+The percentage of participants with weak evidence for H0 and for whom therefore the simpler model H1 would be preferred is:
 
 ```{r}
 tmp = best_sub_pars %>%
@@ -223,6 +225,39 @@ best_sub_pars %>%
         panel.grid = element_blank())
 
 ggsave("RL_models_comp_age.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
+```
+
+Bayes Factor check above suggested that for a majority of the subjects the 4 parameter model with the lowest BIC is supported more than the next best model. But are do these BIC distributions even have different means? No.
+
+First checking if a model including the age group is better. No. As the graph above shows the models seems to fit similarly for the different age groups.
+
+```{r}
+best_sub_pars = best_sub_pars %>%
+  mutate(model = factor(model, levels = c("Fit_alpha-beta-exp_neg-exp_pos_Fix_","Fit_alpha_neg-alpha_pos-beta-exp_Fix_","Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_","Fit_alpha-beta-exp_Fix_",  "Fit_alpha-beta_Fix_exp_" ,"Fit_alpha_neg-alpha_pos-beta_Fix_exp_")))
+m1 = lm(BIC ~ model, best_sub_pars)
+m2 = lm(BIC ~ age_group*model, best_sub_pars)
+anova(m1, m2)
+```
+
+Using the model with the lowest average BIC as baseline do the means of the BIC distributions of any of the other models differ? No.
+
+```{r}
+rm(m2)
+summary(m1)
+```
+
+So if there isn't really difference in fits then
+
+1. How well do they actually account for the behavior?
+
+```{r}
+
+```
+
+2. Do the models tell the same story when checking for age differences across parameter?
+
+```{r}
+
 ```
 
 ## Age differences in parameters
