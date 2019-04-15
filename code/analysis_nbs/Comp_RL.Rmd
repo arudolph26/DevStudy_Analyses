@@ -221,9 +221,9 @@ ggsave("RL_models_comp_age.jpeg", device = "jpeg", path = fig_path, width = 7, h
 
 Bayes Factor check above suggested that for a majority of the subjects the 4 parameter model with the lowest BIC is supported more than the next best model. But are do these BIC distributions even have different means? No.
 
-First checking if a model including the age group is better. No. As the graph above shows the models seems to fit similarly for the different age groups.
+```{r eval=FALSE}
+#First checking if a model including the age group is better. No. As the graph above shows the models seems to fit similarly for the different age groups.
 
-```{r}
 best_sub_pars = best_sub_pars %>%
   mutate(model = factor(model, levels = c("Fit_alpha-beta-exp_neg-exp_pos_Fix_","Fit_alpha_neg-alpha_pos-beta-exp_Fix_","Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_","Fit_alpha-beta-exp_Fix_",  "Fit_alpha-beta_Fix_exp_" ,"Fit_alpha_neg-alpha_pos-beta_Fix_exp_")))
 m1 = lm(BIC ~ model, best_sub_pars)
@@ -231,14 +231,15 @@ m2 = lm(BIC ~ age_group*model, best_sub_pars)
 anova(m1, m2)
 ```
 
-Using the model with the lowest average BIC as baseline do the means of the BIC distributions of any of the other models differ? No.
+Do the means of the BIC distributions of any of the other models differ? The models that do not distinguish between gains and losses have on average higher BICs (/worse).
 
 ```{r}
-rm(m2)
-summary(m1)
+summary(lm(BIC ~ model, best_sub_pars))
 ```
 
 ### Predicting choice
+
+**Focusing only on the four models with the gain loss distinction**
 
 So if there isn't really difference in fits then how well do they actually account for the behavior?  
 
@@ -249,7 +250,7 @@ Note: I'm not even doing proper prediction here using left out data so these res
 ```{r}
 input_dir = "/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_preds/"
 
-models = c('Fit_alpha_neg-alpha_pos-beta-exp_Fix',"Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix","Fit_alpha-beta-exp_Fix","Fit_alpha-beta-exp_neg-exp_pos_Fix","Fit_alpha-beta_Fix_exp","Fit_alpha_neg-alpha_pos-beta_Fix_exp" )
+models = c('Fit_alpha_neg-alpha_pos-beta-exp_Fix',"Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix","Fit_alpha-beta-exp_neg-exp_pos_Fix","Fit_alpha_neg-alpha_pos-beta_Fix_exp" )
 
 all_preds = data.frame()
 
@@ -308,13 +309,9 @@ all_preds %>%
 
 ### Confusion matrices
 
-**Focusing only on the four models with the gain loss distinction**
-
 To get a better sense of when the model fails I looked at the confusion matrices between actual and predicted choice. These suggest:  
 
-- Most models succeed and fail similarly for all age groups  
-- For adults and teens a clear winner is not apparent  
-- For kids the model with two learning rates and a single exponent   outperforms the other models in correct positives  
+The models succeed and fail similarly for all age groups  
 
 ```{r warning=FALSE, message=FALSE}
 all_preds %>%
@@ -362,29 +359,41 @@ best_sub_pars %>%
   gather(key, value, -age_group, -sub_id, -model) %>%
   mutate(x_axis = ifelse(model == "Fit_alpha-beta_Fix_exp_", "\u03b1 , \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_", "\u03b1_gain, \u03b1_loss, \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss", ifelse(model == "Fit_alpha-beta-exp_Fix_", "\u03b1, \u03b2, \u03b3", ifelse(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", model)))))),
          key = ifelse(key == "xopt_alpha", "\u03b1", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp", "\u03b3", ifelse(key == "xopt_alpha_pos", "\u03b1_gain", ifelse(key == "xopt_alpha_neg", "\u03b1_loss",ifelse(key == "xopt_exp_pos", "\u03b3_gain", ifelse(key == "xopt_exp_neg", "\u03b3_loss", NA))))))))%>%
-  ggplot(aes(value))+
-  geom_histogram(aes(fill=age_group), position="identity",alpha=0.5)+
+  group_by(age_group, x_axis, key) %>%
+  summarise(mean_val = mean(value,na.rm=T),
+            sem_val = sem(value)) %>%
+  ggplot(aes(age_group, mean_val))+
+    geom_bar(aes(fill=age_group), stat="identity")+
+    geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
   facet_grid(key~x_axis, scales='free')+
-  xlim(-1,3)+
-  theme(legend.title = element_blank())+
   ylab("")+
   xlab("")+
   theme(panel.grid = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.text.y = element_blank())
+        legend.position = "none")
 
 ggsave("RL_par_diffs.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
 ```
 
 Which parameters show age differences in which models?
 
-No model shows a difference between kids and teens for any of the parameters so below I only show the models that show a difference between kids and adults.
-
-We find 3 different stories:
+Using Nelder-Mead and uniform priors I had found 3 different stories:
 
 - According to the model with two learning rates and one exponent the difference lies in the inverse temperature
 - According to the model with single learning rate and two exponents the difference lies in the distortion of negative prediction errors
 - According to the model with two learning rates and no exponent (i.e. 1) the difference lies in the learning rate from negative outcomes
+
+However these were driven primarily by outliers. So I changed the estimation method to 'L-BFGS-B' and priors to what is used in Christakis (2013). This way I could place bounds for the parameters and did not end up with negative learning rates or exponents or huge inverse temperatures.
+
+2 changes
+
+- More convergence failiures. In fact the model with the lowest BIC overall is also the one that fails the most. I'm not sure how to account for this in comparing the models. Exclude subjects who have more than X % of convergence failures and drop model that have more than Y % of subjects removed?
+
+- No age difference for any parameters of any group
+
+So
+
+- We have models that don't capture the behavior we are interested in (i.e. the difference between kids and adults in learning from losses)
+- We have models that are on average at change in predicting behavior. 
 
 ```{r}
 models = c("Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_", "Fit_alpha-beta-exp_neg-exp_pos_Fix_", "Fit_alpha_neg-alpha_pos-beta_Fix_exp_")
@@ -406,42 +415,34 @@ for(i in 1:length(models)){
 }
 age_diff_df = age_diff_df[-1,]
 age_diff_df %>%
-  filter(adult<0.05)
+  arrange(adult, teen)
+# age_diff_df %>%
+#   filter(adult<0.05)
 ```
+
+A closer look might suggest the models do a good job for some and doesn't for others. We can check whether the age group difference exist for one or the other group of subjects. 
+
+1. Is the behavioral effect there for one or the other group?
+
+How do you decide someone is predictable? Do they need to succeed in all models?
 
 ```{r}
-best_sub_pars %>%
-  filter(model %in% c("Fit_alpha_neg-alpha_pos-beta-exp_Fix_","Fit_alpha-beta-exp_neg-exp_pos_Fix_", "Fit_alpha_neg-alpha_pos-beta_Fix_exp_")) %>%
-  select(model, age_group, xopt_beta, xopt_exp_neg, xopt_alpha_neg) %>%
-  mutate(model = ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "\u03b1_neg, \u03b1_pos, \u03b2, \u03b3", ifelse(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_", "\u03b1, \u03b2, \u03b3_neg, \u03b3_pos", ifelse(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_", "\u03b1_neg, \u03b1_neg, \u03b2", NA)))) %>%
-  # mutate(xopt_beta = pos_log(xopt_beta),
-  #        xopt_exp_neg = neg_log(xopt_exp_neg),
-  #        xopt_alpha_neg = pos_log(xopt_alpha_neg)) %>%
-  gather(key, value, -age_group, -model) %>%
-  filter((model == "\u03b1_neg, \u03b1_pos, \u03b2, \u03b3" & key == "xopt_beta") | (model == "\u03b1, \u03b2, \u03b3_neg, \u03b3_pos" & key == "xopt_exp_neg") | (model == "\u03b1_neg, \u03b1_neg, \u03b2" & key == "xopt_alpha_neg")) %>%
-  mutate(key = ifelse(key == "xopt_alpha_neg", "\u03b1_neg", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp_neg", "\u03b3_neg",NA)))) %>%
-  
-  group_by(age_group, model, key)%>%
-  summarise(mean_val = mean(value),
-            sem_val = sem(value)) %>%
-  ggplot(aes(age_group, mean_val, fill=age_group))+
-  
-  # ggplot(aes(age_group, value, fill=age_group))+
-  # geom_boxplot()+
-  geom_bar(stat="identity")+
-  geom_errorbar(aes(ymin=mean_val-sem_val, ymax = mean_val+sem_val), width=0)+
-  facet_wrap(model~key, scales="free")+
-  theme(legend.position = "none",
-        panel.grid = element_blank())+
-  xlab("")+
-  ylab("")
-  # ylim(-1,5)
+tmp = all_preds %>%
+  group_by(x_axis, sub_id, age_group) %>%
+  summarise(correct_pct=mean(pred_correct)) %>%
+  mutate(predictable = ifelse(correct_pct>0.5, 1, 0)) %>%
+  filter(predictable==1)
+
+table(tmp$sub_id)
 ```
+
+2. Is the age group difference between parameters there for the predictable group?
 
 ```{r}
-summary(lm(pos_log(xopt_beta)~age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_")))
+
 ```
 
+Even if this were true we don't have a way to describe the behavior of those for whom the 
 
 ## Alternative models
 
