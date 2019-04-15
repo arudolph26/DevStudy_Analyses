@@ -447,3 +447,48 @@ Even if this were true we don't have a way to describe the behavior of those for
 ## Alternative models
 
 Is there another story be told using a different class of models. E.g. drift diffusion?
+
+```{r}
+input_dir = "/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/ez_fits/"
+
+ez_fits = read.csv(paste0(input_dir, "EZ_ddm_fits_all.csv"))
+
+ez_fits = ez_fits %>% 
+  rename(sub_id = X) %>%
+  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
+         age_group = factor(age_group, levels = c("kid","teen","adult")))
+```
+
+```{r}
+ez_fits %>%
+  gather(key, value, -sub_id, -age_group) %>%
+  separate(key, into=c("model", "par", "machine"), sep='_') %>%
+  ggplot(aes(value))+
+  geom_density(aes(fill=age_group),color=NA,alpha=0.5)+
+  facet_grid(par~machine, scales="free")+
+  theme(legend.title = element_blank(),
+        panel.grid = element_blank())+
+  ylab("")
+
+```
+
+```{r warning=FALSE, message=FALSE}
+ez_fits %>%
+  gather(key, value, -sub_id, -age_group) %>%
+  separate(key, into=c("model", "par", "machine"), sep='_') %>%
+  filter(value != -Inf) %>%
+  group_by(age_group, machine, par) %>%
+  summarise(mean_val = mean(value, na.rm=T),
+            sem_val = sem(value)) %>%
+  ggplot(aes(age_group, mean_val))+
+  geom_bar(aes(fill=age_group), stat="identity")+
+  geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
+  facet_grid(par~machine, scales="free")+
+  theme(legend.position = "none",
+        panel.grid = element_blank())+
+  ylab("")+
+  xlab("")
+```
+
+recode machine types for above graph
+fit the model using correct choice for the correct_col instead of play1_pass0
