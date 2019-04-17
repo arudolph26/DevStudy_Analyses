@@ -505,10 +505,10 @@ age_diff_df %>%
 #   filter(adult<0.05)
 ```
 
-**So**
+**So using RL models to describe behavior in this task**
 
 **- We have models that don't capture the behavior we are interested in (i.e. the difference between kids and adults in learning from losses)**
-**- We have models that are on average at change in predicting behavior.** 
+**- We have models that are on average at chance in predicting behavior.** 
 
 The next step to build a story using RL models could be to take a closer look at subsets the models do a good job for vs others. We can check whether the age group difference exist for one or the other group of subjects. 
 
@@ -558,6 +558,8 @@ ez_fits_correctinc %>%
         panel.grid = element_blank())+
   ylab("")+
   xlab("")
+
+ggsave("EZ_par_diffs.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
 ```
 
 Age differences:
@@ -591,7 +593,9 @@ choice_data = all_preds %>%
   select(Trial_type, Response, sub_id, age_group) %>%
   mutate(correct1_incorrect0 = ifelse(Trial_type==1&Response==2,1,ifelse(Trial_type==2&Response==1,1, ifelse(Trial_type==3&Response==1,1,ifelse(Trial_type==4&Response==2,1,0))))) %>%
   mutate(machine= ifelse(Trial_type==1,"+5/-495", ifelse(Trial_type==2, "-5/+495", ifelse(Trial_type == 3, "-10/+100", ifelse(Trial_type == 4, "+10/-100",NA)))))
+```
 
+```{r message=FALSE, warning=FALSE}
 choice_data %>%
   left_join(ez_fits_correctinc %>%
               spread(par, value) %>%
@@ -610,10 +614,39 @@ choice_data %>%
   ylab("Proportion of correct \n choice predictions")+
   xlab("")+
   ylim(0,1)
+
+ggsave("EZ_preds_comp_age.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
 ```
 
 ### Confusion matrices for alternative model
 
 ```{r}
+choice_data %>%
+  left_join(ez_fits_correctinc %>%
+              spread(par, value) %>%
+              select(-model), by=c("sub_id", "age_group", "machine")) %>%
+  mutate(pred_pc = 1/(1+exp(-thresh*drift/0.1^2)),
+         pred_correct1_incorrect0 = ifelse(pred_pc>0.5,1,0)) %>%
+  mutate(correct_positive = ifelse(correct1_incorrect0 == 1 & pred_correct1_incorrect0 == 1, 1, 0),
+         correct_negative = ifelse(correct1_incorrect0 == 0 & pred_correct1_incorrect0 == 0, 1, 0),
+         false_positive = ifelse(correct1_incorrect0 == 0 & pred_correct1_incorrect0 == 1, 1, 0),
+         false_negative = ifelse(correct1_incorrect0 == 1 & pred_correct1_incorrect0 == 0, 1, 0)) %>%
+  group_by(age_group, machine) %>%
+  summarise(sum_correct_positive = sum(correct_positive, na.rm=T),
+            sum_correct_negative = sum(correct_negative, na.rm=T),
+            sum_false_positive = sum(false_positive, na.rm=T),
+            sum_false_negative = sum(false_negative, na.rm=T)) %>%
+  gather(key, value, -age_group, -machine) %>%
+  mutate(TChoice = ifelse(key %in% c("sum_correct_positive", "sum_false_negative"),1,0),
+         PChoice = ifelse(key %in% c("sum_correct_positive", "sum_false_positive"), 1, 0)) %>%
+  ggplot(mapping = aes(x = factor(TChoice), y = factor(PChoice))) +
+  geom_tile(aes(fill = value), colour = "white") +
+  scale_fill_gradient(low = "blue", high = "red")+
+  geom_text(aes(label = sprintf("%1.0f", value)), vjust = 1) +
+  xlab("True Choice")+
+  ylab("Predicted Choice")+
+  facet_grid(age_group~machine)+
+  theme(legend.position = "none")
 
+ggsave("EZ_confusion_matrices.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
 ```
