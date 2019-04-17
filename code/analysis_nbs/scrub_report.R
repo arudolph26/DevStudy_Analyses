@@ -18,38 +18,3 @@ exclude_runs = tmp %>%
 #Teens - 17*6-(1+4+2) = 95 runs
 #Adults - 28*6-(12+2) = 154 runs 
 table(exclude_runs$sub_id)
-
-########################################################################################
-tmp = read.table('~/Downloads/tmp.txt')
-head(tmp)
-
-tmp = tmp %>%
-  mutate(V1 = gsub("/oak/stanford/groups/russpold/data/ds000054/0.0.4/derivatives/level_2/","",V1)) %>%
-  # select(V11) %>% 
-  # mutate(V11 = gsub("./level1-39331547-", "", V11),
-         # V11 = gsub(".err", "", V11))
-separate(V1, into=c("a", "b", "c"), sep="/")
-########################################################################################
-
-design = read.csv('~/Downloads/sub-100009_run-001_level1_design_matrix.csv')
-
-design = read.csv('~/Downloads/sub-411477_run-004_level1_design_matrix.csv')
-
-design = read.csv('~/Downloads/sub-200061_run-002_level1_design_matrix.csv')
-
-design %>%
-  gather(reg, value, -X) %>%
-  mutate(reg = gsub("_", " ", reg),
-         reg = factor(reg, levels = c("m1", "m1 derivative","m2", "m2 derivative","m3", "m3 derivative", "m4", "m4 derivative", "m1 rt", "m1 rt derivative",  "m2 rt", "m2 rt derivative",  "m3 rt", "m3 rt derivative",  "m4 rt", "m4 rt derivative", "gain","gain derivative","loss", "loss derivative","junk", "junk derivative","rot x", "rot x td", "rot x sq", "rot x sq td", "rot y", "rot y td", "rot y sq", "rot y sq td", "rot z", "rot z td", "rot z sq", "rot z sq td", "trans x", "trans x td", "trans x sq", "trans x sq td", "trans y", "trans y td", "trans y sq", "trans y sq td", "trans z", "trans z td", "trans z sq", "trans z sq td", "framewise displacement", "std dvars", "scrub","drift 1", "drift 2", "constant"))) %>%
-  ggplot(aes(y=X, x=factor(reg)))+
-  geom_tile(aes(fill=value), color=NA)+
-  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
-  scale_fill_gradient()+
-  xlab("")+
-  ylab("")+
-  theme(axis.text.y = element_blank(),
-        legend.position = "none",
-        axis.ticks = element_blank(),
-        axis.text.x = element_text(angle=90, margin = margin(t=-18),hjust=0.95,vjust=0.2),
-        panel.border = element_blank(),
-        panel.grid = element_blank())
