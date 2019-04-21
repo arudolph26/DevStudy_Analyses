@@ -650,3 +650,45 @@ choice_data %>%
 
 ggsave("EZ_confusion_matrices.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
 ```
+
+```{r message = FALSE, warning=FALSE}
+m1_roi_mzvals = read.csv(paste0(input_dir, 'm1_roi_mzvals.csv'))
+
+m1_roi_mzvals %>%
+  select(-X) %>%
+  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
+         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
+  left_join(ez_fits_correctinc %>%
+              filter(machine == "+5/-495" & par == "drift") %>%
+              select(sub_id, par, machine, value), by = "sub_id") %>%
+  group_by(roi_name, age_group) %>%
+  summarise(cor_mzval_drift = cor(m_zvals, value, use="complete.obs")) %>%
+  filter(age_group != "teen") %>%
+  ggplot(aes(roi_name, cor_mzval_drift, fill=age_group))+
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
+  xlab("")+
+  scale_fill_manual(values=c("#E69F00","#009E73"))+
+  theme(legend.title=element_blank()) +
+  ylab("Correlation between drift rate and activity in ROI")
+```
+
+```{r warning=FALSE, message=FALSE}
+m1_roi_mzvals %>%
+  select(-X) %>%
+  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
+         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
+  left_join(ez_fits_correctinc %>%
+              filter(machine == "+5/-495" & par == "drift") %>%
+              select(sub_id, par, machine, value), by = "sub_id") %>%
+  group_by(roi_name, age_group) %>%
+  filter(age_group != "teen") %>%
+  ggplot(aes(value, m_zvals, color=age_group))+
+  geom_point()+
+  geom_smooth(method="lm", se=FALSE)+
+  facet_wrap(~roi_name)+
+  theme(legend.title = element_blank(),
+        panel.grid = element_blank())+
+  xlab("drift rate")+
+  ylab("average activity in ROI")+
+  scale_color_manual(values=c("#E69F00","#009E73"))
+```
