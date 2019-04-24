@@ -405,18 +405,65 @@ best_sub_pars %>%
   group_by(age_group, x_axis, key) %>%
   summarise(mean_val = mean(value,na.rm=T),
             sem_val = sem(value)) %>%
+  filter(x_axis %in% c("\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss")) %>%
+  # filter(x_axis %in% c("\u03b1, \u03b2, \u03b3_gain, \u03b3_loss")) %>%
   ggplot(aes(age_group, mean_val))+
     geom_bar(aes(fill=age_group), stat="identity")+
     geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
+  # ggplot(aes(age_group, value))+
+  # geom_boxplot(aes(fill=age_group))+
   facet_grid(key~x_axis, scales='free')+
   ylab("")+
   xlab("")+
   theme(panel.grid = element_blank(),
         legend.position = "none")
 
-ggsave("RL_par_diffs.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
+# ggsave("RL_par_diffs.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
+# ggsave("RL_par_diffs_ab2gs.jpeg", device = "jpeg", path = fig_path, width = 2.8, height = 5, units = "in", dpi = 450)
+ggsave("RL_par_diffs_2mods.jpeg", device = "jpeg", path = fig_path, width = 4.9, height = 5, units = "in", dpi = 450)
 ```
 
+```{r}
+
+summary(lm(xopt_alpha_pos ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_")))
+
+summary(lm(xopt_alpha_neg ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_")))
+
+summary(lm(xopt_beta ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_")))
+
+##############
+
+summary(lm(xopt_alpha_pos ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_")))
+
+summary(lm(xopt_alpha_neg ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_")))
+
+summary(lm(xopt_beta ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_")))
+
+summary(lm(xopt_exp ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_")))
+
+##############
+
+summary(lm(xopt_alpha_pos ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_")))
+
+summary(lm(xopt_alpha_neg ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_")))
+
+summary(lm(xopt_beta ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_")))
+
+summary(lm(xopt_exp_pos ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_")))
+
+summary(lm(xopt_exp_neg ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_")))
+
+##############
+
+summary(lm(xopt_alpha ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
+
+summary(lm(xopt_beta ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
+
+summary(lm(xopt_exp_pos ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
+
+summary(lm(xopt_exp_neg ~ age_group, best_sub_pars %>% filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_")))
+
+```
 
 ```{r message=FALSE, warning=FALSE}
 best_sub_pars_nm %>%
@@ -474,11 +521,7 @@ age_diff_df %>%
 
 So I changed the estimation method to 'L-BFGS-B' and priors to what is used in Christakis (2013). This way I could place bounds for the parameters and did not end up with negative learning rates or exponents or huge inverse temperatures.
 
-This lead to 2 changes:
-
 - More convergence failiures. In fact the model with the lowest BIC overall is also the one that fails the most. I'm not sure how to account for this in comparing the models. Exclude subjects who have more than X % of convergence failures and drop model that have more than Y % of subjects removed?
-
-- No age difference for any parameters of any group
 
 ```{r}
 models = c("Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_", "Fit_alpha-beta-exp_neg-exp_pos_Fix_", "Fit_alpha_neg-alpha_pos-beta_Fix_exp_")
@@ -499,10 +542,11 @@ for(i in 1:length(models)){
     }
 }
 age_diff_df = age_diff_df[-1,]
-age_diff_df %>%
-  arrange(adult, teen)
 # age_diff_df %>%
-#   filter(adult<0.05)
+#   arrange(adult, teen)
+age_diff_df %>%
+  mutate(adult_adjust = p.adjust(adult), method="bonferroni")%>%
+  filter(adult<0.05)
 ```
 
 **So using RL models to describe behavior in this task**
@@ -560,6 +604,34 @@ ez_fits_correctinc %>%
   xlab("")
 
 ggsave("EZ_par_diffs.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
+```
+
+```{r r warning=FALSE, message=FALSE}
+ez_fits_playpass = read.csv(paste0(input_dir,"EZ_ddm_fits_play1_pass0_all.csv" ))
+
+ez_fits_playpass = ez_fits_playpass %>% 
+  rename(sub_id = X) %>%
+  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
+         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
+  gather(key, value, -sub_id, -age_group) %>%
+  separate(key, into=c("model", "par", "machine"), sep='_') %>%
+  mutate(machine= ifelse(machine=="1.0","+5/-495", ifelse(machine=="2.0", "-5/+495", ifelse(machine == "3.0", "-10/+100", ifelse(machine == "4.0", "+10/-100",NA))))) %>%
+  filter(value != -Inf)
+
+ez_fits_playpass %>%
+  group_by(age_group, machine, par) %>%
+  summarise(mean_val = mean(value, na.rm=T),
+            sem_val = sem(value)) %>%
+  ggplot(aes(age_group, mean_val))+
+  geom_bar(aes(fill=age_group), stat="identity")+
+  geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
+  facet_grid(par~machine, scales="free")+
+  theme(legend.position = "none",
+        panel.grid = element_blank())+
+  ylab("")+
+  xlab("")
+
+ggsave("EZ_par_diffs_play_pass.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
 ```
 
 Age differences:
@@ -651,6 +723,8 @@ choice_data %>%
 ggsave("EZ_confusion_matrices.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
 ```
 
+## Imaging 
+
 ```{r message = FALSE, warning=FALSE}
 m1_roi_mzvals = read.csv(paste0(input_dir, 'm1_roi_mzvals.csv'))
 
@@ -663,12 +737,13 @@ m1_roi_mzvals %>%
               select(sub_id, par, machine, value), by = "sub_id") %>%
   group_by(roi_name, age_group) %>%
   summarise(cor_mzval_drift = cor(m_zvals, value, use="complete.obs")) %>%
-  filter(age_group != "teen") %>%
-  ggplot(aes(roi_name, cor_mzval_drift, fill=age_group))+
+  # filter(age_group != "teen") %>%
+  ggplot(aes(roi_name, abs(cor_mzval_drift), fill=age_group))+
   geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
   xlab("")+
-  scale_fill_manual(values=c("#E69F00","#009E73"))+
-  theme(legend.title=element_blank()) +
+  # scale_fill_manual(values=c("#E69F00","#009E73"))+
+  theme(legend.title=element_blank(),
+        panel.grid = element_blank()) +
   ylab("Correlation between drift rate and activity in ROI")
 ```
 
@@ -682,13 +757,36 @@ m1_roi_mzvals %>%
               select(sub_id, par, machine, value), by = "sub_id") %>%
   group_by(roi_name, age_group) %>%
   filter(age_group != "teen") %>%
-  ggplot(aes(value, m_zvals, color=age_group))+
-  geom_point()+
-  geom_smooth(method="lm", se=FALSE)+
-  facet_wrap(~roi_name)+
+  ggplot(aes(value, m_zvals))+
+  # geom_point()+
+  geom_smooth(method="lm", se=FALSE, aes(color=age_group))+
+  geom_smooth(method="lm", se=FALSE, color="black", linetype="dashed")+
+  facet_wrap(~roi_name, nrow=2)+
   theme(legend.title = element_blank(),
         panel.grid = element_blank())+
   xlab("drift rate")+
-  ylab("average activity in ROI")+
+  ylab("Mean z-value in ROI")+
+  xlim(-1.5, 1.5)+
   scale_color_manual(values=c("#E69F00","#009E73"))
+```
+
+
+```{r}
+tmp = m1_roi_mzvals %>%
+  select(-X) %>%
+  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
+         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
+  left_join(ez_fits_correctinc %>%
+              filter(machine == "+5/-495" & par == "drift") %>%
+              select(sub_id, par, machine, value), by = "sub_id") %>%
+  filter(age_group != "teen") %>%
+  mutate(age_group = factor(age_group, levels = c("kid","adult")))
+
+summary(lm(m_zvals ~ value*age_group, tmp %>% filter(roi_name=="ACC")))
+
+summary(lm(m_zvals ~ value*age_group, tmp %>% filter(roi_name=="RaIns")))
+
+summary(lm(m_zvals ~ value*age_group, tmp %>% filter(roi_name=="PCC")))
+
+contrasts(tmp$age_group)
 ```
