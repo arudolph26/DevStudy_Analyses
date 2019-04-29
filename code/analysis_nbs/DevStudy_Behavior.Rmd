@@ -34,7 +34,7 @@ machine_game_data_clean %>%
 
 # Performance in RL task
 
-In this task subjects are presented with a fractal in each trial. The fractals represent different machines (single-armed bandits). Subjects choose to play or pass in each trial. Each machine yields a probabilistic reward. There are four machines in total. Two with positive and two with negative expected value. One of each of these machines has a low variance reward schedule while the other has a high variance reward schedule. 
+This task is a modified Iowa Gambling Task. Subjects are presented with a fractal in each trial. The fractals represent different machines (single-armed bandits). Subjects choose to play or pass in each trial. Each machine yields a probabilistic reward. There are four machines in total. Two with positive and two with negative expected value. One of each of these machines has a low variance reward schedule while the other has a high variance reward schedule. 
 
 - One machine gives \$5 90% of the time and -\$495 %10 of the time  
 - One machine gives -\$5 90% of the time and \$495 %10 of the time  
@@ -228,6 +228,15 @@ machine_game_data_clean %>%
 ggsave("Learning.jpeg", device = "jpeg", path = fig_path, width = 8, height = 5, units = "in", dpi = 450)
 ```
 
+### EV vs Variance effects on learning
+
+Effect of EV: Comparing positive EV to negative EV (the two rows)
+There is no real learning, significant change in behavior across time for the positive EV machines while there is for the negative EV machines. 
+
+Effect of variance: Comparing high var to low var (the two cols). Here there is an interaction: there is no effect of variance for the positive EV machines but there is an effect for the negative EV machines such that learning from high var is harder for kids for negative EV.
+
+So **the smaller the EV the more learning on average (for all age groups) unless the outcomes are too variable, in which case kids don't learn from negative EV either**
+
 Looking at learning effects separately for each machine to avoid interpreting messy three-way interactions.
 
 Adults are more likely to make correct decisions in low var positive EV machine.
@@ -253,6 +262,8 @@ Kids don't show learning across trials for the high var negative EV machine but 
 ```{r}
 summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = machine_game_data_clean%>% filter(facet_labels %in% c('+5,-495')), family=binomial))
 ```
+
+### Model-free trait index
 
 I tried to capture these effects in 'individual difference' variables by running the logistic regression separately for each subject in each condition. This wouldn't capture anything different than the above analyses but I wanted to see if there were any subject-specific indices that could be correlated with other measues. I looked at three parameters:
 
@@ -300,59 +311,6 @@ tmp %>%
 ```
 
 **But it's not a good idea to look for group differences in these parameters as they are highly variable due to bad fits from few trials.**
-
-## Correlation with BART
-
-Quick look at how this relates to BART data:
-
-```{r}
-adjusted.pumps <- function(subject_data){
-  subject_data_adjusted = subject_data[subject_data$exploded == 0,]
-  subject_pumps <- subject_data_adjusted %>% 
-    group_by(trial.num) %>%
-    summarise(total_pumps = sum(finished))
-  out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps))
-  return(out)
-}
-```
-
-Increase in number of pumps with age
-
-```{r warning=FALSE, message=FALSE}
-bart_data %>%
-  group_by(Sub_id) %>%
-  do(adjusted.pumps(.)) %>%
-  do(assign.age.info(.)) %>%
-  ggplot(aes(x=calc_age, y = mean_adjusted_pumps))+
-  geom_point()+
-  theme_bw()+
-  geom_smooth(method = "lm") +
-  xlab("Age")+
-  ylab("Risk taking (adjusted pumps)")
-```
-
-**There aren't any meaningful correlations between slopes and mean adjusted pumps. *BUT* neither of these seem like good individual difference measures.**
-
-```{r warning=FALSE, message=FALSE}
-tmp = bart_data %>%
-  group_by(Sub_id) %>%
-  do(adjusted.pumps(.)) %>%
-  do(assign.age.info(.)) %>%
-  select(Sub_id, mean_adjusted_pumps)
-
-machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  do(get_learning_coef(.)) %>%
-  do(assign.age.info(.)) %>%
-  left_join(tmp, by = 'Sub_id') %>%
-  group_by(facet_labels, age_group) %>%
-  summarise(cor = cor.test(b1, mean_adjusted_pumps)$estimate,
-            p_value = cor.test(b1, mean_adjusted_pumps)$p.value) %>%
-  arrange(cor)
-```
-```{r echo=FALSE}
-rm(tmp)
-```
 
 ## Variance vs. EV sensitivity
 
@@ -440,20 +398,20 @@ Though I focus on learning behavior and specifically difference in learning for 
 
 ### Initial exploration
 
-Do people 'explore' the first five trials where the reward probabilities for each machine are presented?
+Do people 'explore' the first 10 trials where the reward probabilities for each machine are presented?
 
 They explore less when they encounter a loss early on. In the high var pos EV machine they get 4 (small) losses in a row; in the low var negative EV machine they get a moderate loss in the first trial.
 
 ```{r}
 machine_game_data_clean %>% 
   group_by(Sub_id, facet_labels) %>%
-  slice(1:5) %>%
+  slice(1:10) %>%
   summarise(num_explored = sum(ifelse(Response == "play", 1,0))) %>%
   do(assign.age.info(.)) %>%
   ungroup() %>%
   group_by(age_group, facet_labels) %>%
-  summarise(mean_num_explored = mean(num_explored/5*100),
-            sem_num_explored = sem(num_explored/5*100)) %>%
+  summarise(mean_num_explored = mean(num_explored/10*100),
+            sem_num_explored = sem(num_explored/10*100)) %>%
   ggplot(aes(facet_labels, mean_num_explored, fill = age_group))+
   geom_bar(stat="identity",position = position_dodge(0.9))+
   geom_errorbar(aes(ymax = mean_num_explored+sem_num_explored, ymin = mean_num_explored-sem_num_explored), position = position_dodge(width = 0.9), width=0.25)+
@@ -479,18 +437,13 @@ machine_game_data_clean %>%
   mutate(played_trial_number = na.locf(played_trial_number, na.rm=F)) %>%
   filter(Trial_number > 1) %>%
   mutate(trials_since_last_played = Trial_number - lag(played_trial_number)) %>%
-  group_by(trials_since_last_played,facet_labels, age_group) %>%
-  summarise(mean_correct = mean(correct1_incorrect0, na.rm = T),
-            sem_correct = sem(correct1_incorrect0)) %>%
-  drop_na() %>%
-  ggplot(aes(trials_since_last_played, mean_correct, col = age_group))+
-  # geom_smooth(alpha=0.5, method='lm')+
-  # geom_point()+
+  ggplot(aes(trials_since_last_played, correct1_incorrect0, col = age_group))+
   geom_line(stat='smooth', method = 'glm', method.args = list(family = "binomial"), alpha=1, size=2)+
   facet_wrap(~facet_labels)+
   theme(legend.title = element_blank())+
   xlab("Trials since last played")+
-  ylab("Mean Correct")
+  ylab("Correct")+
+  scale_y_continuous(breaks=c(0,1))
   
 ```
 
@@ -546,9 +499,10 @@ tmp %>%
             sem_post = sem(value)) %>%
   ggplot(aes(age_group, mean_post, shape=key, col=age_group))+
   geom_point(size=2)+
-  geom_errorbar(aes(ymin = mean_post-sem_post, ymax = mean_post+sem_post), width=0, size=2)+
+  geom_errorbar(aes(ymin = mean_post-sem_post, ymax = mean_post+sem_post), width=0)+
   facet_wrap(~facet_labels)+
-  xlab("Number of trials until next play")+
+  ylab("Number of trials until next play")+
+  xlab("")+
   theme(legend.title = element_blank())+
   guides(color=FALSE)
 ```
@@ -559,7 +513,7 @@ Reflecting the global behavior in proportion of playing in each condition adults
 summary(lm(value~age_group*facet_labels,tmp %>%filter(key=="loss")))
 ```
 
-*One thought that is not necessarily immediately pertinent but that I puzzled over is how this graph would have looked like if subjects were taking all their experiences with the machine in to account (instead of overweighing their most recent experience). I have a vague intuition that in that case the difference in responding between the experiences (gain/loss) would be 0. That is, if one takes in to account all their experiences then they would distinguish between the positive and negative EV machines and either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. Relatedly then, this difference in response patterns depending on the observed outcome could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses. I'm not sure where I'm going with this but perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.*
+*How would have this graph looked like if subjects were taking all their experiences with a given machine into account (instead of overweighing their most recent experience)? If one knew which were positive and which negative EV machines one would either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. So for the positive EV machines there would be no difference between gains/losses and for the negative EV machines there will be no points to plot (because it will never be played). This difference in playing patterns depending on the recently observed outcome (gain/loss) could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses for adults. Do kids play the bad machine because they can't remember how bad that machine is or they don't care to loose as much? Perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.*
 
 ### Cross-talk between machines
 
@@ -646,12 +600,55 @@ summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_dat
 
 Details of model comparison can be found in a separate [notebook](http://zenkavi.github.io/DevStudy_Analyses/output/reports/Comp_RL.nb.html).
 
-Based on a comparison of 6 models the best fitting model is a 4 parameter model with one learning rate ($\alpha$) and two exponents ($\gamma$) weighing positive and negative prediction errors separately (along with the inverse softmax temperature $\beta$ ).
+## Correlation with BART
 
-In line with the above analyses where the behavioral difference lay in the high variance negative EV machine the age difference in the parameters is found in:
+Quick look at how this relates to BART data:
 
-1. exponent over negative prediction errors: **Adults distort negative outcomes less. A negative outcome doesn't feel as bad as it is for kids** 
+```{r}
+adjusted.pumps <- function(subject_data){
+  subject_data_adjusted = subject_data[subject_data$exploded == 0,]
+  subject_pumps <- subject_data_adjusted %>% 
+    group_by(trial.num) %>%
+    summarise(total_pumps = sum(finished))
+  out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps))
+  return(out)
+}
+```
 
-2. inverse softmax temperature: **Adults make decisions based more on EV compared to kids**
+Increase in number of pumps with age
 
-Therefore the trial level PEs from this model will be used as a parametric regressor for the imaging analyses.
+```{r warning=FALSE, message=FALSE}
+bart_data %>%
+  group_by(Sub_id) %>%
+  do(adjusted.pumps(.)) %>%
+  do(assign.age.info(.)) %>%
+  ggplot(aes(x=calc_age, y = mean_adjusted_pumps))+
+  geom_point()+
+  theme_bw()+
+  geom_smooth(method = "lm") +
+  xlab("Age")+
+  ylab("Risk taking (adjusted pumps)")
+```
+
+**There aren't any meaningful correlations between slopes and mean adjusted pumps. *BUT* neither of these seem like good individual difference measures.**
+
+```{r warning=FALSE, message=FALSE}
+tmp = bart_data %>%
+  group_by(Sub_id) %>%
+  do(adjusted.pumps(.)) %>%
+  do(assign.age.info(.)) %>%
+  select(Sub_id, mean_adjusted_pumps)
+
+machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(get_learning_coef(.)) %>%
+  do(assign.age.info(.)) %>%
+  left_join(tmp, by = 'Sub_id') %>%
+  group_by(facet_labels, age_group) %>%
+  summarise(cor = cor.test(b1, mean_adjusted_pumps)$estimate,
+            p_value = cor.test(b1, mean_adjusted_pumps)$p.value) %>%
+  arrange(cor)
+```
+```{r echo=FALSE}
+rm(tmp)
+```
