@@ -44,13 +44,14 @@ source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_
 ```
 
 ```{r}
-# fits = list.files(path=input_dir, pattern = "All")
-fits = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_All.csv',
+fits = list.files(path=input_dir, pattern = "All")
+old_fits = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_All.csv',
          'LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_All.csv',
          'LearningParams_Fit_alpha-beta-exp_Fix_All.csv',
          'LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_All.csv',
          'LearningParams_Fit_alpha-beta_Fix_exp_All.csv',
          'LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_All.csv')
+fits=fits[fits %in% old_fits == FALSE]
 ```
 
 ```{r eval=FALSE}
@@ -70,9 +71,13 @@ for(f in fits){
 
 ```{r}
 #Look up df for AIC and BIC calculation
-num_pars_df = data.frame(model = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha-beta-exp_Fix_','LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha-beta_Fix_exp_','LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_'), pars = c(3,4,5,2,4,2))
+# num_pars_df = data.frame(model = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha-beta-exp_Fix_','LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha-beta_Fix_exp_','LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_'), pars = c(3,4,5,2,4,2))
+
+num_pars_df = data.frame(model = c('LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp-lossave_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos-lossave_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp-lossave_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-lossave_Fix_exp_','LearningParams_Fit_alpha-beta_Fix_exp-lossave_','LearningParams_Fit_alpha-beta-exp_Fix_lossave_','LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_','LearningParams_Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_','LearningParams_Fit_alpha-beta-exp-lossave_Fix_','LearningParams_Fit_alpha-beta-lossave_Fix_exp_'), pars = c(3,4,5,6,5,4,2,3,4,5,4,3),x_axis = c("\u03b1_gain, \u03b1_loss, \u03b2", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss, \u03bb", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3, \u03bb", "\u03b1_gain, \u03b1_loss, \u03b2, \u03bb", "\u03b1, \u03b2", "\u03b1, \u03b2, \u03b3", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss, \u03bb", "\u03b1, \u03b2, \u03b3, \u03bb", "\u03b1, \u03b2, \u03bb"))
+
 num_pars_df = num_pars_df %>%
-  mutate(model = as.character(model))
+  mutate(model = as.character(model),
+         x_axis = as.character(x_axis))
 ```
 
 The behavior in the machine game task lends itself to prediction error modeling as frequently done in the literature. 
@@ -91,8 +96,7 @@ The parameters of the model are:
 - $\gamma$ - value concavity exponent. Higher values mean less distortion of prediction error. Can be omitted (i.e. fixed to 1) and allowed to vary for gains and losses as $exp_{pos}$ and $exp_{neg}$  
 - $\beta$ - inverse temperature. Higher values mean subjects are choosing based on expected value, lower means the choice is driven less by EV and more by random guessing (for $\beta = 0$ all choices are equally likely).  
 
-To determine the best model we ran 38 models where these parameters were allowed to vary for gains and losses and were either estimated for each subject or fixed for all subjects. 
-Of these we are going to focus on 6 where no parameter is fixed to an arbitarary value but either fit for every subject or omitted from the model (only for exponents).
+To determine the best model we ran models where these parameters were allowed to vary for gains and losses and were either estimated for each subject. 
 
 Each model was fit 50 times for each subject minimizing negative log probability. Fit quality is evaluated using BIC for each fit. 
 
@@ -134,50 +138,15 @@ best_sub_pars = best_sub_pars %>%
   drop_na(age_group)
 ```
 
-Read in Nelder-Mead estimates.
-
-```{r}
-all_sub_pars_nm = data.frame()
-best_sub_pars_nm = data.frame()
-
-for(f in fits){
-  data = read.csv(paste0(input_dir,'Nelder_Mead/', f))
-  data = process_fits(data)
-  data = data %>% 
-    mutate(model = as.character(model)) %>%
-    left_join(num_pars_df, by='model') %>%
-    mutate(AIC = 2*neglogprob+2*pars,
-           BIC = 2*neglogprob+pars*log(180))
-  all_sub_pars_nm = rbind.all.columns(all_sub_pars_nm,data.frame(data))
-  data = data %>%
-    group_by(sub_id) %>%
-    slice(which.min(neglogprob))
-  best_sub_pars_nm = rbind.all.columns(best_sub_pars_nm,data.frame(data))
-}
-
-all_sub_pars_nm = all_sub_pars_nm %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult")),
-         model = gsub("LearningParams_", "", model)) %>%
-  drop_na(age_group)
-
-best_sub_pars_nm = best_sub_pars_nm %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult")),
-         model = gsub("LearningParams_", "", model)) %>%
-  drop_na(age_group)
-```
-
 Plotting the best model/model with lowest average BIC for the bounded estimations.
 
 ```{r message = FALSE, warning = FALSE}
 best_sub_pars %>%
-  select(model, BIC) %>%
-  group_by(model) %>%
+  select(x_axis, BIC) %>%
+  group_by(x_axis) %>%
   summarise(mean_bic = mean(BIC), 
             sem_bic = sem(BIC)) %>%
-  mutate(min_col = factor(ifelse(mean_bic == min(mean_bic, na.rm=T), 1,0)),
-         x_axis = ifelse(model == "Fit_alpha-beta_Fix_exp_", "\u03b1 , \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_", "\u03b1_gain, \u03b1_loss, \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss", ifelse(model == "Fit_alpha-beta-exp_Fix_", "\u03b1, \u03b2, \u03b3", ifelse(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", model))))))) %>%
+  mutate(min_col = factor(ifelse(mean_bic == min(mean_bic, na.rm=T), 1,0))) %>%
   ggplot(aes(factor(x_axis), mean_bic))+
   geom_point(aes(col = min_col))+
   geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic, col=min_col))+
@@ -190,31 +159,6 @@ best_sub_pars %>%
 
 ggsave("RL_models_comp.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
-
-This is different than what the Nelder-Mead estimates would have suggest (which are overall worse/have higher BICs).
-
-```{r warning=FALSE, message=FALSE}
-best_sub_pars_nm %>%
-  select(model, BIC) %>%
-  group_by(model) %>%
-  summarise(mean_bic = mean(BIC), 
-            sem_bic = sem(BIC)) %>%
-  mutate(min_col = factor(ifelse(mean_bic == min(mean_bic, na.rm=T), 1,0)),
-         x_axis = ifelse(model == "Fit_alpha-beta_Fix_exp_", "\u03b1 , \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_", "\u03b1_gain, \u03b1_loss, \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss", ifelse(model == "Fit_alpha-beta-exp_Fix_", "\u03b1, \u03b2, \u03b3", ifelse(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", model))))))) %>%
-  ggplot(aes(factor(x_axis), mean_bic))+
-  geom_point(aes(col = min_col))+
-  geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic, col=min_col))+
-  theme(legend.position = "none",
-        panel.grid=element_blank())+
-  xlab("")+
-  ylab("Mean BIC across subjects")+
-  scale_color_manual(values = c("black", "red"))+
-  scale_x_discrete(labels = function(x) str_wrap(x, width=5))
-```
-
-How to read model names: Parameters that are fitted are listed following the `Fit` keyword in the model name, parameters that are fixed are listed following the `Fix` keyword in the model name.  
-
-For example in `Fit_alpha_pos-beta-exp_neg-exp_pos_Fix_alpha_neg_` the parameters `alpha_pos`, `beta`, `exp_neg` and `exp_pos` are fitted to data while `alpha_neg` is fixed.  
 
 ```{r}
 best_sub_pars %>%
@@ -237,19 +181,20 @@ The percentage of participants with weak evidence for H0 and for whom therefore 
 
 ```{r}
 tmp = best_sub_pars %>%
-  filter(model %in% c('Fit_alpha-beta-exp_neg-exp_pos_Fix_', 'Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_')) %>%
+  filter(model %in% c('Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_', 'Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_')) %>%
+  # filter(model %in% c('Fit_alpha-beta-exp_neg-exp_pos_Fix_', 'Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_')) %>%
   select(sub_id, BIC, model) %>%
   group_by(sub_id) %>%
   mutate(model = gsub("-", "_", model)) %>%
   spread(model, BIC) %>%
-  mutate(BF01 = exp((Fit_alpha_beta_exp_neg_exp_pos_Fix_ - Fit_alpha_neg_alpha_pos_beta_exp_neg_exp_pos_Fix_)/2),
+  mutate(BF01 = exp((Fit_alpha_beta_exp_neg_exp_pos_Fix_lossave_ - Fit_alpha_neg_alpha_pos_beta_exp_Fix_lossave_)/2),
          simpler_model_better = ifelse(BF01<3,1,0)) %>%
   drop_na(simpler_model_better)
 
 sum(tmp$simpler_model_better)/nrow(tmp)*100
 ```
 
-The 'best' model using bounded estimation is only the best for 2/3's of the subjects so it's not very convincing.
+The 'best' model using bounded estimation is the best for 76.6% of the subjects.
 
 ### Age differences in fit
 
@@ -259,10 +204,9 @@ Only for the model with two learning rates the fits are more variable for kids t
 
 ```{r}
 best_sub_pars %>%
-  group_by(age_group, model) %>%
+  group_by(age_group, x_axis) %>%
   summarise(mean_bic = mean(BIC),
             sem_bic = mean(BIC)) %>%
-  mutate(x_axis = ifelse(model == "Fit_alpha-beta_Fix_exp_", "\u03b1 , \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta_Fix_exp_", "\u03b1_gain, \u03b1_loss, \u03b2", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3", ifelse(model == "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss", ifelse(model == "Fit_alpha-beta-exp_Fix_", "\u03b1, \u03b2, \u03b3", ifelse(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", model))))))) %>%
   ggplot(aes(factor(x_axis),mean_bic, color=age_group))+
   geom_point()+
   geom_errorbar(aes(ymin = mean_bic-sem_bic, ymax = mean_bic+sem_bic))+
@@ -282,113 +226,6 @@ Bayes Factor check above suggested that for a majority of the subjects the 4 par
 ```{r}
 summary(lm(BIC ~ model, best_sub_pars))
 ```
-
-### Predicting choice
-
-**Focusing only on the four models with the gain loss distinction**
-
-Since there isn't a major difference in fits then how well do they actually account for the behavior?  
-
-To get a sense of this I plugged in the best fitting parameters for each model and predicted choice behavior.  
-
-Note: I'm not even doing proper prediction here using left out data so these results would, if anything, be optimistic.
-
-```{r}
-input_dir = "/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_preds/"
-
-models = c('Fit_alpha_neg-alpha_pos-beta-exp_Fix',"Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix","Fit_alpha-beta-exp_neg-exp_pos_Fix","Fit_alpha_neg-alpha_pos-beta_Fix_exp" )
-
-all_preds = data.frame()
-
-for(i in 1:length(models)){
-  cur_preds = read.csv(paste0(input_dir,list.files(input_dir, models[i])))
-  cur_preds = cur_preds %>%
-    select(-X, -Unnamed..0 )
-  all_preds = rbind(all_preds, cur_preds)
-}
-
-all_preds = all_preds %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult")))%>%
-  filter(Response != 0) %>%
-  mutate(play1_pass0 = ifelse(Response == 1, 1, 0),
-         pred_play1_pass0 = ifelse(choiceprob>0.5, 1, ifelse(choiceprob<0.5, 0, ifelse(choiceprob == 0.5, rbinom(1,1,.5), NA))),
-         pred_correct = ifelse(play1_pass0 == pred_play1_pass0, 1,0)) %>%
-   mutate(x_axis = ifelse(model == "Preds_Fit_alpha-beta_Fix_exp_", "\u03b1 , \u03b2", ifelse(model == "Preds_Fit_alpha_neg-alpha_pos-beta_Fix_exp_", "\u03b1_gain, \u03b1_loss, \u03b2", ifelse(model == "Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3", ifelse(model == "Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss", ifelse(model == "Preds_Fit_alpha-beta-exp_Fix_", "\u03b1, \u03b2, \u03b3", ifelse(model == "Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", model)))))))
-```
-
-The models that do distinguish between learning from gains and losses account very well for some subjects' data and really badly for others so there is a qualitative difference.   
-
-*But* whether this is in the distortion of the PE or how quickly the PE is incorporated into the EV cannot be disentangled through model comparison.    
-
-```{r}
-all_preds %>%
-  group_by(x_axis, sub_id, age_group) %>%
-  summarise(correct_pct=mean(pred_correct)) %>%
-  ggplot(aes(x_axis, correct_pct)) +
-  geom_boxplot(aes(fill=age_group), alpha =0.5)+
-  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
-  xlab("")+
-  ylab("Proportion of correct \n choice predictions")+
-  theme(legend.title=element_blank(),
-        panel.grid = element_blank())+
-  ylim(0,1)
-
-ggsave("RL_preds_comp_age.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
-```
-
-Does this relate to performance? Do people whose choices can be predictied better/worse by the model perform the task better or worse? No.
-
-```{r}
-all_preds %>%
-  group_by(age_group, sub_id, x_axis) %>%
-  summarise(total_points = sum(Points_earned),
-            mean_correct = mean(pred_correct)) %>%
-  ggplot(aes(total_points, mean_correct))+
-  geom_point()+
-  geom_smooth(method="lm")+
-  facet_grid(age_group~x_axis)
-```
-
-### Confusion matrices
-
-To get a better sense of model failures I looked at the confusion matrices between actual and predicted choice. These suggest:  
-
-The models succeed and fail similarly for all age groups  
-
-```{r warning=FALSE, message=FALSE}
-all_preds %>%
-  filter(!x_axis %in% c("\u03b1 , \u03b2", "\u03b1, \u03b2, \u03b3")) %>%
-  mutate(correct_positive = ifelse(play1_pass0 == 1 & pred_play1_pass0 == 1, 1, 0),
-         correct_negative = ifelse(play1_pass0 == 0 & pred_play1_pass0 == 0, 1, 0),
-         false_positive = ifelse(play1_pass0 == 0 & pred_play1_pass0 == 1, 1, 0),
-         false_negative = ifelse(play1_pass0 == 1 & pred_play1_pass0 == 0, 1, 0)) %>%
-  group_by(age_group, x_axis) %>%
-  summarise(sum_correct_positive = sum(correct_positive),
-            sum_correct_negative = sum(correct_negative),
-            sum_false_positive = sum(false_positive),
-            sum_false_negative = sum(false_negative)) %>%
-  gather(key, value, -age_group, -x_axis) %>%
-  mutate(TChoice = ifelse(key %in% c("sum_correct_positive", "sum_false_negative"),1,0),
-         PChoice = ifelse(key %in% c("sum_correct_positive", "sum_false_positive"), 1, 0)) %>%
-  ggplot(mapping = aes(x = factor(TChoice), y = factor(PChoice))) +
-  geom_tile(aes(fill = value), colour = "white") +
-  scale_fill_gradient(low = "blue", high = "red")+
-  geom_text(aes(label = sprintf("%1.0f", value)), vjust = 1) +
-  xlab("True Choice")+
-  ylab("Predicted Choice")+
-  facet_grid(age_group~x_axis)+
-  theme(legend.position = "none")
-
-ggsave("RL_confusion_matrices.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
-
-#sum_correct_positive: TChoice = 1, PChoice = 1
-#sum_correct_negative: TChoice = 0, PChoice = 0,
-#sum_false_positive: TChoice = 0, PChoice = 1,
-#sum_false_negative: TChoice = 1, PChoice = 0
-
-```
-
 ### Differing conclusions
 
 Do the models tell the same story when checking for age differences across parameter?
@@ -410,16 +247,12 @@ best_sub_pars %>%
   ggplot(aes(age_group, mean_val))+
     geom_bar(aes(fill=age_group), stat="identity")+
     geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
-  # ggplot(aes(age_group, value))+
-  # geom_boxplot(aes(fill=age_group))+
   facet_grid(key~x_axis, scales='free')+
   ylab("")+
   xlab("")+
   theme(panel.grid = element_blank(),
         legend.position = "none")
 
-# ggsave("RL_par_diffs.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
-# ggsave("RL_par_diffs_ab2gs.jpeg", device = "jpeg", path = fig_path, width = 2.8, height = 5, units = "in", dpi = 450)
 ggsave("RL_par_diffs_2mods.jpeg", device = "jpeg", path = fig_path, width = 4.9, height = 5, units = "in", dpi = 450)
 ```
 
