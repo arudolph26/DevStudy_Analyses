@@ -306,8 +306,6 @@ age_diff_df %>%
 
 **- We have models that don't capture the behavioral group difference we are interested in (i.e. the difference between kids and adults in learning from losses)**
 
-
-
 ## Alternative models
 
 Is there another story be told using a different class of models. E.g. drift diffusion?
