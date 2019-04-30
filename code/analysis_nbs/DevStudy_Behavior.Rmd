@@ -513,26 +513,57 @@ Reflecting the global behavior in proportion of playing in each condition adults
 summary(lm(value~age_group*facet_labels,tmp %>%filter(key=="loss")))
 ```
 
-*How would have this graph looked like if subjects were taking all their experiences with a given machine into account (instead of overweighing their most recent experience)? How does this change throughout the task? The more losses you experience the longer it should take?*
+What affects whether a subject plays after experiencing a loss? The magnitude of the loss they expired? How long they think before playing?
 
-```{r eval=FALSE}
-tmp %>%
-  drop_na()%>%
+First look at how this changes across the task: Subject are more likely to be make the correct choice for the negative EV machines as the task goes by.
+
+```{r}
+machine_game_data_clean %>%
+  mutate(losstrial = ifelse(Points_earned<0,1,0),
+         postloss = lag(losstrial),
+         postloss_play1_pass0 = ifelse(postloss == 1 & Response == "play",1, ifelse(postloss==1 & Response == "pass", 0, NA))) %>%
   group_by(Sub_id, facet_labels) %>%
-  mutate(loss_num = 1:n()) %>%
-  ggplot(aes(loss_num, value))+
-  geom_line(aes(group = Sub_id, col= age_group), stat='smooth', method = 'lm', se = FALSE, alpha=1)+
-  # geom_point(aes(col=age_group))+
-  geom_smooth(aes(col= age_group), method = 'lm', size=2) +
+  mutate(rel_trial = 1:n()) %>%
+  # ggplot(aes(rel_trial, postloss_play1_pass0))+
+  ggplot(aes(rel_trial, correct1_incorrect0))+
+  geom_smooth(aes(col=age_group), method='glm', method.args = list(family = "binomial"))+
   facet_wrap(~facet_labels)+
+  scale_y_continuous(breaks=c(0,1))+
   theme(legend.title = element_blank())+
-  xlab("Number of loss")+
-  ylab("Number of trials until played again")
+  xlab("Trial number")+
+  ylab("Probability of correct following a loss")
+```
+
+```{r}
+tmp = machine_game_data_clean %>%
+  mutate(losstrial = ifelse(Points_earned<0,1,0),
+         postloss = lag(losstrial),
+         postloss_play1_pass0 = ifelse(postloss == 1 & Response == "play",1, ifelse(postloss==1 & Response == "pass", 0, NA)),
+         lastlossamt = lag(Points_earned)) %>%
+  filter(postloss==1)
+
+
+tmp %>%
+  ggplot(aes(Reaction_time, correct1_incorrect0))+
+  geom_smooth(aes(col=age_group), method='glm', method.args = list(family = "binomial"))+
+  facet_wrap(~facet_labels)+
+  scale_y_continuous(breaks=c(0,1))+
+  theme(legend.title = element_blank())+
+  xlab("RT")+
+  ylab("Probability of correct following a loss")
+```
+
+Baseline is -10,+100. Less likely to be correct in any of the machines after a loss compared to this baseline. Adults are more likely to be correct following a loss for all machines. There is also an effect of response time. The longer a decision takes the less likely it is to be correct. This is even stronger for adults (they are usually faster than kids but when they do take long they are even less likely to be correct).
+
+*If slower decisions are more likely to be incorrect would this suggest less of a drift process but more interference/uncertainty about knowledge on that machine instead?*
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ facet_labels+scale(Reaction_time)*age_group+(1|Sub_id), tmp, family="binomial"))
 ```
 
 ###Loss aversion
 
-*If one knew which were positive and which negative EV machines one would either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. So for the positive EV machines there would be no difference between gains/losses and for the negative EV machines there will be no points to plot (because it will never be played). This difference in playing patterns depending on the recently observed outcome (gain/loss) could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses for adults. Do kids play the bad machine because they can't remember how bad that machine is or they don't care to loose as much? Perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.*
+*If one knew which were positive and which negative EV machines one would either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. So for the positive EV machines there would be no difference between gains/losses and for the negative EV machines there will be no points to plot (because it will never be played). The difference in behavior depending on the valence of the recently observed outcome (gain/loss) could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses for adults. Do kids play the bad machine because they can't remember how bad that machine is or they don't care to loose as much? Perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.*
 
 Studies that compute loss aversion present subjects with gambles where the amounts and probabilities are known. This is not the case for our paradigm (which is what makes it a learning task) which is why I estimate them as part of RL models later too. For the sake of it let's assume subjects knew the gain and loss amounts for each machine and calculate loss aversion:
 
@@ -601,37 +632,6 @@ machine_game_data_clean %>%
   theme(legend.title = element_blank())
 ```
 
-What affects whether a subject plays after experiencing a loss?
-The magnitude of the loss they expired?
-How long they think before playing?
-
-```{r}
-machine_game_data_clean %>%
-  mutate(losstrial = ifelse(Points_earned<0,1,0),
-         postloss = lag(losstrial),
-         postloss_play1_pass0 = ifelse(postloss == 1 & Response == "play",1, ifelse(postloss==1 & Response == "pass", 0, NA))) %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(rel_trial = 1:n()) %>%
-  ggplot(aes(rel_trial, postloss_play1_pass0))+
-  geom_smooth(aes(col=age_group), method='glm', method.args = list(family = "binomial"))+
-  facet_wrap(~facet_labels)+
-  scale_y_continuous(breaks=c(0,1))+
-  theme(legend.title = element_blank())+
-  xlab("Trial number")+
-  ylab("Probability of playing following a loss")
-```
-
-```{r}
-tmp = machine_game_data_clean %>%
-  mutate(losstrial = ifelse(Points_earned<0,1,0),
-         postloss = lag(losstrial),
-         postloss_play1_pass0 = ifelse(postloss == 1 & Response == "play",1, ifelse(postloss==1 & Response == "pass", 0, NA)))
-
-names(tmp)
-
-summary(glmer(postloss_play1_pass0 ~ facet_labels+scale(Reaction_time)+age_group+(1|Sub_id), tmp, family="binomial"))
-```
-
 ### Response time differences
 
 ```{r}
@@ -675,6 +675,19 @@ summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_dat
 ### Alternative grouping
 
 How would you group learners vs. non-learners?
+Those who are more likely to make correct choices later in the task - so positive slope for the sigmoid?
+
+```{r warning=FALSE, message=FALSE}
+tmp = machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  do(get_learning_coef(.)) %>%
+  do(assign.age.info(.)) %>%
+  mutate(learner = ifelse(b1>0,1,0))
+
+with(tmp, table(learner, facet_labels, age_group))
+```
+
+Or trials post-learning?
 
 ```{r}
 
