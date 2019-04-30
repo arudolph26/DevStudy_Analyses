@@ -569,8 +569,6 @@ Are subjects less likely to play overall after a loss or only less likely to pla
 ```{r}
 mean.postloss.play.prob <- function(subject_data){
   
-  Sub_id = unique(subject_data$Sub_id)
-  
   loss_trials = which(subject_data$Points_earned<0)
   
   mean_post_loss_prob <- mean(ifelse(subject_data$Response[loss_trials+1] == "play", 1, 0), na.rm=T)
@@ -601,6 +599,37 @@ machine_game_data_clean %>%
   xlab("")+
   ylab("Post loss play probability")+
   theme(legend.title = element_blank())
+```
+
+What affects whether a subject plays after experiencing a loss?
+The magnitude of the loss they expired?
+How long they think before playing?
+
+```{r}
+machine_game_data_clean %>%
+  mutate(losstrial = ifelse(Points_earned<0,1,0),
+         postloss = lag(losstrial),
+         postloss_play1_pass0 = ifelse(postloss == 1 & Response == "play",1, ifelse(postloss==1 & Response == "pass", 0, NA))) %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(rel_trial = 1:n()) %>%
+  ggplot(aes(rel_trial, postloss_play1_pass0))+
+  geom_smooth(aes(col=age_group), method='glm', method.args = list(family = "binomial"))+
+  facet_wrap(~facet_labels)+
+  scale_y_continuous(breaks=c(0,1))+
+  theme(legend.title = element_blank())+
+  xlab("Trial number")+
+  ylab("Probability of playing following a loss")
+```
+
+```{r}
+tmp = machine_game_data_clean %>%
+  mutate(losstrial = ifelse(Points_earned<0,1,0),
+         postloss = lag(losstrial),
+         postloss_play1_pass0 = ifelse(postloss == 1 & Response == "play",1, ifelse(postloss==1 & Response == "pass", 0, NA)))
+
+names(tmp)
+
+summary(glmer(postloss_play1_pass0 ~ facet_labels+scale(Reaction_time)+age_group+(1|Sub_id), tmp, family="binomial"))
 ```
 
 ### Response time differences
@@ -641,6 +670,14 @@ summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_dat
 summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "+10,-100")))
 
 summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "+5,-495")))
+```
+
+### Alternative grouping
+
+How would you group learners vs. non-learners?
+
+```{r}
+
 ```
 
 ## RL modeling
