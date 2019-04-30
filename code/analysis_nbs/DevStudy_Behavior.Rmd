@@ -672,7 +672,7 @@ summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_dat
 summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "+5,-495")))
 ```
 
-### Alternative grouping
+### Non-learners
 
 How would you group learners vs. non-learners?
 Those who are more likely to make correct choices later in the task - so positive slope for the sigmoid?
@@ -687,11 +687,16 @@ tmp = machine_game_data_clean %>%
 with(tmp, table(learner, facet_labels, age_group))
 ```
 
-Or trials post-learning?
-
 ```{r}
+non_learners = tmp %>%
+  filter(facet_labels %in% c("+5,-495", "+10,-100")) %>%
+  filter(learner == 0)
 
+non_learners = unique(non_learners$Sub_id)
+non_learners
 ```
+
+Or trials post-learning? [probably for imaging]
 
 ## RL modeling
 
