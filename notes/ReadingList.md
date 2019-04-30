@@ -58,6 +58,12 @@ Hypotheses:
 
 **Satterthwaite, T.D. et al. (2013) Functional maturation of the executive system during adolescence. J. Neurosci. 33, 16249–16261**
 
+**Barkley-Levenson, E. E., Van Leijenhorst, L., & Galván, A. (2013). Behavioral and neural correlates of loss aversion and risk avoidance in adolescents and adults. Developmental cognitive neuroscience, 3, 72-83.**
+- Mixed gambles with equal probability where adults or teens saw the amounts (unlike our task where they had to learn them)+DOSPERT
+- Loss aversion is calculated using a logistic regression. No difference in loss aversion estimates between adults and teens
+- Imaging contrasts compare accept or reject vs baseline and accept vs reject for adults and teens and find differences in frontal pole and caudate
+- Also correlations between DOSPERT and average activity to accept and reject trials
+
 **Barkley-Levenson, E. and Galván, A. (2014) Neural representation of expected value in the adolescent brain. Proc. Natl. Acad. Sci. U. S. A. 111, 1646–1651**
 
 **Javadi eta al. (2014) Adolescents Adapt More Slowly than Adults to Varying Reward Contingencies. J of. Cog. Neuro. 20:12, 2770:81.**

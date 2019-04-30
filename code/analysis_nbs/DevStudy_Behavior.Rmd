@@ -515,6 +515,30 @@ summary(lm(value~age_group*facet_labels,tmp %>%filter(key=="loss")))
 
 *How would have this graph looked like if subjects were taking all their experiences with a given machine into account (instead of overweighing their most recent experience)? If one knew which were positive and which negative EV machines one would either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. So for the positive EV machines there would be no difference between gains/losses and for the negative EV machines there will be no points to plot (because it will never be played). This difference in playing patterns depending on the recently observed outcome (gain/loss) could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses for adults. Do kids play the bad machine because they can't remember how bad that machine is or they don't care to loose as much? Perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.*
 
+```{r}
+get_loss_aversion = function(data){
+  data = data %>%
+  filter(Response != "time-out") %>%
+  mutate(play1_pass0 = ifelse(Response=="pass", 0,1),
+         gain_mag = as.numeric(gain_mag),
+         loss_mag = as.numeric(loss_mag))
+
+  m = glm(play1_pass0 ~ gain_mag+loss_mag, data, family="binomial")
+
+  loss_ave = -coef(m)[3]/coef(m)[2]
+  
+  return(data.frame(loss_ave = loss_ave))
+}
+
+machine_game_data_clean %>%
+  group_by(Sub_id) %>%
+  do(get_loss_aversion(.)) %>%
+  do(assign.age.info(.)) %>%
+  ggplot(aes(log(loss_ave), fill=age_group))+
+  geom_density(alpha=0.4, color=NA)+
+  theme(legend.title = element_blank())
+```
+
 ### Cross-talk between machines
 
 Are subjects less likely to play overall after a loss or only less likely to play that machine after a loss for that machine?
