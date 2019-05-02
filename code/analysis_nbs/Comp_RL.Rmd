@@ -306,6 +306,25 @@ age_diff_df %>%
 
 **- We have models that don't capture the behavioral group difference we are interested in (i.e. the difference between kids and adults in learning from losses)**
 
+```{r}
+best_sub_pars %>%
+  filter(model %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
+  select(contains("xopt"), "sub_id", "x_axis", "age_group") %>%
+  gather(key, value, -age_group, -sub_id, -x_axis) %>%
+  mutate(key = ifelse(key == "xopt_alpha", "\u03b1", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp", "\u03b3", ifelse(key == "xopt_alpha_pos", "\u03b1_gain", ifelse(key == "xopt_alpha_neg", "\u03b1_loss",ifelse(key == "xopt_exp_pos", "\u03b3_gain", ifelse(key == "xopt_exp_neg", "\u03b3_loss", ifelse(key == "xopt_lossave", "\u03bb", NA)))))))))%>%
+  group_by(age_group, x_axis, key) %>%
+  summarise(mean_val = mean(value,na.rm=T),
+            sem_val = sem(value)) %>%
+    ggplot(aes(value))+
+    geom_density(aes(fill=age_group), alpha=0.2)+
+  facet_grid(key~x_axis, scales='free')+
+  ylab("")+
+  xlab("")+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")
+```
+
+
 ## Alternative models
 
 Is there another story be told using a different class of models. E.g. drift diffusion?
