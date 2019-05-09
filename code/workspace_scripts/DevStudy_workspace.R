@@ -15,3 +15,5 @@ workspace_scripts = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/c
 source(paste0(workspace_scripts, 'machine_game_data.R'))
 
 source(paste0(workspace_scripts, 'bart_data.R'))
+
+source(paste0(workspace_scripts, 'questionnaire_data.R'))

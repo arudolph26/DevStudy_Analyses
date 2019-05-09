@@ -1,11 +1,13 @@
+input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+
 ##################
 #Machine game data
 ##################
-file_list <- list.files("/Users/zeynepenkavi/Downloads/machine_game")
+file_list <- list.files(paste0(input_path,"/machine_game"))
 
 for (file in file_list){
   
-  tmp <- read.csv(paste0("/Users/zeynepenkavi/Downloads/machine_game/",file))
+  tmp <- read.csv(paste0(input_path,"machine_game/",file))
   tmp$Sub_id <- as.numeric(gsub("[^0-9]", "", file))
   tmp$Trial_number <- 1:nrow(tmp)
   
@@ -55,7 +57,7 @@ machine_game_data_clean <- assign.machine.info(machine_game_data_clean)
 ##################
 #Demographics data
 ##################
-demog_data <- read.csv('/Users/zeynepenkavi/Dropbox/PoldrackLab/Sarah_Developmental study/Final Redcap Data/DevelopmentalStudy_DATA_2015-03-25_1258.csv')
+demog_data <- read.csv(paste0(input_path,'DevelopmentalStudy_DATA_2015-03-25_1258.csv'))
 
 # Add age data to machine_game_data_clean
 assign.age.info <- function(data){

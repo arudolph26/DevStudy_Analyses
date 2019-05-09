@@ -1,5 +1,5 @@
 ---
-title: "Developmental differences in sensitivity to high variance feedback"
+title: "Developmental differences in learningfrom large but rare losses"
 output: 
 html_document:
 toc: true
