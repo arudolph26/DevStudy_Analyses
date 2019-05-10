@@ -37,7 +37,10 @@ data = data %>%
 ##################
 
 #Convert 2's to 0's
-data = (data[,grep("eis", names(data))] - 2)^2
+data2 = (data[,grep("eis", names(data))] - 2)^2
+data = data %>% 
+  select(-contains("eis"))
+data = cbind(data, data2)
 
 data = data %>%
   mutate(eisa = eisa1 + eisa2 + eisa4 + eisa5 + eisa7 + eisa8 + eisa11 + eisa12 + eisa14 + eisa15 + eisa16 + eisa17 + eisa18 + eisa19 + eisa20 + eisa21 + eisa22 + eisa23 + eisa24 - eisa3 - eisa6 - eisa10 - eisa13 + 4,
@@ -56,6 +59,66 @@ data = data %>%
 ##################
 #Drug Use Q
 ##################
+
+#extract only teens and adults with the carepf and duq items
+
+risk_data = data %>%
+  filter(id > 200000 & id != 200213 & Exclude_for_age==0 & Exclude_psychopathology==0) %>%
+  select(id, contains("carepf"), contains("duq")) %>%
+  arrange(id) %>%
+  select(-id)
+
+#standardize
+risk_data_std = risk_data %>% mutate_if(is.numeric, scale)
+
+#median impute
+risk_data_std[is.na(risk_data_std)]=0
+
+#drop cols with no variance
+risk_data_std = risk_data_std %>%
+  select_if(function(col) sd(col) != 0)
+
+#correlation matrix
+cor.est = cor(risk_data_std, use="pairwise")
+
+#average items with cor>0.9
+risk_data_std = risk_data_std %>%
+  mutate(carepf1_25 = (carepf1+carepf25)/2,
+         carepf3_19_21 = (carepf3+carepf19+carepf21)/3,
+         carepf8_26 = (carepf8+carepf26)/2,
+         carepf13_26 = (carepf13+carepf26)/2,
+         carepf22_duq6 = (duq6+carepf22)/2,
+         carepf22_duq30 = (duq30+carepf22)/2,
+         carepf22_duq31 = (duq31+carepf22)/2,
+         carepf22_duq33 = (duq33+carepf22)/2,
+         carepf22_25 = (carepf25+carepf22)/2,
+         carepf23_29 = (carepf23+carepf29)/2,
+         carepf25_duq6 = (duq6+carepf25)/2,
+         duq1_2 = (duq1+duq2)/2,
+         duq4_18 = (duq4+duq18)/2,
+         duq8_10 = (duq8+duq10)/2,
+         duq21_24 = (duq21+duq24)/2) %>%
+  select(-carepf25, -carepf1, -carepf19, -carepf3, -carepf21, -carepf26, -carepf8, -carepf13, -duq6, -carepf22, -duq30, -duq31, -duq33, -carepf25, -carepf29, -carepf23, -duq1, -duq2, -duq4, -duq18, -duq8, -duq10, -duq21, -duq24) %>%
+  mutate(carepf1_22_25_duq_6_30_31_33 = (carepf22_duq6 + carepf1_25 + carepf22_25 + carepf25_duq6 + carepf22_duq30 + carepf22_duq31 + carepf22_duq33 + carepf22_25 + carepf25_duq6)/10,
+       carepf8_13_26 = (carepf13_26 + carepf8_26)/2) %>%
+  select(-carepf22_duq6, - carepf1_25, -carepf22_25, -carepf25_duq6, -carepf22_duq30, -carepf22_duq31, -carepf22_duq33, -carepf22_25, -carepf25_duq6, -carepf13_26, -carepf8_26)
+
+
+#new cor matrix
+#double check: which((cor.est>0.9 & cor.est < 1), arr.ind=TRUE)
+cor.est = cor(risk_data_std, use="pairwise")
+
+#hclust on cor matrix
+try = hclust(as.dist(1-cor.est), method="ward")
+
+#cuttree
+trycut <- cutree(try, h=1.9)
+
+#pca on each cluster
+
+#extract scores
+
+#merge back into data.frame
 
 ##################
 #Select vars including IQ 
