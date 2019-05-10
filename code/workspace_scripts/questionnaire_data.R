@@ -122,24 +122,24 @@ trycut = trycut %>% arrange(label)
 
 #Figure out items for clusters
 
-cat(trycut$item[trycut$label==1], sep = "', '")
+# cat(trycut$item[trycut$label==1], sep = "', '")
 # Label 1 = carepf2, carepf4, carepf6, carepf10, carepf11, carepf12, carepf14, carepf16, carepf17, carepf18, carepf20, carepf24, carepf27, carepf30, duq9, duq32, carepf3_19_21, carepf23_29, carepf8_13_26
-View(survey_questions %>% filter(label %in% c('carepf2', 'carepf4', 'carepf6', 'carepf10', 'carepf11', 'carepf12', 'carepf14', 'carepf16', 'carepf17', 'carepf18', 'carepf20', 'carepf24', 'carepf27', 'carepf30', 'duq9', 'duq32', 'carepf3', 'carepf19', 'carepf21', 'carepf23','carepf29', 'carepf8', 'carepf13', 'carepf26')))
+# View(survey_questions %>% filter(label %in% c('carepf2', 'carepf4', 'carepf6', 'carepf10', 'carepf11', 'carepf12', 'carepf14', 'carepf16', 'carepf17', 'carepf18', 'carepf20', 'carepf24', 'carepf27', 'carepf30', 'duq9', 'duq32', 'carepf3', 'carepf19', 'carepf21', 'carepf23','carepf29', 'carepf8', 'carepf13', 'carepf26')))
 # Recreational and sexual
 
-cat(trycut$item[trycut$label==2], sep = "', '")
+# cat(trycut$item[trycut$label==2], sep = "', '")
 #Label 2= 'carepf5', 'carepf7', 'carepf9', 'carepf15', 'carepf28', 'duq11', 'duq19', 'duq27', 'duq28', 'duq4_18'
-View(survey_questions %>% filter(label %in% c('carepf5', 'carepf7', 'carepf9', 'carepf15', 'carepf28', 'duq11', 'duq19', 'duq27', 'duq28', 'duq4', 'duq18')))
+# View(survey_questions %>% filter(label %in% c('carepf5', 'carepf7', 'carepf9', 'carepf15', 'carepf28', 'duq11', 'duq19', 'duq27', 'duq28', 'duq4', 'duq18')))
 # Alcohol Use
 
-cat(trycut$item[trycut$label==3], sep = "', '")
+# cat(trycut$item[trycut$label==3], sep = "', '")
 #Label 3= 'duq3', 'duq5', 'duq12', 'duq13', 'duq14', 'duq15', 'duq16', 'duq17', 'duq22', 'duq25', 'duq1_2', 'duq8_10', 'duq21_24'
-View(survey_questions %>% filter(label %in% c('duq3', 'duq5', 'duq12', 'duq13', 'duq14', 'duq15', 'duq16', 'duq17', 'duq22', 'duq25', 'duq1', 'duq2', 'duq8', 'duq10', 'duq21', 'duq24')))
+# View(survey_questions %>% filter(label %in% c('duq3', 'duq5', 'duq12', 'duq13', 'duq14', 'duq15', 'duq16', 'duq17', 'duq22', 'duq25', 'duq1', 'duq2', 'duq8', 'duq10', 'duq21', 'duq24')))
 # Smoking
 
-cat(trycut$item[trycut$label==4], sep = "', '")
+# cat(trycut$item[trycut$label==4], sep = "', '")
 #Label 4= 'duq20', 'duq23', 'duq29', 'carepf1_22_25_duq_6_30_31_33'
-View(survey_questions %>% filter(label %in% c("duq20", "duq23", "duq29", "carepf1", "carepf22", "carepf25", "duq6", "duq30", "duq31", "duq33")))
+# View(survey_questions %>% filter(label %in% c("duq20", "duq23", "duq29", "carepf1", "carepf22", "carepf25", "duq6", "duq30", "duq31", "duq33")))
 # Other substances
 
 #pca on each cluster
@@ -166,6 +166,6 @@ data = data %>%
 ##################
 
 q_data = data %>%
-  select(id, mr_raw, vocab_raw, gender, bis, bas_drive, bas_fun_seek, bas_reward_resp, eis, care_er, care_eb)
+  select(id, mr_raw, vocab_raw, gender, bis, bas_drive, bas_fun_seek, bas_reward_resp, eis, care_er, care_eb, rec_sex_scores, alcohol_scores, smoking_scores, substance_scores)
 
-rm(list=setdiff(ls(), "q_data"))
+rm(data, risk_data, risk_data_std, rec_sex_pca, alcohol_pca, smoking_pca, substance_pca, try, trycut, cor.est, data2)

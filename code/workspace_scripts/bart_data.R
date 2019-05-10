@@ -20,3 +20,17 @@ for (file in file_list){
 }
 
 rm(file, file_list)
+
+adjusted.pumps <- function(subject_data){
+  subject_data_adjusted = subject_data[subject_data$exploded == 0,]
+  subject_pumps <- subject_data_adjusted %>% 
+    group_by(trial.num) %>%
+    summarise(total_pumps = sum(finished))
+  out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps))
+  return(out)
+}
+
+bart_adjusted_pumps = bart_data %>%
+  group_by(Sub_id) %>%
+  do(adjusted.pumps(.)) %>%
+  do(assign.age.info(.))

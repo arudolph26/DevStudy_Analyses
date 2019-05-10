@@ -9,3 +9,79 @@ toc_depts: 2
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
 ```
+
+# Correlation between all behavior measures
+
+```{r}
+machine_game_num_correct = machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels) %>%
+  summarise(sum_correct = sum(correct1_incorrect0)) %>%
+  spread(facet_labels, sum_correct)
+
+all_behavioral_data = machine_game_num_correct %>%
+  left_join(bart_adjusted_pumps %>% select(Sub_id, mean_adjusted_pumps, calc_age), by="Sub_id") %>%
+  left_join(q_data %>% rename(Sub_id = id), by="Sub_id") %>%
+  ungroup()%>%
+  select(-Sub_id)
+
+all_behavioral_data
+```
+
+Controlling for age and intelligence
+
+```{r warning=FALSE, message=FALSE}
+cor_df = data.frame(var1=NA, var2=NA, b_x=NA, p_x=NA, b_age = NA, p_age = NA, b_vocab_raw=NA, p_vocab_raw=NA, b_mr_raw=NA, p_mr_raw=NA)
+
+dvs = names(all_behavioral_data %>% select(-calc_age, -vocab_raw, -mr_raw, -gender))
+for(i in 1:(length(dvs)-1)){
+  x = all_behavioral_data %>% pull(dvs[i])
+  
+  for(j in 2:length(dvs)){
+    y = all_behavioral_data %>% pull(dvs[j])
+    
+    # print(paste("Running model for", dvs[i], "and", dvs[j]))
+    
+    m = lm(y ~ x + all_behavioral_data$calc_age+ all_behavioral_data$vocab_raw+ all_behavioral_data$mr_raw)
+    
+    cor_df = rbind(cor_df, c(var1=dvs[i], 
+                             var2=dvs[j], 
+                             b_x=coefficients(m)["x"], 
+                             p_x= coef(summary(m))["x","Pr(>|t|)"], 
+                             b_age=coefficients(m)["all_behavioral_data$calc_age"], 
+                             p_age= coef(summary(m))["all_behavioral_data$calc_age","Pr(>|t|)"], 
+                          b_vocab_raw=coefficients(m)["all_behavioral_data$vocab_raw"],
+                          p_vocab_raw= coef(summary(m))["all_behavioral_data$vocab_raw","Pr(>|t|)"],
+                          b_mr_raw=coefficients(m)["all_behavioral_data$mr_raw"],
+                          p_mr_raw= coef(summary(m))["all_behavioral_data$mr_raw","Pr(>|t|)"]))
+  }
+}
+rm(dvs, x, y, m)
+```
+
+All correlations
+
+```{r}
+cor_df = cor_df %>%
+  filter(var1 != var2 & !is.na(var1)) %>%
+  mutate(b_x = as.numeric(b_x),
+         p_x = as.numeric(p_x),
+         b_age = as.numeric(b_age),
+         p_age = as.numeric(p_age),
+         b_vocab_raw = as.numeric(b_vocab_raw),
+         p_vocab_raw = as.numeric(p_vocab_raw),
+         b_mr_raw = as.numeric(b_mr_raw),
+         p_mr_raw = as.numeric(p_mr_raw)) %>%
+  filter(!duplicated(p_x))
+
+cor_df %>%
+  arrange(p_x)
+```
+
+Surviving multiple comparisons (nothing interesting)
+
+```{r}
+cor_df%>%
+  mutate(adj_p_x = p.adjust(p_x, method="fdr"))%>%
+  filter(adj_p_x<0.05) %>%
+  arrange(-abs(b_x))
+```

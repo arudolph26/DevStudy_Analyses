@@ -706,24 +706,10 @@ Details of model comparison can be found in a separate [notebook](http://zenkavi
 
 Quick look at how this relates to BART data:
 
-```{r}
-adjusted.pumps <- function(subject_data){
-  subject_data_adjusted = subject_data[subject_data$exploded == 0,]
-  subject_pumps <- subject_data_adjusted %>% 
-    group_by(trial.num) %>%
-    summarise(total_pumps = sum(finished))
-  out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps))
-  return(out)
-}
-```
-
 Increase in number of pumps with age
 
 ```{r warning=FALSE, message=FALSE}
-bart_data %>%
-  group_by(Sub_id) %>%
-  do(adjusted.pumps(.)) %>%
-  do(assign.age.info(.)) %>%
+bart_adjusted_pumps %>%
   ggplot(aes(x=calc_age, y = mean_adjusted_pumps))+
   geom_point()+
   theme_bw()+
@@ -736,10 +722,7 @@ bart_data %>%
 
 ```{r warning=FALSE, message=FALSE}
 tmp = bart_data %>%
-  group_by(Sub_id) %>%
-  do(adjusted.pumps(.)) %>%
-  do(assign.age.info(.)) %>%
-  select(Sub_id, mean_adjusted_pumps)
+   select(Sub_id, mean_adjusted_pumps)
 
 machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
