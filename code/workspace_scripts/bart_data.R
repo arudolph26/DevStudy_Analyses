@@ -26,7 +26,9 @@ adjusted.pumps <- function(subject_data){
   subject_pumps <- subject_data_adjusted %>% 
     group_by(trial.num) %>%
     summarise(total_pumps = sum(finished))
-  out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps))
+  out <- data.frame(mean_adjusted_pumps = mean(subject_pumps$total_pumps),
+                    bart_mean_rt = mean(subject_data$rt, na.rm=T),
+                    bart_sd_rt = sd(subject_data$rt))
   return(out)
 }
 

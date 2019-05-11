@@ -13,13 +13,17 @@ source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace
 # Correlation between all behavior measures
 
 ```{r}
-machine_game_num_correct = machine_game_data_clean %>%
+machine_game_summary = machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
-  summarise(sum_correct = sum(correct1_incorrect0)) %>%
-  spread(facet_labels, sum_correct)
+  summarise(sum_correct = sum(correct1_incorrect0),
+            mg_mean_rt = mean(Reaction_time, na.rm=T),
+            mg_sd_rt = sd(Reaction_time)) %>%
+  gather(key, value, -Sub_id, -facet_labels) %>%
+  unite(temp, facet_labels, key) %>%
+  spread(temp, value)
 
-all_behavioral_data = machine_game_num_correct %>%
-  left_join(bart_adjusted_pumps %>% select(Sub_id, mean_adjusted_pumps, calc_age), by="Sub_id") %>%
+all_behavioral_data = machine_game_summary %>%
+  left_join(bart_adjusted_pumps %>% select(-age_group), by="Sub_id") %>%
   left_join(q_data %>% rename(Sub_id = id), by="Sub_id") %>%
   ungroup()%>%
   select(-Sub_id)
@@ -27,7 +31,7 @@ all_behavioral_data = machine_game_num_correct %>%
 all_behavioral_data
 ```
 
-Controlling for age and intelligence
+Relationships between all behavioral measures controlling for age and intelligence
 
 ```{r warning=FALSE, message=FALSE}
 cor_df = data.frame(var1=NA, var2=NA, b_x=NA, p_x=NA, b_age = NA, p_age = NA, b_vocab_raw=NA, p_vocab_raw=NA, b_mr_raw=NA, p_mr_raw=NA)
@@ -72,7 +76,9 @@ cor_df = cor_df %>%
          p_mr_raw = as.numeric(p_mr_raw))
 
 cor_df %>%
-  arrange(p_x)
+  arrange(p_x) %>%
+  datatable() %>%
+  formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw'), digits=3)
 ```
 
 All "significant" correlations
@@ -80,14 +86,47 @@ All "significant" correlations
 ```{r}
 cor_df %>%
   filter(p_x<0.05)%>%
-  arrange(p_x)
+  arrange(p_x) %>%
+  datatable() %>%
+  formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw'), digits=3)
 ```
 
-Significant correlations that survive multiple comparisons (nothing interesting)
+All "significant" correlations relating to "real-world risky behavior"
+
+```{r}
+cor_df %>%
+  filter(p_x<0.05)%>%
+  filter(grepl("scores", var1) | grepl("scores", var2)) %>%
+  arrange(p_x) %>%
+  datatable() %>%
+  formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw'), digits=3)
+```
+
+Significant correlations that survive multiple comparisons
 
 ```{r}
 cor_df%>%
   mutate(adj_p_x = p.adjust(p_x, method="fdr"))%>%
   filter(adj_p_x<0.05) %>%
-  arrange(-abs(b_x))
+  filter(grepl("scores", var1) | grepl("scores", var2)) %>%
+  arrange(adj_p_x) %>%
+  datatable() %>%
+  formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw', 'adj_p_x'), digits=3)
+```
+
+
+```{r warning=FALSE, message=FALSE}
+all_behavioral_data %>%
+  select(bart_mean_rt, '-5,+495_sum_correct', smoking_scores) %>%
+  gather(key, value, -smoking_scores) %>%
+  mutate(key = ifelse(key == '-5,+495_sum_correct', 'High var + EV machine total correct', ifelse(key == "bart_mean_rt", "BART Mean RT", NA))) %>%
+  ggplot(aes(value, smoking_scores))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~key, scales="free")+
+  ylab("Smoking Factor Score")+
+  xlab("")
+
+ggsave("Smoking_cors.jpeg", device = "jpeg", path = fig_path, width = 12, height = 5, units = "in", dpi = 450)
+
 ```
