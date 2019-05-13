@@ -16,7 +16,7 @@ The sample consists of three age groups: kids, teens and adults and we hypothesi
 
 Subjects completed a probabilistic learning task in the scanner, a risky decision making task (BART) outside the scanner and numerous questionnaires. The focus of this notebook is on the first task.  
 
-The plan of analysis is to establish that adults are more sensitive to high variance feedback in the probabilistic learning task and relate this (modeled) sensitivity to behavior both in BART and other self-reported risky behaviors. Details of correlations are found [here]()
+The plan of analysis is to establish that adults are more sensitive to high variance feedback in the probabilistic learning task and relate this (modeled) sensitivity to behavior both in BART and other self-reported risky behaviors. Details of correlations are found [here](https://zenkavi.github.io/DevStudy_Analyses/output/reports/DevStudy_Other_Behavior.nb.html)
 
 # Sample info
 
