@@ -323,93 +323,62 @@ best_sub_pars %>%
 ggsave("RL_par_dists.jpeg", device = "jpeg", path = fig_path, width = 12, height = 5, units = "in", dpi = 450)
 ```
 
-
-## Alternative models
-
-Is there another story be told using a different class of models. E.g. drift diffusion?
+## Cor btw PEs
 
 ```{r}
-input_dir = "/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/ez_fits/"
-```
+preds = list.files(path=paste0(input_path, "rl_preds/"), pattern = "All")
 
-```{r}
-ez_fits_correctinc = read.csv(paste0(input_dir,"EZ_ddm_fits_correct1_incorrect0_all.csv" ))
+all_mods_preds = data.frame()
+all_mods_pes = data.frame()
 
-ez_fits_correctinc = ez_fits_correctinc %>% 
-  rename(sub_id = X) %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
-  gather(key, value, -sub_id, -age_group) %>%
-  separate(key, into=c("model", "par", "machine"), sep='_') %>%
-  mutate(machine= ifelse(machine=="1.0","+5/-495", ifelse(machine=="2.0", "-5/+495", ifelse(machine == "3.0", "-10/+100", ifelse(machine == "4.0", "+10/-100",NA))))) %>%
-  filter(value != -Inf)
+for(f in preds){
+  data = read.csv(paste0(input_path, "rl_preds/", f))
+  all_mods_preds = rbind.all.columns(all_mods_preds,data.frame(data))
+  data = data %>% select(PE, sub_id, X, model)
+  names(data)[which(names(data)=="PE")] = paste0("PE_",unique(data$model))
+  data = data %>% select(-model)
+  if(nrow(all_mods_pes)==0){
+    all_mods_pes = data
+  }
+  else{
+    all_mods_pes = all_mods_pes %>%
+      left_join(data, by=c("sub_id", "X"))
+  }
+}
 
-```
 
-```{r warning=FALSE, message=FALSE}
-ez_fits_correctinc %>%
-  group_by(age_group, machine, par) %>%
-  summarise(mean_val = mean(value, na.rm=T),
-            sem_val = sem(value)) %>%
-  ggplot(aes(age_group, mean_val))+
-  geom_bar(aes(fill=age_group), stat="identity")+
-  geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
-  facet_grid(par~machine, scales="free")+
-  theme(legend.position = "none",
-        panel.grid = element_blank())+
-  ylab("")+
-  xlab("")
+unique(all_mods_preds$model)
 
-ggsave("EZ_par_diffs.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
-```
+# What am I looking for?
+# The correlation between the PE for each model
+# The correlation will be different for each subject
+# So first summarise and get the correlation for each subject
+# The look at average correlation across subjects for each model
 
-```{r r warning=FALSE, message=FALSE}
-ez_fits_playpass = read.csv(paste0(input_dir,"EZ_ddm_fits_play1_pass0_all.csv" ))
+all_mods_pes = all_mods_pes %>%
+  select(X, sub_id, everything())
 
-ez_fits_playpass = ez_fits_playpass %>% 
-  rename(sub_id = X) %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
-  gather(key, value, -sub_id, -age_group) %>%
-  separate(key, into=c("model", "par", "machine"), sep='_') %>%
-  mutate(machine= ifelse(machine=="1.0","+5/-495", ifelse(machine=="2.0", "-5/+495", ifelse(machine == "3.0", "-10/+100", ifelse(machine == "4.0", "+10/-100",NA))))) %>%
-  filter(value != -Inf)
-
-ez_fits_playpass %>%
-  group_by(age_group, machine, par) %>%
-  summarise(mean_val = mean(value, na.rm=T),
-            sem_val = sem(value)) %>%
-  ggplot(aes(age_group, mean_val))+
-  geom_bar(aes(fill=age_group), stat="identity")+
-  geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
-  facet_grid(par~machine, scales="free")+
-  theme(legend.position = "none",
-        panel.grid = element_blank())+
-  ylab("")+
-  xlab("")
-
-ggsave("EZ_par_diffs_play_pass.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 450)
-```
-
-Age differences:
-
-- Adults always have higher drift rates
-- Drift rates decrease with EV and variance
-
-```{r}
-summary(lm(value ~ age_group*machine, ez_fits_correctinc %>% filter(par=="drift")))
-```
-
-- Teens have shorter non-decision times compared to kids and adults
-
-```{r}
-summary(lm(value ~ age_group*machine, ez_fits_correctinc %>% filter(par=="non.decision")))
-```
-
-- There are no differences in thresholds neither across age groups nor across machines.
-
-```{r}
-summary(lm(value ~ age_group*machine, ez_fits_correctinc %>% filter(par=="thresh")))
+mods = grep("PE", names(all_mods_pes), value=T)
+cor_df = data.frame(sub_id = NA, var1 = NA, var2=NA, cor_val=NA)
+for(i in 1:(length(mods) - 1) ){
+  rem_mods = mods[-c(1:i)]
+  
+  for(j in 1:length(rem_mods)){
+    cur_data = all_mods_pes %>% select(sub_id, mods[m], rem_mods[j])
+    
+    cur_cor_df = cur_data %>% 
+      group_by(sub_id) %>% 
+      do(data.frame(Cor=t(cor(.[,2], .[,3], use="pairwise")))) %>% 
+      mutate(var1 = mods[i],
+             var2 = rem_mods[j]) %>%
+      select(sub_id, var1, var2, everything())
+    
+    names(cur_cor_df) = c("sub_id", "var1", "var2", "cor_val")
+    
+    cor_df = rbind(cor_df, data.frame(cur_cor_df))
+    
+  }
+} 
 ```
 
 ## Imaging 
