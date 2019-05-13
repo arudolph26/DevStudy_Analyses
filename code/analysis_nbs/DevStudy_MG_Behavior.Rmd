@@ -16,7 +16,7 @@ The sample consists of three age groups: kids, teens and adults and we hypothesi
 
 Subjects completed a probabilistic learning task in the scanner, a risky decision making task (BART) outside the scanner and numerous questionnaires. The focus of this notebook is on the first task.  
 
-The plan of analysis is to establish that adults are more sensitive to high variance feedback in the probabilistic learning task and relate this (modeled) sensitivity to behavior in BART.  
+The plan of analysis is to establish that adults are more sensitive to high variance feedback in the probabilistic learning task and relate this (modeled) sensitivity to behavior both in BART and other self-reported risky behaviors. Details of correlations are found [here]()
 
 # Sample info
 
@@ -701,39 +701,3 @@ Or trials post-learning? [probably for imaging]
 ## RL modeling
 
 Details of model comparison can be found in a separate [notebook](http://zenkavi.github.io/DevStudy_Analyses/output/reports/Comp_RL.nb.html).
-
-## Correlation with BART
-
-Quick look at how this relates to BART data:
-
-Increase in number of pumps with age
-
-```{r warning=FALSE, message=FALSE}
-bart_adjusted_pumps %>%
-  ggplot(aes(x=calc_age, y = mean_adjusted_pumps))+
-  geom_point()+
-  theme_bw()+
-  geom_smooth(method = "lm") +
-  xlab("Age")+
-  ylab("Risk taking (adjusted pumps)")
-```
-
-**There aren't any meaningful correlations between slopes and mean adjusted pumps. *BUT* neither of these seem like good individual difference measures.**
-
-```{r warning=FALSE, message=FALSE}
-tmp = bart_data %>%
-   select(Sub_id, mean_adjusted_pumps)
-
-machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  do(get_learning_coef(.)) %>%
-  do(assign.age.info(.)) %>%
-  left_join(tmp, by = 'Sub_id') %>%
-  group_by(facet_labels, age_group) %>%
-  summarise(cor = cor.test(b1, mean_adjusted_pumps)$estimate,
-            p_value = cor.test(b1, mean_adjusted_pumps)$p.value) %>%
-  arrange(cor)
-```
-```{r echo=FALSE}
-rm(tmp)
-```
