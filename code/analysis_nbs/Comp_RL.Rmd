@@ -253,27 +253,6 @@ Do the models tell the same story when checking for age differences across param
 
 Or a similar story that doesn't make sense with the behavior?
 
-```{r message = FALSE, warning=FALSE}
-best_sub_pars %>%
-  filter(model %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
-  select(contains("xopt"), "sub_id", "x_axis", "age_group") %>%
-  gather(key, value, -age_group, -sub_id, -x_axis) %>%
-  mutate(key = ifelse(key == "xopt_alpha", "\u03b1", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp", "\u03b3", ifelse(key == "xopt_alpha_pos", "\u03b1_gain", ifelse(key == "xopt_alpha_neg", "\u03b1_loss",ifelse(key == "xopt_exp_pos", "\u03b3_gain", ifelse(key == "xopt_exp_neg", "\u03b3_loss", ifelse(key == "xopt_lossave", "\u03bb", NA)))))))))%>%
-  group_by(age_group, x_axis, key) %>%
-  summarise(mean_val = mean(value,na.rm=T),
-            sem_val = sem(value)) %>%
-    ggplot(aes(age_group, mean_val))+
-    geom_bar(aes(fill=age_group), stat="identity")+
-    geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
-  facet_grid(key~x_axis, scales='free')+
-  ylab("")+
-  xlab("")+
-  theme(panel.grid = element_blank(),
-        legend.position = "none")
-
-ggsave("RL_par_diffs.jpeg", device = "jpeg", path = fig_path, width = 12, height = 5, units = "in", dpi = 450)
-```
-
 Which parameters show age differences in which models?
 
 ```{r}
@@ -298,8 +277,54 @@ age_diff_df = age_diff_df[-1,]
 # age_diff_df %>%
 #   arrange(adult, teen)
 age_diff_df %>%
-  mutate(adult_adjust = p.adjust(adult), method="bonferroni")%>%
+  mutate(adult_adjust = p.adjust(adult), method="fdr")%>%
   filter(adult<0.05)
+```
+
+```{r}
+tmp = num_pars_df %>%
+  mutate(model = gsub("LearningParams_", "", model)) %>%
+  select(model, x_axis)
+
+fct_brdr_clrs = age_diff_df %>%
+  #excluding models with lambda
+  filter(grepl("lossave_Fix", model)==FALSE) %>%
+  mutate(adult_adjust = p.adjust(adult), method="fdr")%>%
+  select(model, par, adult, adult_adjust) %>%
+  mutate(fct_brdr = ifelse(adult<0.5, "purple", NA),
+         fct_brdr = ifelse(adult_adjust<0.5, "red", fct_brdr)) %>%
+  left_join(tmp, by="model") %>%
+  select(par, x_axis, fct_brdr)
+
+fct_brdr_clrs %>%
+  filter(is.na(fct_brdr)==FALSE)
+```
+
+```{r message = FALSE, warning=FALSE}
+best_sub_pars %>%
+  #Excluding models that do not separate between gain and loss learning
+  filter(model %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
+  select(contains("xopt"), "sub_id", "x_axis", "age_group") %>%
+  gather(key, value, -age_group, -sub_id, -x_axis) %>%
+  mutate(par=key,
+         key = ifelse(key == "xopt_alpha", "\u03b1", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp", "\u03b3", ifelse(key == "xopt_alpha_pos", "\u03b1_gain", ifelse(key == "xopt_alpha_neg", "\u03b1_loss",ifelse(key == "xopt_exp_pos", "\u03b3_gain", ifelse(key == "xopt_exp_neg", "\u03b3_loss", ifelse(key == "xopt_lossave", "\u03bb", NA)))))))))%>%
+  group_by(age_group, x_axis, key, par) %>%
+  summarise(mean_val = mean(value,na.rm=T),
+            sem_val = sem(value)) %>%
+  left_join(fct_brdr_clrs, by=c("par", "x_axis")) %>%
+  filter(grepl("\u03bb",x_axis) == FALSE) %>%
+  filter(grepl("\u03bb",key) == FALSE) %>%
+    ggplot(aes(age_group, mean_val))+
+    geom_bar(aes(fill=age_group, color=fct_brdr), stat="identity")+
+    geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
+  facet_grid(key~x_axis, scales='free')+
+  ylab("")+
+  xlab("")+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  scale_color_manual(values=c("purple", "red", NA))
+
+ggsave("RL_par_diffs_nolamda.jpeg", device = "jpeg", path = fig_path, width = 12, height = 5, units = "in", dpi = 450)
 ```
 
 **So using RL models to describe behavior in this task**
@@ -312,9 +337,11 @@ best_sub_pars %>%
   select(contains("xopt"), "sub_id", "x_axis", "age_group") %>%
   gather(key, value, -age_group, -sub_id, -x_axis) %>%
   mutate(key = ifelse(key == "xopt_alpha", "\u03b1", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp", "\u03b3", ifelse(key == "xopt_alpha_pos", "\u03b1_gain", ifelse(key == "xopt_alpha_neg", "\u03b1_loss",ifelse(key == "xopt_exp_pos", "\u03b3_gain", ifelse(key == "xopt_exp_neg", "\u03b3_loss", ifelse(key == "xopt_lossave", "\u03bb", NA)))))))))%>%
-    ggplot(aes(value))+
-    geom_density(aes(fill=age_group), alpha=0.2)+
-  facet_grid(x_axis~key, scales='free')+
+    ggplot()+
+    # geom_density(aes(value, fill=age_group), alpha=0.2)+
+  geom_boxplot(aes(age_group, value, fill=age_group))+
+  # facet_grid(x_axis~key, scales='free')+
+    facet_grid(key~x_axis, scales='free')+
   ylab("")+
   xlab("")+
   theme(panel.grid = element_blank(),
@@ -345,26 +372,23 @@ for(f in preds){
       left_join(data, by=c("sub_id", "X"))
   }
 }
-
-
 unique(all_mods_preds$model)
-
-# What am I looking for?
-# The correlation between the PE for each model
-# The correlation will be different for each subject
-# So first summarise and get the correlation for each subject
-# The look at average correlation across subjects for each model
 
 all_mods_pes = all_mods_pes %>%
   select(X, sub_id, everything())
 
+all_mods_pes
+```
+
+
+```{r}
 mods = grep("PE", names(all_mods_pes), value=T)
 cor_df = data.frame(sub_id = NA, var1 = NA, var2=NA, cor_val=NA)
 for(i in 1:(length(mods) - 1) ){
   rem_mods = mods[-c(1:i)]
   
   for(j in 1:length(rem_mods)){
-    cur_data = all_mods_pes %>% select(sub_id, mods[m], rem_mods[j])
+    cur_data = all_mods_pes %>% select(sub_id, mods[i], rem_mods[j])
     
     cur_cor_df = cur_data %>% 
       group_by(sub_id) %>% 
@@ -379,8 +403,38 @@ for(i in 1:(length(mods) - 1) ){
     
   }
 } 
+
+cor_df = cor_df[-1,]
 ```
 
+Distributuons of correlations between PE's generated by different models for each subject (sorted by the median correlation for model pair)
+
+```{r}
+tmp = num_pars_df %>%
+  mutate(model = gsub("LearningParams_", "", model)) %>%
+  select(model, x_axis)
+
+cor_df %>%
+  mutate(var1 = gsub("PE_Preds_", "", var1),
+         var2 = gsub("PE_Preds_", "", var2)) %>%
+  #Exclude models that don't distinguish gain and loss learning at all
+  filter(var1 %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
+  filter(var2 %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
+  left_join(tmp, by=c("var1"="model")) %>%
+  left_join(tmp, by=c("var2"="model")) %>%
+  mutate(cor_type = paste0(x_axis.x, "+", x_axis.y)) %>%
+  group_by(cor_type) %>%
+  mutate(med_cor_val = median(cor_val, na.rm=T)) %>%
+  ggplot(aes(reorder(cor_type,med_cor_val), cor_val ))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle=90),
+        legend.position = "none")+
+  ylab("Correlation between PEs")+
+  xlab("")+
+  coord_flip()
+
+ggsave("PE_corrs.jpeg", device = "jpeg", path = fig_path, width = 7, height = 12, units = "in", dpi = 450)
+```
 ## Imaging 
 
 ```{r message = FALSE, warning=FALSE}
