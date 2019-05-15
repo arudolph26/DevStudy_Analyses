@@ -334,6 +334,8 @@ ggsave("RL_par_diffs_nolamda.jpeg", device = "jpeg", path = fig_path, width = 12
 ## Cor btw PEs
 
 ```{r}
+input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+
 preds = list.files(path=paste0(input_path, "rl_preds/"), pattern = "All")
 
 all_mods_preds = data.frame()

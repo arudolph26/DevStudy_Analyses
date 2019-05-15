@@ -694,6 +694,15 @@ non_learners = tmp %>%
 
 non_learners = unique(non_learners$Sub_id)
 non_learners
+
+learner_info = data.frame(Sub_id = unique(machine_game_data_clean$Sub_id))
+
+learner_info = learner_info %>%
+  mutate(learner = ifelse(Sub_id %in% non_learners == FALSE, 1, 0),
+         non_learner = ifelse(Sub_id %in% non_learners, 1, 0),
+         Sub_id = paste0('sub-', Sub_id)) 
+
+write.csv(learner_info, '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_3/learner_info.csv', row.names = FALSE)
 ```
 
 Or trials post-learning? [probably for imaging]

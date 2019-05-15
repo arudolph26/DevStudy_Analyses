@@ -33,6 +33,15 @@ machine_game_data_clean <- machine_game_data[machine_game_data$Sub_id %in% incom
 
 rm(incomplete_subs)
 
+#Add existing behavior for sub-100110
+machine_game_data_clean = machine_game_data_clean %>%
+  rbind(machine_game_data %>%
+  filter(Sub_id == 100110 & Trial_number < 151))
+
+#Remove subject without imaging data sub-100109
+machine_game_data_clean = machine_game_data_clean %>%
+  filter(Sub_id != 100109)
+
 #Add cols for machine properties
 assign.machine.info <- function(data){
   data$facet_labels <- with(data, ifelse(Trial_type == 1, "+5,-495", ifelse(Trial_type == 2, "-5,+495", ifelse(Trial_type == 3, "-10,+100", ifelse(Trial_type == 4, "+10,-100", NA)))))
