@@ -420,11 +420,31 @@ ggsave("PE_corrs.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5,
 Create average PE's for all subjects using the three models that have highly correlated PEs. These three models are also the best fitting models. The PEs created in this way will be used for imaging analyses.
 
 ```{r}
-ave_pes = all_mods_pes %>%
-  select(X, sub_id, "PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_","PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_","PE_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_") %>%
-  mutate(ave_PE = (`PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_`+`PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_`+`PE_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_`)/3) %>%
-  select(X, sub_id, ave_PE) %>%
+get_ave_pe = function(sub_data){
+  sub_data = sub_data %>%
+  select(X, sub_id, "PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_","PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_","PE_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_")
+  
+  drop_cols = c()
+  
+  for(col in c("PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_","PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_","PE_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_")){
+    if(sum(is.na(sub_data[,col]))==180){
+      drop_cols = c(drop_cols, col)
+    }
+  }
+  
+  rem_cols = setdiff(c("PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_","PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_","PE_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_"), drop_cols)
+  
+  sub_data = sub_data %>%
+    mutate(ave_PE = rowSums(select(., rem_cols))/length(rem_cols)) %>%
+    select(X, sub_id, ave_PE) %>%
   filter(is.na(ave_PE) == FALSE)
+  
+  return(sub_data)
+}
+
+ave_pes = all_mods_pes %>%
+  group_by(sub_id) %>%
+  do(get_ave_pe(.))
 
 write.csv(ave_pes, '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_1/ave_pes.csv', row.names=FALSE)
 ```
