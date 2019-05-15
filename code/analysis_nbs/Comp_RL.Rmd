@@ -422,9 +422,11 @@ Create average PE's for all subjects using the three models that have highly cor
 ```{r}
 ave_pes = all_mods_pes %>%
   select(X, sub_id, "PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_","PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_","PE_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_") %>%
-  mutate(ave_PE = (`PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_`+`PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_`+`PE_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_`)/3)
+  mutate(ave_PE = (`PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_`+`PE_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_`+`PE_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_`)/3) %>%
+  select(X, sub_id, ave_PE) %>%
+  filter(is.na(ave_PE) == FALSE)
 
-write.csv(ave_pes, '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_ServerScripts/ave_pes.csv', row.names=FALSE)
+write.csv(ave_pes, '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_1/ave_pes.csv', row.names=FALSE)
 ```
 
 ## Imaging 
