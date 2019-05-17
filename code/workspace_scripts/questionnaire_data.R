@@ -1,6 +1,8 @@
 library(psych)
 
 input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+from_gh=FALSE
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/transform_remove_skew.R')
 
 data <- read.csv(paste0(input_path,'DevStudy_Master_Behavior.csv'))
 
@@ -63,11 +65,13 @@ data = data %>%
 ##################
 
 #extract only teens and adults with the carepf and duq items
-
 risk_data = data %>%
   filter(id > 200000 & id != 200213 & Exclude_for_age==0 & Exclude_psychopathology==0) %>%
   select(id, contains("carepf"), contains("duq")) %>%
   arrange(id)
+
+# remove skewed variables
+risk_data = transform_remove_skew(risk_data, columns=names(risk_data %>% select(-id)), drop=T, threshold=2)
 
 #standardize
 risk_data_std = risk_data %>% select(-id) %>% mutate_if(is.numeric, scale)
@@ -81,39 +85,23 @@ risk_data_std = risk_data_std %>%
 
 #correlation matrix
 cor.est = cor(risk_data_std, use="pairwise")
+which((cor.est>0.9 & cor.est < 1), arr.ind=TRUE)
 
-#average items with cor>0.9
 risk_data_std = risk_data_std %>%
-  mutate(carepf1_25 = (carepf1+carepf25)/2,
-         carepf3_19_21 = (carepf3+carepf19+carepf21)/3,
-         carepf8_26 = (carepf8+carepf26)/2,
-         carepf13_26 = (carepf13+carepf26)/2,
-         carepf22_duq6 = (duq6+carepf22)/2,
-         carepf22_duq30 = (duq30+carepf22)/2,
-         carepf22_duq31 = (duq31+carepf22)/2,
-         carepf22_duq33 = (duq33+carepf22)/2,
-         carepf22_25 = (carepf25+carepf22)/2,
-         carepf23_29 = (carepf23+carepf29)/2,
-         carepf25_duq6 = (duq6+carepf25)/2,
-         duq1_2 = (duq1+duq2)/2,
-         duq4_18 = (duq4+duq18)/2,
-         duq8_10 = (duq8+duq10)/2,
-         duq21_24 = (duq21+duq24)/2) %>%
-  select(-carepf25, -carepf1, -carepf19, -carepf3, -carepf21, -carepf26, -carepf8, -carepf13, -duq6, -carepf22, -duq30, -duq31, -duq33, -carepf25, -carepf29, -carepf23, -duq1, -duq2, -duq4, -duq18, -duq8, -duq10, -duq21, -duq24) %>%
-  mutate(carepf1_22_25_duq_6_30_31_33 = (carepf22_duq6 + carepf1_25 + carepf22_25 + carepf25_duq6 + carepf22_duq30 + carepf22_duq31 + carepf22_duq33 + carepf22_25 + carepf25_duq6)/10,
-       carepf8_13_26 = (carepf13_26 + carepf8_26)/2) %>%
-  select(-carepf22_duq6, - carepf1_25, -carepf22_25, -carepf25_duq6, -carepf22_duq30, -carepf22_duq31, -carepf22_duq33, -carepf22_25, -carepf25_duq6, -carepf13_26, -carepf8_26)
-
+  mutate(duq1_2 = (duq1+duq2)/2,
+         duq4_18 = (duq4+duq18)/2) %>%
+  select(-duq1, -duq2, -duq4, -duq18)
 
 #new cor matrix
-#double check: which((cor.est>0.9 & cor.est < 1), arr.ind=TRUE)
 cor.est = cor(risk_data_std, use="pairwise")
+which((cor.est>0.9 & cor.est < 1), arr.ind=TRUE)
 
 #hclust on cor matrix
 try = hclust(as.dist(1-cor.est), method="ward")
+plot(try)
 
 #cuttree
-trycut <- cutree(try, h=1.9)
+trycut <- cutree(try, h=2)
 trycut = data.frame(trycut)
 names(trycut) = "label"
 trycut$item = row.names(trycut)
@@ -121,51 +109,43 @@ row.names(trycut) = 1:nrow(trycut)
 trycut = trycut %>% arrange(label)
 
 #Figure out items for clusters
-
+# survey_questions = read.csv(paste0(input_path,"survey_questions.csv"))
 # cat(trycut$item[trycut$label==1], sep = "', '")
-# Label 1 = carepf2, carepf4, carepf6, carepf10, carepf11, carepf12, carepf14, carepf16, carepf17, carepf18, carepf20, carepf24, carepf27, carepf30, duq9, duq32, carepf3_19_21, carepf23_29, carepf8_13_26
-# View(survey_questions %>% filter(label %in% c('carepf2', 'carepf4', 'carepf6', 'carepf10', 'carepf11', 'carepf12', 'carepf14', 'carepf16', 'carepf17', 'carepf18', 'carepf20', 'carepf24', 'carepf27', 'carepf30', 'duq9', 'duq32', 'carepf3', 'carepf19', 'carepf21', 'carepf23','carepf29', 'carepf8', 'carepf13', 'carepf26')))
-# Recreational and sexual
+# Label 1 = 'carepf7', 'duq11', 'duq19', 'duq27', 'duq28', 'carepf5.logTr', 'carepf9.logTr', 'carepf15.logTr', 'carepf17.logTr', 'carepf28.logTr', 'carepf30.logTr', 'duq4_18'
+# View(survey_questions %>% filter(label %in% c('carepf7', 'duq11', 'duq19', 'duq27', 'duq28', 'carepf5', 'carepf9', 'carepf15', 'carepf17', 'carepf28', 'carepf30', 'duq4_18')))
+# Alcohol
 
 # cat(trycut$item[trycut$label==2], sep = "', '")
-#Label 2= 'carepf5', 'carepf7', 'carepf9', 'carepf15', 'carepf28', 'duq11', 'duq19', 'duq27', 'duq28', 'duq4_18'
-# View(survey_questions %>% filter(label %in% c('carepf5', 'carepf7', 'carepf9', 'carepf15', 'carepf28', 'duq11', 'duq19', 'duq27', 'duq28', 'duq4', 'duq18')))
-# Alcohol Use
-
-# cat(trycut$item[trycut$label==3], sep = "', '")
-#Label 3= 'duq3', 'duq5', 'duq12', 'duq13', 'duq14', 'duq15', 'duq16', 'duq17', 'duq22', 'duq25', 'duq1_2', 'duq8_10', 'duq21_24'
-# View(survey_questions %>% filter(label %in% c('duq3', 'duq5', 'duq12', 'duq13', 'duq14', 'duq15', 'duq16', 'duq17', 'duq22', 'duq25', 'duq1', 'duq2', 'duq8', 'duq10', 'duq21', 'duq24')))
+#Label 2= 'duq5', 'duq8', 'duq12', 'duq13', 'duq14', 'duq15', 'duq16', 'duq10.logTr', 'duq20.logTr', 'duq1_2'
+# View(survey_questions %>% filter(label %in% c('duq5', 'duq8', 'duq12', 'duq13', 'duq14', 'duq15', 'duq16', 'duq10', 'duq20', 'duq1', 'duq2')))
 # Smoking
 
-# cat(trycut$item[trycut$label==4], sep = "', '")
-#Label 4= 'duq20', 'duq23', 'duq29', 'carepf1_22_25_duq_6_30_31_33'
-# View(survey_questions %>% filter(label %in% c("duq20", "duq23", "duq29", "carepf1", "carepf22", "carepf25", "duq6", "duq30", "duq31", "duq33")))
-# Other substances
+# cat(trycut$item[trycut$label==3], sep = "', '")
+#Label 3= 'carepf2.logTr', 'carepf6.logTr', 'carepf8.logTr', 'carepf13.logTr', 'carepf18.logTr', 'carepf20.logTr', 'carepf26.logTr'
+# View(survey_questions %>% filter(label %in% c('carepf2', 'carepf6', 'carepf8', 'carepf13', 'carepf18', 'carepf20', 'carepf26')))
+# Work/school/social
 
 #pca on each cluster
-rec_sex_pca = principal(risk_data_std %>% select(carepf2, carepf4, carepf6, carepf10, carepf11, carepf12, carepf14, carepf16, carepf17, carepf18, carepf20, carepf24, carepf27, carepf30, duq9, duq32, carepf3_19_21, carepf23_29, carepf8_13_26), nfactors=1, rotate="none", missing=TRUE, scores=T)
+alcohol_pca = principal(risk_data_std %>% select('carepf7', 'duq11', 'duq19', 'duq27', 'duq28', 'carepf5.logTr', 'carepf9.logTr', 'carepf15.logTr', 'carepf17.logTr', 'carepf28.logTr', 'carepf30.logTr', 'duq4_18'), nfactors=1, rotate="none", missing=TRUE, scores=T)
 
-alcohol_pca = principal(risk_data_std %>% select(carepf5, carepf7, carepf9, carepf15, carepf28, duq11, duq19, duq27, duq28, duq4_18), nfactors=1, rotate="none", missing=TRUE, scores=T)
+smoking_pca = principal(risk_data_std %>% select('duq5', 'duq8', 'duq12', 'duq13', 'duq14', 'duq15', 'duq16', 'duq10.logTr', 'duq20.logTr', 'duq1_2'), nfactors=1, rotate="none", missing=TRUE, scores=T)
 
-smoking_pca = principal(risk_data_std %>% select(duq3, duq5, duq12, duq13, duq14, duq15, duq16, duq17, duq22, duq25, duq1_2, duq8_10, duq21_24), nfactors=1, rotate="none", missing=TRUE, scores=T)
-
-substance_pca = principal(risk_data_std %>% select(duq20, duq23, duq29, carepf1_22_25_duq_6_30_31_33), nfactors=1, rotate="none", missing=TRUE, scores=T)
+social_pca = principal(risk_data_std %>% select('carepf2.logTr', 'carepf6.logTr', 'carepf8.logTr', 'carepf13.logTr', 'carepf18.logTr', 'carepf20.logTr', 'carepf26.logTr'), nfactors=1, rotate="none", missing=TRUE, scores=T)
 
 #extract scores
-risk_data$rec_sex_scores = rec_sex_pca$scores[,1]
 risk_data$alcohol_scores = alcohol_pca$scores[,1]
 risk_data$smoking_scores = smoking_pca$scores[,1]
-risk_data$substance_scores = substance_pca$scores[,1]
+risk_data$social_scores = social_pca$scores[,1]
 
 #merge back into data.frame
 data = data %>%
-  left_join(risk_data %>% select(id, rec_sex_scores, alcohol_scores, smoking_scores, substance_scores), by="id")
+  left_join(risk_data %>% select(id, alcohol_scores, smoking_scores, social_scores), by="id")
 
 ##################
 #Select vars including IQ 
 ##################
 
 q_data = data %>%
-  select(id, mr_raw, vocab_raw, gender, bis, bas_drive, bas_fun_seek, bas_reward_resp, eis, care_er, care_eb, rec_sex_scores, alcohol_scores, smoking_scores, substance_scores)
+  select(id, mr_raw, vocab_raw, gender, bis, bas_drive, bas_fun_seek, bas_reward_resp, eis, care_er, care_eb, alcohol_scores, smoking_scores, social_scores)
 
-rm(data, risk_data, risk_data_std, rec_sex_pca, alcohol_pca, smoking_pca, substance_pca, try, trycut, cor.est, data2)
+rm(data, risk_data, risk_data_std, alcohol_pca, smoking_pca, social_pca, try, trycut, cor.est, data2)
