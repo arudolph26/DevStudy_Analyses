@@ -6,11 +6,28 @@ toc: true
 toc_depts: 2
 ---
 
+In addition to the RL task this dataset contains self-reported 'real-world' risk behaviors, several impultivity surveys and BART. One question of interest was whether any of the measures predicted the 'real-world' risk behaviors. This report looks into that question.
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
 ```
 
-# Correlation between all behavior measures
+## DV: Real-world risk dimensions
+
+Real-world risk was measures using two questionnaires with a total of 64 items. Not all of these had sufficient variance to be useful so filtered out those that could not be transformed successfully to have skewness <2 and applied hierarchical clustering on the remaining items. This resulted in three factors: Alcohol, smoking, social risk taking.
+
+Distributions of 'real-world risk' factors:
+
+```{r message=FALSE, warning=FALSE}
+q_data %>%
+  select(contains("scores")) %>%
+  gather(key, value) %>%
+  ggplot(aes(value))+
+  geom_histogram()+
+  facet_wrap(~key, scales = "free")
+```
+
+## IV: All behavioral measures
 
 ```{r}
 machine_game_summary = machine_game_data_clean %>%
@@ -31,7 +48,7 @@ all_behavioral_data = machine_game_summary %>%
 all_behavioral_data
 ```
 
-Relationships between all behavioral measures controlling for age and intelligence
+Calculating relationships between all behavioral measures controlling for age and intelligence
 
 ```{r warning=FALSE, message=FALSE}
 cor_df = data.frame(var1=NA, var2=NA, b_x=NA, p_x=NA, b_age = NA, p_age = NA, b_vocab_raw=NA, p_vocab_raw=NA, b_mr_raw=NA, p_mr_raw=NA)
@@ -61,7 +78,7 @@ for(i in 1:(length(dvs)-1)){
 rm(dvs, x, y, m, i, j)
 ```
 
-All correlations
+## All correlations
 
 ```{r}
 cor_df = cor_df %>%
@@ -81,7 +98,7 @@ cor_df %>%
   formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw'), digits=3)
 ```
 
-All "significant" correlations
+### All "significant" correlations
 
 ```{r}
 cor_df %>%
@@ -91,7 +108,7 @@ cor_df %>%
   formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw'), digits=3)
 ```
 
-All "significant" correlations relating to "real-world risky behavior"
+### All "significant" correlations relating to "real-world risky behavior"
 
 ```{r}
 cor_df %>%
@@ -102,7 +119,7 @@ cor_df %>%
   formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw'), digits=3)
 ```
 
-Significant correlations that survive multiple comparisons
+### Significant correlations that survive multiple comparisons
 
 ```{r}
 cor_df%>%
@@ -114,19 +131,21 @@ cor_df%>%
   formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw', 'adj_p_x'), digits=3)
 ```
 
+### Possible relationship between experimental measures and real-world behavior
 
 ```{r warning=FALSE, message=FALSE}
 all_behavioral_data %>%
-  select(bart_mean_rt, '-5,+495_sum_correct', smoking_scores) %>%
-  gather(key, value, -smoking_scores) %>%
+  select(bart_mean_rt, '-5,+495_sum_correct', smoking_scores, alcohol_scores) %>%
+  gather(key, value, -smoking_scores, -alcohol_scores) %>% 
+  gather(score_type, score_value, -key, -value) %>%
   mutate(key = ifelse(key == '-5,+495_sum_correct', 'High var + EV machine total correct', ifelse(key == "bart_mean_rt", "BART Mean RT", NA))) %>%
-  ggplot(aes(value, smoking_scores))+
+  ggplot(aes(value, score_value))+
   geom_point()+
   geom_smooth(method="lm")+
-  facet_wrap(~key, scales="free")+
-  ylab("Smoking Factor Score")+
+  facet_grid(score_type~key, scales="free")+
+  ylab("")+
   xlab("")
 
-ggsave("Smoking_cors.jpeg", device = "jpeg", path = fig_path, width = 12, height = 5, units = "in", dpi = 450)
+ggsave("Risk_cors.jpeg", device = "jpeg", path = fig_path, width = 9, height = 7, units = "in", dpi = 450)
 
 ```

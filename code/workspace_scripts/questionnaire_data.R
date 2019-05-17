@@ -98,7 +98,7 @@ which((cor.est>0.9 & cor.est < 1), arr.ind=TRUE)
 
 #hclust on cor matrix
 try = hclust(as.dist(1-cor.est), method="ward")
-plot(try)
+#plot(try)
 
 #cuttree
 trycut <- cutree(try, h=2)
