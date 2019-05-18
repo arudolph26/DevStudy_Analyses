@@ -41,20 +41,30 @@ try$labels = tmp$question
 # ggdendrogram(try, rotate=TRUE)+
 #   theme(panel.border = element_blank())
 
-segment(dendro_data(try)) %>%
+p = segment(dendro_data(try)) %>%
   mutate(seg_col = ifelse(yend<1.76 & xend < 8, 1, ifelse(yend<1.76 & xend>7 & xend<18, 2, ifelse(yend<1.76 & xend>17 & xend < 22, 3, ifelse(yend<1.76 & xend>21,4,5))))) %>%
   ggplot(aes(x = label))+
   geom_segment(aes(x = x, y = y, xend = xend, yend = yend, col=factor(seg_col)),alpha = 1, size=1.5)+
   theme(panel.border = element_blank(),
         panel.grid = element_blank(), 
         legend.position = "none",
-        axis.text.y = element_text(size=12))+
+        axis.text.y = element_text(size=14))+
   scale_x_discrete(limits = (label(dendro_data(try))$label))+
   scale_color_manual(values = c(cbbPalette[1:4], "grey"))+
   coord_flip()+
   xlab("")+
   ylab("")
+
+ggsave("Risk_tree.jpeg", device = "jpeg", path = fig_path, width = 12, height = 10, units = "in", dpi = 450)
 ```
+
+```{r echo=FALSE, out.width='100%'}
+fig_name = 'Risk_tree.jpeg'
+
+knitr::include_graphics(paste0(fig_path, fig_name))
+```
+
+The code for factorizing the risk items can be found [here](https://github.com/zenkavi/DevStudy_Analyses/blob/master/code/workspace_scripts/questionnaire_data.R)
 
 The four 'real-world risk' factors are distributed as follow
 
@@ -174,9 +184,9 @@ cor_df%>%
 ### Possible relationship between experimental measures and real-world behavior
 
 ```{r warning=FALSE, message=FALSE}
-all_behavioral_data %>%
-  select(bart_mean_rt, '-5,+495_sum_correct', smoking_scores, alcohol_scores) %>%
-  gather(key, value, -smoking_scores, -alcohol_scores) %>% 
+p = all_behavioral_data %>%
+  select(bart_mean_rt, '-5,+495_sum_correct', contains("scores")) %>%
+  gather(key, value, -smoking_scores, -alcohol_scores, -rec_scores, -work_scores) %>% 
   gather(score_type, score_value, -key, -value) %>%
   mutate(key = ifelse(key == '-5,+495_sum_correct', 'High var + EV machine total correct', ifelse(key == "bart_mean_rt", "BART Mean RT", NA))) %>%
   ggplot(aes(value, score_value))+
@@ -184,8 +194,15 @@ all_behavioral_data %>%
   geom_smooth(method="lm")+
   facet_grid(score_type~key, scales="free")+
   ylab("")+
-  xlab("")
+  xlab("")+
+  theme(strip.text = element_text(size=14))
 
-ggsave("Risk_cors.jpeg", device = "jpeg", path = fig_path, width = 9, height = 7, units = "in", dpi = 450)
+ggsave("Risk_cors.jpeg", device = "jpeg", path = fig_path, width = 7, height = 7, units = "in", dpi = 450)
 
+```
+
+```{r echo=FALSE, out.width='100%'}
+fig_name = 'Risk_cors.jpeg'
+
+knitr::include_graphics(paste0(fig_path, fig_name))
 ```
