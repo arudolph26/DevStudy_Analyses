@@ -101,7 +101,7 @@ try = hclust(as.dist(1-cor.est), method="ward")
 #plot(try)
 
 #cuttree
-trycut <- cutree(try, h=2)
+trycut <- cutree(try, h=1.75)
 trycut = data.frame(trycut)
 names(trycut) = "label"
 trycut$item = row.names(trycut)
@@ -109,10 +109,10 @@ row.names(trycut) = 1:nrow(trycut)
 trycut = trycut %>% arrange(label)
 
 #Figure out items for clusters
-# survey_questions = read.csv(paste0(input_path,"survey_questions.csv"))
+survey_questions = read.csv(paste0(input_path,"survey_questions.csv"))
 # cat(trycut$item[trycut$label==1], sep = "', '")
-# Label 1 = 'carepf7', 'duq11', 'duq19', 'duq27', 'duq28', 'carepf5.logTr', 'carepf9.logTr', 'carepf15.logTr', 'carepf17.logTr', 'carepf28.logTr', 'carepf30.logTr', 'duq4_18'
-# View(survey_questions %>% filter(label %in% c('carepf7', 'duq11', 'duq19', 'duq27', 'duq28', 'carepf5', 'carepf9', 'carepf15', 'carepf17', 'carepf28', 'carepf30', 'duq4_18')))
+# Label 1 = 'carepf7', 'duq11', 'duq19', 'duq27', 'duq28', 'carepf5.logTr', 'carepf9.logTr', 'duq4_18'
+# View(survey_questions %>% filter(label %in% c('carepf7', 'duq11', 'duq19', 'duq27', 'duq28', 'carepf5', 'carepf9', 'duq4','duq18')))
 # Alcohol
 
 # cat(trycut$item[trycut$label==2], sep = "', '")
@@ -123,29 +123,37 @@ trycut = trycut %>% arrange(label)
 # cat(trycut$item[trycut$label==3], sep = "', '")
 #Label 3= 'carepf2.logTr', 'carepf6.logTr', 'carepf8.logTr', 'carepf13.logTr', 'carepf18.logTr', 'carepf20.logTr', 'carepf26.logTr'
 # View(survey_questions %>% filter(label %in% c('carepf2', 'carepf6', 'carepf8', 'carepf13', 'carepf18', 'carepf20', 'carepf26')))
-# Work/school/social
+# Work
+
+# cat(trycut$item[trycut$label==4], sep = "', '")
+#Label 4= 'carepf15.logTr', 'carepf17.logTr', 'carepf28.logTr', 'carepf30.logTr'
+# View(survey_questions %>% filter(label %in% c('carepf15', 'carepf17', 'carepf28', 'carepf30')))
+# Recreational
 
 #pca on each cluster
-alcohol_pca = principal(risk_data_std %>% select('carepf7', 'duq11', 'duq19', 'duq27', 'duq28', 'carepf5.logTr', 'carepf9.logTr', 'carepf15.logTr', 'carepf17.logTr', 'carepf28.logTr', 'carepf30.logTr', 'duq4_18'), nfactors=1, rotate="none", missing=TRUE, scores=T)
+alcohol_pca = principal(risk_data_std %>% select('carepf7', 'duq11', 'duq19', 'duq27', 'duq28', 'carepf5.logTr', 'carepf9.logTr', 'duq4_18'), nfactors=1, rotate="none", missing=TRUE, scores=T)
 
 smoking_pca = principal(risk_data_std %>% select('duq5', 'duq8', 'duq12', 'duq13', 'duq14', 'duq15', 'duq16', 'duq10.logTr', 'duq20.logTr', 'duq1_2'), nfactors=1, rotate="none", missing=TRUE, scores=T)
 
-social_pca = principal(risk_data_std %>% select('carepf2.logTr', 'carepf6.logTr', 'carepf8.logTr', 'carepf13.logTr', 'carepf18.logTr', 'carepf20.logTr', 'carepf26.logTr'), nfactors=1, rotate="none", missing=TRUE, scores=T)
+work_pca = principal(risk_data_std %>% select('carepf2.logTr', 'carepf6.logTr', 'carepf8.logTr', 'carepf13.logTr', 'carepf18.logTr', 'carepf20.logTr', 'carepf26.logTr'), nfactors=1, rotate="none", missing=TRUE, scores=T)
+
+rec_pca = principal(risk_data_std %>% select('carepf15.logTr', 'carepf17.logTr', 'carepf28.logTr', 'carepf30.logTr'), nfactors=1, rotate="none", missing=TRUE, scores=T)
 
 #extract scores
 risk_data$alcohol_scores = alcohol_pca$scores[,1]
 risk_data$smoking_scores = smoking_pca$scores[,1]
-risk_data$social_scores = social_pca$scores[,1]
+risk_data$work_scores = work_pca$scores[,1]
+risk_data$rec_scores = rec_pca$scores[,1]
 
 #merge back into data.frame
 data = data %>%
-  left_join(risk_data %>% select(id, alcohol_scores, smoking_scores, social_scores), by="id")
+  left_join(risk_data %>% select(id, alcohol_scores, smoking_scores, work_scores, rec_scores), by="id")
 
 ##################
 #Select vars including IQ 
 ##################
 
 q_data = data %>%
-  select(id, mr_raw, vocab_raw, gender, bis, bas_drive, bas_fun_seek, bas_reward_resp, eis, care_er, care_eb, alcohol_scores, smoking_scores, social_scores)
+  select(id, mr_raw, vocab_raw, gender, bis, bas_drive, bas_fun_seek, bas_reward_resp, eis, care_er, care_eb, alcohol_scores, smoking_scores, work_scores, rec_scores)
 
-rm(data, risk_data, risk_data_std, alcohol_pca, smoking_pca, social_pca, try, trycut, cor.est, data2)
+rm(data, risk_data, risk_data_std, alcohol_pca, smoking_pca, work_pca, rec_pca, trycut, cor.est, data2)

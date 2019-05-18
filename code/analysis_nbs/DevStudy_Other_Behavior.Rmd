@@ -8,15 +8,55 @@ toc_depts: 2
 
 In addition to the RL task this dataset contains self-reported 'real-world' risk behaviors, several impultivity surveys and BART. One question of interest was whether any of the measures predicted the 'real-world' risk behaviors. This report looks into that question.
 
+## DV: Real-world risk dimensions
+
+Real-world risk was measures using two questionnaires with a total of 63 items. Not all of these had sufficient variance to be useful so we filtered out those that could not be transformed successfully to have skewness <2 and applied hierarchical clustering on the remaining items. This resulted in three factors: Alcohol, smoking, social risk taking.
+
+Here is the list of items that were skewed and could not transformed successfully.
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
 ```
 
-## DV: Real-world risk dimensions
+Here is the tree structure of the remaining items
 
-Real-world risk was measures using two questionnaires with a total of 64 items. Not all of these had sufficient variance to be useful so filtered out those that could not be transformed successfully to have skewness <2 and applied hierarchical clustering on the remaining items. This resulted in three factors: Alcohol, smoking, social risk taking.
+```{r warning=FALSE, message=FALSE}
+library(ggdendro)
 
-Distributions of 'real-world risk' factors:
+try$labels = gsub(".logTr","",try$labels)
+try$labels = gsub("_.*","",try$labels)
+
+input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+survey_questions = read.csv(paste0(input_path,"survey_questions.csv"))
+
+tmp = data.frame(label=try$labels) %>%
+  left_join(survey_questions, by="label")
+
+tmp$question = gsub("\\.", " ", tmp$question)
+tmp$question = gsub("^\\d+|\\d+$", "", tmp$question) 
+try$labels = tmp$question
+```
+
+```{r message=FALSE, warning=FALSE}
+# ggdendrogram(try, rotate=TRUE)+
+#   theme(panel.border = element_blank())
+
+segment(dendro_data(try)) %>%
+  mutate(seg_col = ifelse(yend<1.76 & xend < 8, 1, ifelse(yend<1.76 & xend>7 & xend<18, 2, ifelse(yend<1.76 & xend>17 & xend < 22, 3, ifelse(yend<1.76 & xend>21,4,5))))) %>%
+  ggplot(aes(x = label))+
+  geom_segment(aes(x = x, y = y, xend = xend, yend = yend, col=factor(seg_col)),alpha = 1, size=1.5)+
+  theme(panel.border = element_blank(),
+        panel.grid = element_blank(), 
+        legend.position = "none",
+        axis.text.y = element_text(size=12))+
+  scale_x_discrete(limits = (label(dendro_data(try))$label))+
+  scale_color_manual(values = c(cbbPalette[1:4], "grey"))+
+  coord_flip()+
+  xlab("")+
+  ylab("")
+```
+
+The four 'real-world risk' factors are distributed as follow
 
 ```{r message=FALSE, warning=FALSE}
 q_data %>%
