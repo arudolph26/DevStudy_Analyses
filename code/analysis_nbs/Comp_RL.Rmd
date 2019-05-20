@@ -315,7 +315,7 @@ best_sub_pars %>%
   filter(grepl("\u03bb",x_axis) == FALSE) %>%
   filter(grepl("\u03bb",key) == FALSE) %>%
     ggplot(aes(age_group, mean_val))+
-    geom_bar(aes(fill=age_group, color=fct_brdr), stat="identity")+
+    geom_bar(aes(fill=age_group, color=fct_brdr), stat="identity",size=1.25)+
     geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
   facet_grid(key~x_axis, scales='free')+
   ylab("")+
@@ -324,7 +324,7 @@ best_sub_pars %>%
         legend.position = "none")+
   scale_color_manual(values=c("purple", "red", NA))
 
-ggsave("RL_par_diffs_nolamda.jpeg", device = "jpeg", path = fig_path, width = 12, height = 5, units = "in", dpi = 450)
+ggsave("RL_par_diffs_nolamda.jpeg", device = "jpeg", path = fig_path, width = 10, height = 5.6, units = "in", dpi = 450)
 ```
 
 **So using RL models to describe behavior in this task**
@@ -448,12 +448,12 @@ ave_pes = all_mods_pes %>%
   group_by(sub_id) %>%
   do(get_ave_pe(.))
 
-write.csv(ave_pes, '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_1/ave_pes.csv', row.names=FALSE)
+# write.csv(ave_pes, '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_1/ave_pes.csv', row.names=FALSE)
 ```
 
 ## Imaging 
 
-```{r message = FALSE, warning=FALSE}
+```{r message = FALSE, warning=FALSE, eval=FALSE}
 m1_roi_mzvals = read.csv(paste0(input_dir, 'm1_roi_mzvals.csv'))
 
 m1_roi_mzvals %>%
@@ -475,7 +475,7 @@ m1_roi_mzvals %>%
   ylab("Correlation between drift rate and activity in ROI")
 ```
 
-```{r warning=FALSE, message=FALSE}
+```{r warning=FALSE, message=FALSE, eval=FALSE}
 m1_roi_mzvals %>%
   select(-X) %>%
   mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
@@ -499,7 +499,7 @@ m1_roi_mzvals %>%
 ```
 
 
-```{r}
+```{r eval=FALSE}
 tmp = m1_roi_mzvals %>%
   select(-X) %>%
   mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
