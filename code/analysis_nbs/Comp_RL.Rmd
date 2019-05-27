@@ -355,7 +355,6 @@ for(f in preds){
       left_join(data, by=c("sub_id", "X"))
   }
 }
-unique(all_mods_preds$model)
 
 all_mods_pes = all_mods_pes %>%
   select(X, sub_id, everything())
@@ -449,6 +448,110 @@ ave_pes = all_mods_pes %>%
   do(get_ave_pe(.))
 
 # write.csv(ave_pes, '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_1/ave_pes.csv', row.names=FALSE)
+```
+
+## Cor btw EVs
+
+```{r}
+all_mods_evs = data.frame()
+
+for(f in preds){
+  data = read.csv(paste0(input_path, "rl_preds/", f))
+  data = data %>% select(EV, sub_id, X, model)
+  names(data)[which(names(data)=="EV")] = paste0("EV_",unique(data$model))
+  data = data %>% select(-model)
+  if(nrow(all_mods_evs)==0){
+    all_mods_evs = data
+  }
+  else{
+    all_mods_evs = all_mods_evs %>%
+      left_join(data, by=c("sub_id", "X"))
+  }
+}
+
+all_mods_evs = all_mods_evs %>%
+  select(X, sub_id, everything())
+```
+
+```{r}
+mods = grep("EV", names(all_mods_evs), value=T)
+cor_df = data.frame(sub_id = NA, var1 = NA, var2=NA, cor_val=NA)
+for(i in 1:(length(mods) - 1) ){
+  rem_mods = mods[-c(1:i)]
+  
+  for(j in 1:length(rem_mods)){
+    cur_data = all_mods_evs %>% select(sub_id, mods[i], rem_mods[j])
+    
+    cur_cor_df = cur_data %>% 
+      group_by(sub_id) %>% 
+      do(data.frame(Cor=t(cor(.[,2], .[,3], use="pairwise")))) %>% 
+      mutate(var1 = mods[i],
+             var2 = rem_mods[j]) %>%
+      select(sub_id, var1, var2, everything())
+    
+    names(cur_cor_df) = c("sub_id", "var1", "var2", "cor_val")
+    
+    cor_df = rbind(cor_df, data.frame(cur_cor_df))
+    
+  }
+} 
+
+cor_df = cor_df[-1,]
+```
+
+```{r}
+cor_df %>%
+  mutate(var1 = gsub("EV_Preds_", "", var1),
+         var2 = gsub("EV_Preds_", "", var2)) %>%
+  #Exclude models that don't distinguish gain and loss learning at all
+  filter(var1 %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
+  filter(var2 %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
+  #Exclude models with lambda
+  filter(grepl("lossave_Fix", var1) == FALSE) %>%
+  filter(grepl("lossave_Fix", var2) == FALSE) %>%
+  left_join(tmp, by=c("var1"="model")) %>%
+  left_join(tmp, by=c("var2"="model")) %>%
+  mutate(cor_type = paste0(x_axis.x, " VS. ", x_axis.y)) %>%
+  group_by(cor_type) %>%
+  mutate(med_cor_val = median(cor_val, na.rm=T)) %>%
+  ggplot(aes(reorder(cor_type,med_cor_val), cor_val ))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle=90),
+        legend.position = "none")+
+  ylab("Correlation between EVs")+
+  xlab("")+
+  coord_flip()
+
+```
+
+```{r}
+get_ave_ev = function(sub_data){
+  sub_data = sub_data %>%
+  select(X, sub_id, "EV_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_","EV_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_","EV_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_")
+  
+  drop_cols = c()
+  
+  for(col in c("EV_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_","EV_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_","EV_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_")){
+    if(sum(is.na(sub_data[,col]))==180){
+      drop_cols = c(drop_cols, col)
+    }
+  }
+  
+  rem_cols = setdiff(c("EV_Preds_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_","EV_Preds_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_","EV_Preds_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_"), drop_cols)
+  
+  sub_data = sub_data %>%
+    mutate(ave_EV = rowSums(select(., rem_cols))/length(rem_cols)) %>%
+    select(X, sub_id, ave_EV) %>%
+  filter(is.na(ave_EV) == FALSE)
+  
+  return(sub_data)
+}
+
+ave_evs = all_mods_evs %>%
+  group_by(sub_id) %>%
+  do(get_ave_ev(.))
+
+# write.csv(ave_evs, '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_1/ave_evs.csv', row.names=FALSE)
 ```
 
 ## Imaging 
