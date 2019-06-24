@@ -71,12 +71,13 @@ demog_data <- read.csv(paste0(input_path,'DevelopmentalStudy_DATA_2015-03-25_125
 # Add age data to machine_game_data_clean
 assign.age.info <- function(data){
   
-  data$age_group <- with(data, ifelse(Sub_id<200000, "kid", ifelse(Sub_id>200000 & Sub_id<300000, "teen", "adult")))
+  #data$age_group <- with(data, ifelse(Sub_id<200000, "kid", ifelse(Sub_id>200000 & Sub_id<300000, "teen", "adult")))
   
   data %>%
     group_by(Sub_id) %>%
     left_join(demog_data[,c('subj_id', 'calc_age')], by = c("Sub_id" = "subj_id")) %>%
-    mutate(age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
+    mutate(age_group = ifelse(calc_age < 13, "kid", ifelse(calc_age > 13 & calc_age < 20, "teen", ifelse(calc_age > 20, "adult", NA))),
+           age_group=factor(age_group, levels=c('kid', 'teen', 'adult')))
 }
 
 machine_game_data_clean <- assign.age.info(machine_game_data_clean)
