@@ -29,7 +29,7 @@ machine_game_data_clean %>%
             mean_age = mean(calc_age),
             sd_age = sd(calc_age),
             max_age = max(calc_age),
-            n = n()/180)
+            n = ceiling(n()/180))
 ```
 
 # Performance in RL task
