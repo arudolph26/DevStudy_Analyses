@@ -7,51 +7,13 @@ toc_float: yes
 ---
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-library(tidyverse)
-
-cbbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-theme_set(theme_bw())
-ggplot <- function(...) ggplot2::ggplot(...) + scale_fill_manual(values=cbbPalette) + scale_color_manual(values=cbbPalette)+theme(legend.position="bottom")
-
-input_dir = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_fits/'
-
 fig_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/figures/'
 
-sem <- function(x) {sd(x, na.rm=T) / sqrt(length(x))}
-
-process_fits = function(data){
-  require(tidyverse)
-  data = data %>% select(-contains("Unnamed"), -X)
-  return(data)
-}
-
-rbind.all.columns <- function(x, y) {
-  
-  if(ncol(x) == 0 | ncol(y) == 0){
-    out = plyr::rbind.fill(x, y)
-  } else{
-    x.diff <- setdiff(colnames(x), colnames(y))
-    y.diff <- setdiff(colnames(y), colnames(x))
-    x[, c(as.character(y.diff))] <- NA
-    y[, c(as.character(x.diff))] <- NA
-    out = rbind(x, y)
-  }
-  return(out)
-}
-
 from_gh=FALSE
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/ggplot_colors.R')
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/transform_remove_skew.R')
-```
-
-```{r}
-fits = list.files(path=input_dir, pattern = "All")
-old_fits = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_All.csv',
-         'LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_All.csv',
-         'LearningParams_Fit_alpha-beta-exp_Fix_All.csv',
-         'LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_All.csv',
-         'LearningParams_Fit_alpha-beta_Fix_exp_All.csv',
-         'LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_All.csv')
-fits=fits[fits %in% old_fits == FALSE]
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/sem.R')
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/rl_fits_data.R')
 ```
 
 ```{r eval=FALSE}
@@ -69,16 +31,6 @@ for(f in fits){
 }
 ```
 
-```{r}
-#Look up df for AIC and BIC calculation
-# num_pars_df = data.frame(model = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha-beta-exp_Fix_','LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_','LearningParams_Fit_alpha-beta_Fix_exp_','LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp_'), pars = c(3,4,5,2,4,2))
-
-num_pars_df = data.frame(model = c('LearningParams_Fit_alpha_neg-alpha_pos-beta_Fix_exp-lossave_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos-lossave_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-exp-lossave_Fix_','LearningParams_Fit_alpha_neg-alpha_pos-beta-lossave_Fix_exp_','LearningParams_Fit_alpha-beta_Fix_exp-lossave_','LearningParams_Fit_alpha-beta-exp_Fix_lossave_','LearningParams_Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_','LearningParams_Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_','LearningParams_Fit_alpha-beta-exp-lossave_Fix_','LearningParams_Fit_alpha-beta-lossave_Fix_exp_'), pars = c(3,4,5,6,5,4,2,3,4,5,4,3),x_axis = c("\u03b1_gain, \u03b1_loss, \u03b2", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3_gain, \u03b3_loss, \u03bb", "\u03b1_gain, \u03b1_loss, \u03b2, \u03b3, \u03bb", "\u03b1_gain, \u03b1_loss, \u03b2, \u03bb", "\u03b1, \u03b2", "\u03b1, \u03b2, \u03b3", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss", "\u03b1, \u03b2, \u03b3_gain, \u03b3_loss, \u03bb", "\u03b1, \u03b2, \u03b3, \u03bb", "\u03b1, \u03b2, \u03bb"))
-
-num_pars_df = num_pars_df %>%
-  mutate(model = as.character(model),
-         x_axis = as.character(x_axis))
-```
 
 The behavior in the machine game task lends itself to prediction error modeling as frequently done in the literature. 
 
@@ -103,40 +55,6 @@ Each model was fit 50 times for each subject minimizing negative log probability
 ## Model comparison
 
 Which is the best model?
-
-Read in bounded parameter estimates.
-
-```{r}
-all_sub_pars = data.frame()
-best_sub_pars = data.frame()
-
-for(f in fits){
-  data = read.csv(paste0(input_dir, f))
-  data = process_fits(data)
-  data = data %>% 
-    mutate(model = as.character(model)) %>%
-    left_join(num_pars_df, by='model') %>%
-    mutate(AIC = 2*neglogprob+2*pars,
-           BIC = 2*neglogprob+pars*log(180))
-  all_sub_pars = rbind.all.columns(all_sub_pars,data.frame(data))
-  data = data %>%
-    group_by(sub_id) %>%
-    slice(which.min(neglogprob))
-  best_sub_pars = rbind.all.columns(best_sub_pars,data.frame(data))
-}
-
-all_sub_pars = all_sub_pars %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult")),
-         model = gsub("LearningParams_", "", model)) %>%
-  drop_na(age_group)
-
-best_sub_pars = best_sub_pars %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult")),
-         model = gsub("LearningParams_", "", model)) %>%
-  drop_na(age_group)
-```
 
 Plotting the best model/model with lowest average BIC for the bounded estimations.
 
@@ -202,7 +120,6 @@ The percentage of participants with weak evidence for H0 and for whom therefore 
 ```{r}
 tmp = best_sub_pars %>%
   filter(model %in% c('Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_', 'Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_')) %>%
-  # filter(model %in% c('Fit_alpha-beta-exp_neg-exp_pos_Fix_', 'Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_')) %>%
   select(sub_id, BIC, model) %>%
   group_by(sub_id) %>%
   mutate(model = gsub("-", "_", model)) %>%
@@ -296,8 +213,8 @@ fct_brdr_clrs = age_diff_df %>%
   left_join(tmp, by="model") %>%
   select(par, x_axis, fct_brdr)
 
-fct_brdr_clrs %>%
-  filter(is.na(fct_brdr)==FALSE)
+#fct_brdr_clrs %>%
+#  filter(is.na(fct_brdr)==FALSE)
 ```
 
 ```{r message = FALSE, warning=FALSE}
@@ -326,10 +243,6 @@ best_sub_pars %>%
 
 ggsave("RL_par_diffs_nolamda.jpeg", device = "jpeg", path = fig_path, width = 10, height = 5.6, units = "in", dpi = 450)
 ```
-
-**So using RL models to describe behavior in this task**
-
-**- We have models that don't capture the behavioral group difference we are interested in (i.e. the difference between kids and adults in learning from losses)**
 
 ## Cor btw PEs
 
@@ -552,72 +465,4 @@ ave_evs = all_mods_evs %>%
   do(get_ave_ev(.))
 
 # write.csv(ave_evs, '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_1/ave_evs.csv', row.names=FALSE)
-```
-
-## Imaging 
-
-```{r message = FALSE, warning=FALSE, eval=FALSE}
-m1_roi_mzvals = read.csv(paste0(input_dir, 'm1_roi_mzvals.csv'))
-
-m1_roi_mzvals %>%
-  select(-X) %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
-  left_join(ez_fits_correctinc %>%
-              filter(machine == "+5/-495" & par == "drift") %>%
-              select(sub_id, par, machine, value), by = "sub_id") %>%
-  group_by(roi_name, age_group) %>%
-  summarise(cor_mzval_drift = cor(m_zvals, value, use="complete.obs")) %>%
-  # filter(age_group != "teen") %>%
-  ggplot(aes(roi_name, abs(cor_mzval_drift), fill=age_group))+
-  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
-  xlab("")+
-  # scale_fill_manual(values=c("#E69F00","#009E73"))+
-  theme(legend.title=element_blank(),
-        panel.grid = element_blank()) +
-  ylab("Correlation between drift rate and activity in ROI")
-```
-
-```{r warning=FALSE, message=FALSE, eval=FALSE}
-m1_roi_mzvals %>%
-  select(-X) %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
-  left_join(ez_fits_correctinc %>%
-              filter(machine == "+5/-495" & par == "drift") %>%
-              select(sub_id, par, machine, value), by = "sub_id") %>%
-  group_by(roi_name, age_group) %>%
-  filter(age_group != "teen") %>%
-  ggplot(aes(value, m_zvals))+
-  # geom_point()+
-  geom_smooth(method="lm", se=FALSE, aes(color=age_group))+
-  geom_smooth(method="lm", se=FALSE, color="black", linetype="dashed")+
-  facet_wrap(~roi_name, nrow=2)+
-  theme(legend.title = element_blank(),
-        panel.grid = element_blank())+
-  xlab("drift rate")+
-  ylab("Mean z-value in ROI")+
-  xlim(-1.5, 1.5)+
-  scale_color_manual(values=c("#E69F00","#009E73"))
-```
-
-
-```{r eval=FALSE}
-tmp = m1_roi_mzvals %>%
-  select(-X) %>%
-  mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<300000, "teen", "adult")),
-         age_group = factor(age_group, levels = c("kid","teen","adult"))) %>%
-  left_join(ez_fits_correctinc %>%
-              filter(machine == "+5/-495" & par == "drift") %>%
-              select(sub_id, par, machine, value), by = "sub_id") %>%
-  filter(age_group != "teen") %>%
-  mutate(age_group = factor(age_group, levels = c("kid","adult")))
-
-summary(lm(m_zvals ~ value*age_group, tmp %>% filter(roi_name=="ACC")))
-
-summary(lm(m_zvals ~ value*age_group, tmp %>% filter(roi_name=="RaIns")))
-
-summary(lm(m_zvals ~ value*age_group, tmp %>% filter(roi_name=="PCC")))
-
-contrasts(tmp$age_group)
 ```

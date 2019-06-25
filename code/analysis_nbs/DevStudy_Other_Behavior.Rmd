@@ -148,22 +148,15 @@ cor_df %>%
   formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw'), digits=3)
 ```
 
-### All "significant" correlations
-
-```{r}
-cor_df %>%
-  filter(p_x<0.05)%>%
-  arrange(p_x) %>%
-  datatable() %>%
-  formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw'), digits=3)
-```
-
 ### All "significant" correlations relating to "real-world risky behavior"
 
 ```{r}
 cor_df %>%
   filter(p_x<0.05)%>%
   filter(grepl("scores", var1) | grepl("scores", var2)) %>%
+  mutate(drp = ifelse(grepl("scores", var1) & grepl("scores", var2), 1, 0)) %>%
+  filter(drp == 0) %>%
+  select(-drp)%>%
   arrange(p_x) %>%
   datatable() %>%
   formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw'), digits=3)
@@ -176,6 +169,9 @@ cor_df%>%
   mutate(adj_p_x = p.adjust(p_x, method="fdr"))%>%
   filter(adj_p_x<0.05) %>%
   filter(grepl("scores", var1) | grepl("scores", var2)) %>%
+  mutate(drp = ifelse(grepl("scores", var1) & grepl("scores", var2), 1, 0)) %>%
+  filter(drp == 0) %>%
+  select(-drp)%>%
   arrange(adj_p_x) %>%
   datatable() %>%
   formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw', 'adj_p_x'), digits=3)
