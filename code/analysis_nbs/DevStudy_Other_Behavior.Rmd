@@ -89,9 +89,32 @@ machine_game_summary = machine_game_data_clean %>%
   unite(temp, facet_labels, key) %>%
   spread(temp, value)
 
+best_models = c("Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_","Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_","Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_")
+
+m1_data = best_sub_pars %>%
+  filter(model %in% best_models[1]) %>%
+  select(sub_id, xopt_alpha_neg, xopt_alpha_pos, xopt_beta, xopt_exp) %>%
+  rename_all(function(x) paste0("m1_", x)) %>%
+  rename(Sub_id = m1_sub_id)
+
+m2_data = best_sub_pars %>%
+  filter(model %in% best_models[2]) %>%
+  select(sub_id, xopt_alpha_neg, xopt_alpha_pos, xopt_beta, xopt_exp_neg, xopt_exp_pos) %>%
+  rename_all(function(x) paste0("m2_", x)) %>%
+  rename(Sub_id = m2_sub_id)
+
+m3_data = best_sub_pars %>%
+  filter(model %in% best_models[3]) %>%
+  select(sub_id, xopt_alpha, xopt_beta, xopt_exp_neg, xopt_exp_pos) %>%
+  rename_all(function(x) paste0("m3_", x)) %>%
+  rename(Sub_id = m3_sub_id)
+
 all_behavioral_data = machine_game_summary %>%
   left_join(bart_adjusted_pumps %>% select(-age_group), by="Sub_id") %>%
   left_join(q_data %>% rename(Sub_id = id), by="Sub_id") %>%
+  left_join(m1_data, by = "Sub_id") %>%
+  left_join(m2_data, by = "Sub_id") %>%
+  left_join(m3_data, by = "Sub_id") %>%
   ungroup()%>%
   select(-Sub_id)
 
@@ -175,30 +198,4 @@ cor_df%>%
   arrange(adj_p_x) %>%
   datatable() %>%
   formatRound(columns=c('b_x', 'p_x', 'b_age', 'p_age', 'b_vocab_raw', 'p_vocab_raw', 'b_mr_raw', 'p_mr_raw', 'adj_p_x'), digits=3)
-```
-
-### Possible relationship between experimental measures and real-world behavior
-
-```{r warning=FALSE, message=FALSE}
-p = all_behavioral_data %>%
-  select(bart_mean_rt, '-5,+495_sum_correct', contains("scores")) %>%
-  gather(key, value, -smoking_scores, -alcohol_scores, -rec_scores, -work_scores) %>% 
-  gather(score_type, score_value, -key, -value) %>%
-  mutate(key = ifelse(key == '-5,+495_sum_correct', 'High var + EV machine total correct', ifelse(key == "bart_mean_rt", "BART Mean RT", NA))) %>%
-  ggplot(aes(value, score_value))+
-  geom_point()+
-  geom_smooth(method="lm")+
-  facet_grid(score_type~key, scales="free")+
-  ylab("")+
-  xlab("")+
-  theme(strip.text = element_text(size=14))
-
-ggsave("Risk_cors.jpeg", device = "jpeg", path = fig_path, width = 7, height = 7, units = "in", dpi = 450)
-
-```
-
-```{r echo=FALSE, out.width='100%'}
-fig_name = 'Risk_cors.jpeg'
-
-knitr::include_graphics(paste0(fig_path, fig_name))
 ```
