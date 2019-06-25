@@ -126,26 +126,30 @@ Calculating relationships between all behavioral measures controlling for age an
 ```{r warning=FALSE, message=FALSE}
 cor_df = data.frame(var1=NA, var2=NA, b_x=NA, p_x=NA, b_age = NA, p_age = NA, b_vocab_raw=NA, p_vocab_raw=NA, b_mr_raw=NA, p_mr_raw=NA)
 
-dvs = names(all_behavioral_data %>% select(-calc_age, -vocab_raw, -mr_raw, -gender))
+#Removing two outlier 
+all_behavioral_data = all_behavioral_data %>%
+  filter(m3_xopt_beta<3)
+all_behavioral_data_clean = transform_remove_skew(all_behavioral_data, columns=names(all_behavioral_data), drop=T, threshold=2)
+dvs = names(all_behavioral_data_clean %>% select(-calc_age, -vocab_raw, -mr_raw.logTr, -gender))
 for(i in 1:(length(dvs)-1)){
-  x = all_behavioral_data %>% pull(dvs[i])
+  x = all_behavioral_data_clean %>% pull(dvs[i])
   rem_dvs = dvs[-c(1:i)]
   
   for(j in 1:length(rem_dvs)){
-    y = all_behavioral_data %>% pull(rem_dvs[j])
+    y = all_behavioral_data_clean %>% pull(rem_dvs[j])
     
-    m = lm(y ~ x + all_behavioral_data$calc_age+ all_behavioral_data$vocab_raw+ all_behavioral_data$mr_raw)
+    m = lm(scale(y) ~ scale(x) + all_behavioral_data_clean$calc_age+ all_behavioral_data_clean$vocab_raw+ all_behavioral_data_clean$mr_raw.logTr)
     
     cor_df = rbind(cor_df, c(var1=dvs[i], 
                              var2=rem_dvs[j], 
-                             b_x=coefficients(m)["x"], 
-                             p_x= coef(summary(m))["x","Pr(>|t|)"], 
-                             b_age=coefficients(m)["all_behavioral_data$calc_age"], 
-                             p_age= coef(summary(m))["all_behavioral_data$calc_age","Pr(>|t|)"], 
-                          b_vocab_raw=coefficients(m)["all_behavioral_data$vocab_raw"],
-                          p_vocab_raw= coef(summary(m))["all_behavioral_data$vocab_raw","Pr(>|t|)"],
-                          b_mr_raw=coefficients(m)["all_behavioral_data$mr_raw"],
-                          p_mr_raw= coef(summary(m))["all_behavioral_data$mr_raw","Pr(>|t|)"]))
+                             b_x=coefficients(m)["scale(x)"], 
+                             p_x= coef(summary(m))["scale(x)","Pr(>|t|)"], 
+                             b_age=coefficients(m)["all_behavioral_data_clean$calc_age"], 
+                             p_age= coef(summary(m))["all_behavioral_data_clean$calc_age","Pr(>|t|)"], 
+                          b_vocab_raw=coefficients(m)["all_behavioral_data_clean$vocab_raw"],
+                          p_vocab_raw= coef(summary(m))["all_behavioral_data_clean$vocab_raw","Pr(>|t|)"],
+                          b_mr_raw=coefficients(m)["all_behavioral_data_clean$mr_raw.logTr"],
+                          p_mr_raw= coef(summary(m))["all_behavioral_data_clean$mr_raw.logTr","Pr(>|t|)"]))
   }
 }
 rm(dvs, x, y, m, i, j)
