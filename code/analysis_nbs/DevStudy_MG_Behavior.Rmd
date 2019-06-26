@@ -73,6 +73,15 @@ tmp = machine_game_data_clean %>%
 
 summary(lm(total_points~age_group, data=tmp))
 ```
+
+On average each group earned:
+
+```{r}
+tmp %>% 
+  group_by(age_group) %>% 
+  summarise(mean_points = mean(total_points))
+```
+
 ```{r echo=FALSE}
 rm(tmp)
 ```
@@ -228,16 +237,24 @@ machine_game_data_clean %>%
 ggsave("Learning.jpeg", device = "jpeg", path = fig_path, width = 8, height = 5, units = "in", dpi = 450)
 ```
 
-### EV vs Variance effects on learning
+### EV and Variance effects on learning
 
 Effect of EV: Comparing positive EV to negative EV (the two rows)
 There is no real learning, significant change in behavior across time for the positive EV machines while there is for the negative EV machines. 
 
-Effect of variance: Comparing high var to low var (the two cols). Here there is an interaction: there is no effect of variance for the positive EV machines but there is an effect for the negative EV machines such that learning from high var is harder for kids for negative EV.
+```{r}
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = machine_game_data_clean %>% filter(facet_labels %in% c('-10,+100', '-5,+495')), family=binomial))
+```
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ age_group*scale(Trial_number)+(1|Sub_id), data = machine_game_data_clean %>% filter(facet_labels %in% c('+10,-100', '+5,-495')), family=binomial))
+```
+
+Effect of variance: Since there isn't learning on average for the positive EV machines we only look at negative EV machines for an effect of variance on learning. We find (in the last two models below) variance does have an effect for negative EV machines. Children do not learn at all on average in the high var nEV machine.
 
 So **the smaller the EV the more learning on average (for all age groups) unless the outcomes are too variable, in which case kids don't learn from negative EV either**
 
-Looking at learning effects separately for each machine to avoid interpreting messy three-way interactions.
+Looking at learning effects separately:
 
 Adults are more likely to make correct decisions in low var positive EV machine.
 
