@@ -568,39 +568,6 @@ tmp %>%
 summary(glmer(correct1_incorrect0 ~ scale(Reaction_time)*learner+(1|Sub_id), tmp, family = binomial))
 ```
 
-
-###Loss aversion
-
-*If one knew which were positive and which negative EV machines one would either always play for positive EV machines or never play for negative EV machines regardless of the observed outcome. So for the positive EV machines there would be no difference between gains/losses and for the negative EV machines there will be no points to plot (because it will never be played). The difference in behavior depending on the valence of the recently observed outcome (gain/loss) could be due to at least two reasons: memory or loss aversion. Or perhaps stronger memories for losses for adults. Do kids play the bad machine because they can't remember how bad that machine is or they don't care to loose as much? Perhaps there is something interesting to look at in the hippocampal activity following losses versus gains.*
-
-Studies that compute loss aversion present subjects with gambles where the amounts and probabilities are known. This is not the case for our paradigm (which is what makes it a learning task) which is why I estimate them as part of RL models later too. For the sake of it let's assume subjects knew the gain and loss amounts for each machine and calculate loss aversion:
-
-We don't find a difference in the estimates between adults and kids. Neither had Barkley-Levenson et al. (2014).
-
-```{r warning=FALSE, message=FALSE}
-get_loss_aversion = function(data){
-  data = data %>%
-  filter(Response != "time-out") %>%
-  mutate(play1_pass0 = ifelse(Response=="pass", 0,1),
-         gain_mag = as.numeric(gain_mag),
-         loss_mag = as.numeric(loss_mag))
-
-  m = glm(play1_pass0 ~ gain_mag+loss_mag, data, family="binomial")
-
-  loss_ave = -coef(m)[3]/coef(m)[2]
-  
-  return(data.frame(loss_ave = loss_ave))
-}
-
-machine_game_data_clean %>%
-  group_by(Sub_id) %>%
-  do(get_loss_aversion(.)) %>%
-  do(assign.age.info(.)) %>%
-  ggplot(aes(log(loss_ave), fill=age_group))+
-  geom_density(alpha=0.4, color=NA)+
-  theme(legend.title = element_blank())
-```
-
 ### Cross-talk between machines
 
 Are subjects less likely to play overall after a loss or only less likely to play that machine after a loss for that machine?
@@ -628,11 +595,11 @@ machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   do(mean.postloss.play.prob(.)) %>%
   rbind(tmp) %>%
-  do(assign.age.info(.)) %>%
-  group_by(age_group, facet_labels) %>%
+   mutate(learner = ifelse(Sub_id %in% non_learners, "non-learner","learner")) %>%
+  group_by(learner, facet_labels) %>%
   summarise(mp = mean(mean_post_loss_prob,na.rm=T),
             sp = sem(mean_post_loss_prob)) %>%
-  ggplot(aes(facet_labels, mp, fill=age_group))+
+  ggplot(aes(facet_labels, mp, fill=learner))+
   geom_bar(stat="identity",position=position_dodge())+
   geom_errorbar(width=0, aes(ymin = mp-sp, ymax = mp+sp), position = position_dodge(width=0.9))+
   xlab("")+

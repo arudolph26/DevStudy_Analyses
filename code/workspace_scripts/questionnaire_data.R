@@ -71,7 +71,7 @@ risk_data = data %>%
   arrange(id)
 
 # remove skewed variables
-risk_data = transform_remove_skew(risk_data, columns=names(risk_data %>% select(-id)), drop=T, threshold=2)
+risk_data = transform_remove_skew(risk_data, columns=names(risk_data %>% select(-id)), drop=T, threshold=2, verbose=F)
 
 #standardize
 risk_data_std = risk_data %>% select(-id) %>% mutate_if(is.numeric, scale)
