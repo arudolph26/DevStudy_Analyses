@@ -588,7 +588,7 @@ machine_game_data_clean %>%
 ```
 
 Learners are faster than non-learners in general.
-Interaction?
+Interactions?
 
 ```{r}
 summary(lmer(log(Reaction_time) ~ learner*facet_labels +(1|Sub_id), data = machine_game_data_clean %>% mutate(learner = ifelse(Sub_id %in% non_learners, "non-learner","learner"))))
