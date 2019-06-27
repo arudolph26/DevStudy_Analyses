@@ -501,6 +501,8 @@ The plot below shows the average number of trials it takes a subject to play a g
 
 For everyone and for every machine the average number of trials it takes a subject to play following a loss is higher than the average number of trials it take them to play following a gain. This suggests that subjects are responding to outcomes in a way overweights their most recent experience with the machine.   
 
+The fact that the probability of playing following a loss depends on machine type suggests that subjects learn machine-specifically and mitigates concern about cross-talk across them.
+
 ```{r}
 tmp = machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
@@ -541,7 +543,7 @@ And for learners.
 summary(lm(value~key*learner,tmp))
 ```
 
-Does how long a participant thinks before playing affect whether they play after experiencing a loss?
+Does how long a participant thinks before playing affect whether they play after experiencing a loss? Yes. Particularly for learners there is a reverse speed-accuracy tradeoff.
 
 ```{r}
 tmp = machine_game_data_clean %>%
@@ -568,83 +570,28 @@ tmp %>%
 summary(glmer(correct1_incorrect0 ~ scale(Reaction_time)*learner+(1|Sub_id), tmp, family = binomial))
 ```
 
-### Cross-talk between machines
-
-Are subjects less likely to play overall after a loss or only less likely to play that machine after a loss for that machine?
-
-```{r}
-mean.postloss.play.prob <- function(subject_data){
-  
-  loss_trials = which(subject_data$Points_earned<0)
-  
-  mean_post_loss_prob <- mean(ifelse(subject_data$Response[loss_trials+1] == "play", 1, 0), na.rm=T)
-  
-  return(data.frame(mean_post_loss_prob=mean_post_loss_prob))
-}
-```
-
-Probability of playing following a loss depends on machine type. Looking at all trials masks this difference. Subjects seem to learn machine specifically and cross-talk isn't evident here.
-
-```{r}
-tmp = machine_game_data_clean %>%
-  group_by(Sub_id) %>%
-  do(mean.postloss.play.prob(.)) %>%
-  mutate(facet_labels = "all_trials")
-
-machine_game_data_clean %>%
-  group_by(Sub_id, facet_labels) %>%
-  do(mean.postloss.play.prob(.)) %>%
-  rbind(tmp) %>%
-   mutate(learner = ifelse(Sub_id %in% non_learners, "non-learner","learner")) %>%
-  group_by(learner, facet_labels) %>%
-  summarise(mp = mean(mean_post_loss_prob,na.rm=T),
-            sp = sem(mean_post_loss_prob)) %>%
-  ggplot(aes(facet_labels, mp, fill=learner))+
-  geom_bar(stat="identity",position=position_dodge())+
-  geom_errorbar(width=0, aes(ymin = mp-sp, ymax = mp+sp), position = position_dodge(width=0.9))+
-  xlab("")+
-  ylab("Post loss play probability")+
-  theme(legend.title = element_blank())
-```
-
 ### Response time differences
-
-```{r}
-machine_game_data_clean %>%
-  ggplot(aes(log(Reaction_time))) +
-  geom_density(aes(fill = age_group), alpha=0.5, color=NA) +
-  facet_wrap(~facet_labels)+
-  theme(legend.title = element_blank())+
-  ylab("")+
-  xlab("Log Response Time")
-```
 
 ```{r}
 machine_game_data_clean %>%
   group_by(Sub_id, facet_labels) %>%
   summarise(mean_log_rt = mean(log(Reaction_time)),
             sem_log_rt = sem(log(Reaction_time))) %>%
-  do(assign.age.info(.)) %>%
-  ggplot(aes(age_group, mean_log_rt))+
-  geom_boxplot(aes(fill=age_group))+
-  facet_wrap(~facet_labels)+
+  # do(assign.age.info(.)) %>%
+  mutate(learner = ifelse(Sub_id %in% non_learners, "non-learner","learner"))%>%
+  ggplot(aes(learner, mean_log_rt))+
+  geom_boxplot(aes(fill=learner))+
+  facet_grid(~facet_labels)+
   theme(legend.position = "none")+
-  ylab("Mean Log Rt")+
-  xlab("Age group")
+  ylab("Mean Log RT")+
+  xlab("")
 ```
 
-Both teens and adults are faster than kids in all conditions but the high var negative EV.
+Learners are faster than non-learners in general.
+Interaction?
 
 ```{r}
-#summary(lmer(log(Reaction_time) ~ age_group*facet_labels +(1|Sub_id), data = machine_game_data_clean))
-
-summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "-10,+100")))
-
-summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "-5,+495")))
-
-summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "+10,-100")))
-
-summary(lmer(log(Reaction_time) ~ age_group +(1|Sub_id), data = machine_game_data_clean%>%filter(facet_labels == "+5,-495")))
+summary(lmer(log(Reaction_time) ~ learner*facet_labels +(1|Sub_id), data = machine_game_data_clean %>% mutate(learner = ifelse(Sub_id %in% non_learners, "non-learner","learner"))))
 ```
 
 ## RL modeling
