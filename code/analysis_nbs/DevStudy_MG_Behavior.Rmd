@@ -362,7 +362,7 @@ Adults show both larger EV and var effects compared to kids. But var vs. ev effe
 summary(lm(value~key*age_group,ev_var_effect))
 ```
 
-Correspondingly learners show larger effects of both variance and EV compared to non-learners. 
+Correspondingly learners show larger effects of both variance and EV compared to non-learners. Again EV and var effects do not differ from each other.
 
 ```{r}
 summary(lm(value~key*learner,ev_var_effect))
@@ -378,7 +378,7 @@ Do people 'explore' the first 10 trials where the reward probabilities for each 
 
 They explore less when they encounter a loss early on. In the high var pos EV machine they get 4 (small) losses in a row; in the low var negative EV machine they get a moderate loss in the first trial.
 
-```{r}
+```{r eval=FALSE}
 machine_game_data_clean %>% 
   group_by(Sub_id, facet_labels) %>%
   slice(1:10) %>%
@@ -396,24 +396,49 @@ machine_game_data_clean %>%
   xlab("")
 ```
 
+```{r}
+tmp = machine_game_data_clean %>% 
+  group_by(Sub_id, facet_labels) %>%
+  slice(1:10) %>%
+  summarise(num_explored = sum(ifelse(Response == "play", 1,0))) %>%
+  mutate(learner = ifelse(Sub_id %in% non_learners, "non-learner","learner")) 
+tmp %>%
+  ungroup() %>%
+  group_by(learner, facet_labels) %>%
+  summarise(mean_num_explored = mean(num_explored/10*100),
+            sem_num_explored = sem(num_explored/10*100)) %>%
+  ggplot(aes(facet_labels, mean_num_explored, fill = learner))+
+  geom_bar(stat="identity",position = position_dodge(0.9))+
+  geom_errorbar(aes(ymax = mean_num_explored+sem_num_explored, ymin = mean_num_explored-sem_num_explored), position = position_dodge(width = 0.9), width=0.25)+
+  theme(legend.title = element_blank())+
+  ylab("Percentage of exploration")+
+  xlab("")
+```
+
+lVAR pEV is explored more in the first 10 trials compared to the other machines and even more so for learners compared to non-learners.
+
+```{r}
+summary(lm(num_explored ~ learner*facet_labels, tmp))
+```
+
 ### Memory effect
 
 How does performance change depending on the delay between the last time a machine was played?  
 
 Can we think of this as a 'memory effect'? The more trials since the last time you have played a machine, the more forgetting/interference? 
 
-For positive EV machines this is true for all groups. This is evident in the decreasing probability of a correct response the longer it has been since the last time a machine was played.
-
-For negative EV machines adults and teens continue to make correct choices even if a lot of trials have passed since they last played that machine. Kids don't seem to remember that the machine is 'bad' and are more likely to make an incorrect choice (and play the machine) the longer it's been since they last played it.
+We find a negative effect of the play delay only for hVAR pEV. Perhaps the large reward participants experience lead to a more salient representation than the more frequent small losses. In contrast, both nEV are more likely to be correct the longer the delay  possibly by allowing more time for integration.
 
 ```{r warning=FALSE, message=FALSE}
-machine_game_data_clean %>%
+tmp = machine_game_data_clean %>%
   group_by(Sub_id) %>%
   mutate(played_trial_number = ifelse(Response == "play", Trial_number, NA)) %>%
   mutate(played_trial_number = na.locf(played_trial_number, na.rm=F)) %>%
   filter(Trial_number > 1) %>%
   mutate(trials_since_last_played = Trial_number - lag(played_trial_number)) %>%
-  ggplot(aes(trials_since_last_played, correct1_incorrect0, col = age_group))+
+  mutate(learner = ifelse(Sub_id %in% non_learners, "non-learner","learner")) 
+tmp %>%
+  ggplot(aes(trials_since_last_played, correct1_incorrect0, col = learner))+
   geom_line(stat='smooth', method = 'glm', method.args = list(family = "binomial"), alpha=1, size=2)+
   facet_wrap(~facet_labels)+
   theme(legend.title = element_blank())+
@@ -422,6 +447,23 @@ machine_game_data_clean %>%
   scale_y_continuous(breaks=c(0,1))
   
 ```
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ trials_since_last_played*learner+(1|Sub_id),tmp %>% filter(facet_labels == "-10,+100"), family = binomial))
+```
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ trials_since_last_played*learner+(1|Sub_id),tmp %>% filter(facet_labels == "-5,+495"), family = binomial))
+```
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ trials_since_last_played*learner+(1|Sub_id),tmp %>% filter(facet_labels == "+10,-100"), family = binomial))
+```
+
+```{r}
+summary(glmer(correct1_incorrect0 ~ trials_since_last_played*learner+(1|Sub_id),tmp %>% filter(facet_labels == "+5,-495"), family = binomial))
+```
+
 
 ### Post-loss behavior
 
@@ -467,15 +509,19 @@ tmp = machine_game_data_clean %>%
   ungroup() %>%
   select(facet_labels, age_group, num_trials_post_loss, num_trials_post_gain, Sub_id) %>%
   gather(key, value, -facet_labels, -age_group, -Sub_id) %>%
-  mutate(key = gsub("num_trials_post_", "", key)) 
+  mutate(key = gsub("num_trials_post_", "", key)) %>%
+   mutate(learner = ifelse(Sub_id %in% non_learners, "non-learner","learner"))
+```
 
+```{r}
 tmp %>%
-  group_by(facet_labels, age_group, key) %>%
+  group_by(facet_labels, learner, key) %>%
   summarise(mean_post = mean(value, na.rm=T),
             sem_post = sem(value)) %>%
-  ggplot(aes(age_group, mean_post, shape=key, col=age_group))+
-  geom_point(size=2)+
-  geom_errorbar(aes(ymin = mean_post-sem_post, ymax = mean_post+sem_post), width=0)+
+  ggplot(aes(learner, mean_post, fill=key, key=learner))+
+  # geom_point(size=2)+
+  geom_bar(stat="identity",position = position_dodge(width=0.9), width=0.7)+
+  geom_errorbar(aes(ymin = mean_post-sem_post, ymax = mean_post+sem_post), width=0, position = position_dodge(width=0.9))+
   facet_wrap(~facet_labels)+
   ylab("Number of trials until next play")+
   xlab("")+
@@ -483,32 +529,19 @@ tmp %>%
   guides(color=FALSE)
 ```
 
-Reflecting the global behavior in proportion of playing in each condition adults take longer to play after large losses in the high variance negative EV condition compared to kids while kids are less sensitive to the magnitude of loss.
+Everyone takes longer to play after a loss than a gain. This is even more prominent for nEV.
 
 ```{r}
-summary(lm(value~age_group*facet_labels,tmp %>%filter(key=="loss")))
+summary(lm(value~key*facet_labels,tmp))
 ```
 
-What affects whether a subject plays after experiencing a loss? The magnitude of the loss they expired? How long they think before playing?
-
-First look at how this changes across the task: Subject are more likely to be make the correct choice for the negative EV machines as the task goes by.
+And for learners.
 
 ```{r}
-machine_game_data_clean %>%
-  mutate(losstrial = ifelse(Points_earned<0,1,0),
-         postloss = lag(losstrial),
-         postloss_play1_pass0 = ifelse(postloss == 1 & Response == "play",1, ifelse(postloss==1 & Response == "pass", 0, NA))) %>%
-  group_by(Sub_id, facet_labels) %>%
-  mutate(rel_trial = 1:n()) %>%
-  # ggplot(aes(rel_trial, postloss_play1_pass0))+
-  ggplot(aes(rel_trial, correct1_incorrect0))+
-  geom_smooth(aes(col=age_group), method='glm', method.args = list(family = "binomial"))+
-  facet_wrap(~facet_labels)+
-  scale_y_continuous(breaks=c(0,1))+
-  theme(legend.title = element_blank())+
-  xlab("Trial number")+
-  ylab("Probability of correct following a loss")
+summary(lm(value~key*learner,tmp))
 ```
+
+Does how long a participant thinks before playing affect whether they play after experiencing a loss?
 
 ```{r}
 tmp = machine_game_data_clean %>%
@@ -516,12 +549,14 @@ tmp = machine_game_data_clean %>%
          postloss = lag(losstrial),
          postloss_play1_pass0 = ifelse(postloss == 1 & Response == "play",1, ifelse(postloss==1 & Response == "pass", 0, NA)),
          lastlossamt = lag(Points_earned)) %>%
-  filter(postloss==1)
+  filter(postloss==1) %>%
+   mutate(learner = ifelse(Sub_id %in% non_learners, "non-learner","learner"))
+```
 
-
+```{r}
 tmp %>%
   ggplot(aes(Reaction_time, correct1_incorrect0))+
-  geom_smooth(aes(col=age_group), method='glm', method.args = list(family = "binomial"))+
+  geom_smooth(aes(col=learner), method='glm', method.args = list(family = "binomial"))+
   facet_wrap(~facet_labels)+
   scale_y_continuous(breaks=c(0,1))+
   theme(legend.title = element_blank())+
@@ -529,13 +564,10 @@ tmp %>%
   ylab("Probability of correct following a loss")
 ```
 
-Baseline is -10,+100. Less likely to be correct in any of the machines after a loss compared to this baseline. Adults are more likely to be correct following a loss for all machines. There is also an effect of response time. The longer a decision takes the less likely it is to be correct. This is even stronger for adults (they are usually faster than kids but when they do take long they are even less likely to be correct).
-
-*If slower decisions are more likely to be incorrect would this suggest less of a drift process but more interference/uncertainty about knowledge on that machine instead?*
-
 ```{r}
-summary(glmer(correct1_incorrect0 ~ facet_labels+scale(Reaction_time)*age_group+(1|Sub_id), tmp, family="binomial"))
+summary(glmer(correct1_incorrect0 ~ scale(Reaction_time)*learner+(1|Sub_id), tmp, family = binomial))
 ```
+
 
 ###Loss aversion
 
