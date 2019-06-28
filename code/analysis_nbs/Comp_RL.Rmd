@@ -190,27 +190,27 @@ Which parameters show learner group differences in which models?
 ```{r}
 models = unique(best_sub_pars$model)[unique(best_sub_pars$model) %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp-lossave_Fix_")==FALSE]
 
-age_diff_df = data.frame(model = NA, par = NA, teen=NA, adult=NA)
+learner_diff_df = data.frame(model = NA, par = NA, learner=NA)
 
 for(i in 1:length(models)){
   cur_data = best_sub_pars %>% filter(model == models[i])
-  cur_data = cur_data %>% select(age_group, contains("xopt"))
+  cur_data = cur_data %>% select(learner, contains("xopt"))
   cur_data = cur_data[,colSums(is.na(cur_data))<nrow(cur_data)]
-  cur_data = transform_remove_skew(cur_data)
-  names(cur_data)[1] = "age_group"
-  pars = names(cur_data)[!names(cur_data) %in% c("age_group")]
+  cur_data = transform_remove_skew(cur_data, verbose=FALSE)
+  names(cur_data)[1] = "learner"
+  pars = names(cur_data)[!names(cur_data) %in% c("learner")]
   
     for(j in 1:length(pars)){
-      p_vals = summary(lm(cur_data[,pars[j]] ~ cur_data[,"age_group"]))$coefficients[c(2,3),4]
-      age_diff_df[nrow(age_diff_df) + 1,] = list(models[i],pars[j], p_vals[1], p_vals[2])
+      p_vals = summary(lm(cur_data[,pars[j]] ~ cur_data[,"learner"]))$coefficients['cur_data[, "learner"]','Pr(>|t|)']
+      learner_diff_df[nrow(learner_diff_df) + 1,] = list(models[i],pars[j], p_vals[1])
     }
 }
-age_diff_df = age_diff_df[-1,]
-# age_diff_df %>%
+learner_diff_df = learner_diff_df[-1,]
+# learner_diff_df %>%
 #   arrange(adult, teen)
-age_diff_df %>%
-  mutate(adult_adjust = p.adjust(adult), method="fdr")%>%
-  filter(adult<0.05)
+learner_diff_df %>%
+  mutate(learner_adjust = p.adjust(learner), method="fdr")%>%
+  filter(learner<0.05)
 ```
 
 ```{r}
@@ -218,43 +218,44 @@ tmp = num_pars_df %>%
   mutate(model = gsub("LearningParams_", "", model)) %>%
   select(model, x_axis)
 
-fct_brdr_clrs = age_diff_df %>%
+fct_brdr_clrs = learner_diff_df %>%
   #excluding models with lambda
   #filter(grepl("lossave_Fix", model)==FALSE) %>%
-  mutate(adult_adjust = p.adjust(adult), method="fdr")%>%
-  select(model, par, adult, adult_adjust) %>%
-  mutate(fct_brdr = ifelse(adult<0.5, "purple", NA),
-         fct_brdr = ifelse(adult_adjust<0.5, "red", fct_brdr)) %>%
+  mutate(learner_adjust = p.adjust(learner), method="fdr")%>%
+  select(model, par, learner, learner_adjust) %>%
+  mutate(fct_brdr = ifelse(learner<0.5, "purple", NA),
+         fct_brdr = ifelse(learner_adjust<0.5, "red", fct_brdr)) %>%
   left_join(tmp, by="model") %>%
   select(par, x_axis, fct_brdr)
-
-#fct_brdr_clrs %>%
-#  filter(is.na(fct_brdr)==FALSE)
 ```
 
 ```{r message = FALSE, warning=FALSE}
 best_sub_pars %>%
   #Excluding models that do not separate between gain and loss learning
   filter(model %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp-lossave_Fix_") == FALSE) %>%
-  select(contains("xopt"), "sub_id", "x_axis", "age_group") %>%
-  gather(key, value, -age_group, -sub_id, -x_axis) %>%
+  select(contains("xopt"), "sub_id", "x_axis", "learner") %>%
+  gather(key, value, -learner, -sub_id, -x_axis) %>%
   mutate(par=key,
          key = ifelse(key == "xopt_alpha", "\u03b1", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp", "\u03b3", ifelse(key == "xopt_alpha_pos", "\u03b1_gain", ifelse(key == "xopt_alpha_neg", "\u03b1_loss",ifelse(key == "xopt_exp_pos", "\u03b3_gain", ifelse(key == "xopt_exp_neg", "\u03b3_loss", ifelse(key == "xopt_lossave", "\u03bb", NA)))))))))%>%
-  group_by(age_group, x_axis, key, par) %>%
+  group_by(learner, x_axis, key, par) %>%
   summarise(mean_val = mean(value,na.rm=T),
             sem_val = sem(value)) %>%
   left_join(fct_brdr_clrs, by=c("par", "x_axis")) %>%
+  ungroup()%>%
+  mutate(learner = factor(ifelse(learner == 1, "Learner", "Non-learner"))) %>%
   # filter(grepl("\u03bb",x_axis) == FALSE) %>%
   # filter(grepl("\u03bb",key) == FALSE) %>%
-    ggplot(aes(age_group, mean_val))+
-    geom_bar(aes(fill=age_group, color=fct_brdr), stat="identity",size=1.25)+
+    ggplot(aes(learner, mean_val))+
+    geom_bar(aes(fill=learner, color=fct_brdr), stat="identity",size=1.25)+
     geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
   facet_grid(key~x_axis, scales='free')+
   ylab("")+
   xlab("")+
   theme(panel.grid = element_blank(),
-        legend.position = "none")+
-  scale_color_manual(values=c("purple", "red", NA))
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_manual(values=c("purple", "red", NA))+
+  guides(color=FALSE)
 
 ggsave("RL_par_diffs_nolamda.jpeg", device = "jpeg", path = fig_path, width = 10, height = 5.6, units = "in", dpi = 450)
 ```

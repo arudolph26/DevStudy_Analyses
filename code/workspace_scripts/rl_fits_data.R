@@ -52,13 +52,13 @@ all_sub_pars = all_sub_pars %>%
          age_group = factor(age_group, levels = c("kid","teen","adult")),
          model = gsub("LearningParams_", "", model)) %>%
   left_join(learner_info, by="sub_id") %>%
-  drop_na(learner_info)
+  drop_na(learner)
 
 best_sub_pars = best_sub_pars %>%
   mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<400000, "teen", "adult")),
          age_group = factor(age_group, levels = c("kid","teen","adult")),
          model = gsub("LearningParams_", "", model)) %>%
   left_join(learner_info, by="sub_id") %>%
-  drop_na(learner_info)
+  drop_na(learner)
 
 

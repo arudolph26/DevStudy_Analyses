@@ -35,12 +35,12 @@ all_sub_preds = all_sub_preds %>%
          age_group = factor(age_group, levels = c("kid","teen","adult")),
          model = gsub("Pred_", "", model)) %>%
   left_join(learner_info, by="sub_id") %>%
-  drop_na(learner_info)
+  drop_na(learner)
 
 ave_sub_preds = ave_sub_preds %>%
   mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<400000, "teen", "adult")),
          age_group = factor(age_group, levels = c("kid","teen","adult")),
          model = gsub("Preds_", "", model)) %>%
   left_join(learner_info, by="sub_id") %>%
-  drop_na(learner_info)
+  drop_na(learner)
 
