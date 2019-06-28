@@ -20,3 +20,5 @@ source(paste0(workspace_scripts, 'bart_data.R'))
 source(paste0(workspace_scripts, 'questionnaire_data.R'))
 
 source(paste0(workspace_scripts, 'rl_fits_data.R'))
+
+source(paste0(workspace_scripts, 'rl_preds_data.R'))

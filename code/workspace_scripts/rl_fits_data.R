@@ -6,19 +6,7 @@ process_fits = function(data){
   return(data)
 }
 
-rbind.all.columns <- function(x, y) {
-  
-  if(ncol(x) == 0 | ncol(y) == 0){
-    out = plyr::rbind.fill(x, y)
-  } else{
-    x.diff <- setdiff(colnames(x), colnames(y))
-    y.diff <- setdiff(colnames(y), colnames(x))
-    x[, c(as.character(y.diff))] <- NA
-    y[, c(as.character(x.diff))] <- NA
-    out = rbind(x, y)
-  }
-  return(out)
-}
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/rbind_all_columns.R')
 
 fits = list.files(path=input_dir, pattern = "All")
 old_fits = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_All.csv',

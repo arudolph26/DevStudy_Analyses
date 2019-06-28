@@ -56,55 +56,95 @@ Each model was fit 50 times for each subject minimizing negative log probability
 
 Which is the best model?
 
+Plotting each model's prediction accuracy when predicting the quarter of left out data for each subject after fitting the model on the remaining three quarters of data.
+
+```{r}
+mean_pred_df = ave_sub_preds %>%
+  group_by(model) %>%
+  summarise(ave_pred_prop = mean(cor_pred_prop),
+            sem_pred_prop = sem(cor_pred_prop)) %>%
+  left_join(num_pars_df %>%
+              mutate(model = gsub("LearningParams_", "", model)) %>%
+              select(-pars), 
+            by="model") %>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(ave_pred_prop, x_axis)]), ordered=TRUE),
+         pred_order = as.numeric(x_axis))
+```
+
+```{r}
+mean_pred_df %>%
+  ggplot(aes(x_axis, ave_pred_prop))+
+  geom_point()+
+  geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop))+
+  xlab("")+
+  ylab("Mean prediction accuracy")+
+  scale_x_discrete(labels = function(x) str_wrap(x, width=5))
+
+ggsave("RL_models_comp_pred.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
+```
+
+Do models differ from each other based on prediction accuracy? Only the worst two.
+
+```{r}
+tmp = with(ave_sub_preds, pairwise.t.test(cor_pred_prop, model), p.adj="fdr")
+tmp = data.frame(tmp$p.value)
+tmp = tmp %>%
+  mutate(model1 = row.names(tmp)) %>%
+  gather(model2, p_value, -model1) %>%
+  mutate(model2 = gsub('\\.', '-', model2)) %>%
+  filter(p_value <0.05) %>%
+  arrange(model1)
+
+tmp
+```
+
 Plotting the best model/model with lowest average BIC for the bounded estimations.
 
 ```{r message = FALSE, warning = FALSE}
-best_sub_pars %>%
+mean_bic_df = best_sub_pars %>%
   select(x_axis, BIC) %>%
   group_by(x_axis) %>%
   summarise(mean_bic = mean(BIC), 
             sem_bic = sem(BIC)) %>%
-  mutate(min_col = factor(ifelse(mean_bic == min(mean_bic, na.rm=T), 1,0))) %>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(-mean_bic, x_axis)]), ordered=TRUE), 
+         bic_order = as.numeric(x_axis)) 
+```
+
+
+```{r}
+mean_pred_df %>%
+  left_join(mean_bic_df %>% select(x_axis, bic_order), by="x_axis") %>%
+  mutate(rank_diff = abs(pred_order - bic_order)) %>%
+  filter(rank_diff>3)
+```
+
+```{r}
+mean_bic_df %>%
   ggplot(aes(factor(x_axis), mean_bic))+
-  geom_point(aes(col = min_col))+
-  geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic, col=min_col))+
+  geom_point()+
+  geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic))+
   theme(legend.position = "none",
         panel.grid=element_blank())+
   xlab("")+
   ylab("Mean BIC across subjects")+
-  scale_color_manual(values = c("black", "red"))+
   scale_x_discrete(labels = function(x) str_wrap(x, width=5))
 
-ggsave("RL_models_comp.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
+ggsave("RL_models_comp_BIC.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
-Qualitatively three types of models based on average fit:
-
-Worst: Not distinguishing between gains/losses in any way   
-- \alpha, \beta 
-- \alpha, \beta, \gamma
-
-Medium: Account for difference between gain/loss in one parameter
-- \alpha_gain, \alpha_loss, \beta   
-- \alpha_gain, \alpha_loss, \beta, \lambda  
-- \alpha, \beta, \gamma, \lambda   
-- \alpha, \beta, \lambda
-
-Best:
-- \alpha_gain, \alpha_loss, \beta, \gamma
-- \alpha_gain, \alpha_loss, \beta, \gamma_gain, \gamma_loss
-- \alpha_gain, \alpha_loss, \beta, \gamma_gain, \gamma_loss, \lambda
-- \alpha_gain, \alpha_loss, \beta, \gamma, \lambda
-- \alpha, \beta, \gamma_gain, \gamma_loss
-- \alpha, \beta, \gamma_gain, \gamma_loss, \lambda
+Do average BIC's for each model differ from each other? No.
 
 ```{r}
-best_sub_pars %>%
-  select(model, BIC) %>%
-  group_by(model) %>%
-  summarise(mean_bic = mean(BIC), 
-            sem_bic = sem(BIC)) %>%
-  arrange(mean_bic)
+tmp = with(best_sub_pars, pairwise.t.test(BIC, model))
+tmp = data.frame(tmp$p.value)
+tmp = tmp %>%
+  mutate(model1 = row.names(tmp)) %>%
+  gather(model2, p_value, -model1) %>%
+  mutate(model2 = gsub('\\.', '-', model2)) %>%
+  filter(p_value !=1) %>%
+  arrange(model1)
+
+tmp
 ```
 
 So far we only looked at average BIC's. To confirm that the overall tendency for smaller BICs in the best model is meaningful we compare the fit indices for the best two models for each subject.   
@@ -131,7 +171,7 @@ tmp = best_sub_pars %>%
 sum(tmp$simpler_model_better)/nrow(tmp)*100
 ```
 
-The 'best' model using bounded estimation is the best for 76.6% of the subjects.
+The 'best' model based on average BIC using bounded estimation is the best for 76.6% of the subjects.
 
 ### Age differences in fit
 
@@ -140,10 +180,7 @@ Do models differ in fit by age group?
 Only for the model with two learning rates the fits are more variable for kids than for other groups.
 
 ```{r}
-best_sub_pars %>%
-  group_by(age_group, x_axis) %>%
-  summarise(mean_bic = mean(BIC),
-            sem_bic = mean(BIC)) %>%
+mean_bic_df  %>%
   ggplot(aes(factor(x_axis),mean_bic, color=age_group))+
   geom_point()+
   geom_errorbar(aes(ymin = mean_bic-sem_bic, ymax = mean_bic+sem_bic))+
