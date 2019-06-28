@@ -14,23 +14,8 @@ source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_fu
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/transform_remove_skew.R')
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/sem.R')
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/rl_fits_data.R')
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/rl_preds_data.R')
 ```
-
-```{r eval=FALSE}
-# Save plot of neglogprob distributions for all subject for each model
-for(f in fits){
-  data = read.csv(paste0(input_dir, f))
-  data = process_fits(data)
-  p = data %>% 
-  ggplot(aes(neglogprob))+
-  geom_histogram()+
-  facet_wrap(~sub_id, scales='free')
-  p_name = gsub('.csv','',f)
-  p_name = gsub('LearningParams','Neglogs',p_name)
-  ggsave(paste0(p_name, '.jpeg'), plot=p, device = 'jpeg', path = paste0(fig_path, 'neglogs'), width = 30, height = 30, units = "in", limitsize = FALSE)
-}
-```
-
 
 The behavior in the machine game task lends itself to prediction error modeling as frequently done in the literature. 
 
@@ -56,9 +41,7 @@ Each model was fit 50 times for each subject minimizing negative log probability
 
 Which is the best model?
 
-Plotting each model's prediction accuracy when predicting the quarter of left out data for each subject after fitting the model on the remaining three quarters of data.
-
-```{r}
+```{r warning=FALSE, message=FALSE}
 mean_pred_df = ave_sub_preds %>%
   group_by(model) %>%
   summarise(ave_pred_prop = mean(cor_pred_prop),
@@ -69,21 +52,59 @@ mean_pred_df = ave_sub_preds %>%
             by="model") %>%
   mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(ave_pred_prop, x_axis)]), ordered=TRUE),
          pred_order = as.numeric(x_axis))
+
+mean_bic_df = best_sub_pars %>%
+  select(x_axis, BIC) %>%
+  group_by(x_axis) %>%
+  summarise(mean_bic = mean(BIC), 
+            sem_bic = sem(BIC)) %>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(-mean_bic, x_axis)]), ordered=TRUE), 
+         bic_order = as.numeric(x_axis)) 
+
+rank_diff_models = mean_pred_df %>%
+  left_join(mean_bic_df %>% select(x_axis, bic_order), by="x_axis") %>%
+  mutate(rank_diff = abs(pred_order - bic_order)) %>%
+  filter(rank_diff>4)
+rank_diff_models = rank_diff_models$x_axis
 ```
 
-```{r}
+Plotting each model's prediction accuracy when predicting the quarter of left out data for each subject after fitting the model on the remaining three quarters of data.  
+
+Model are listed from worst to best.
+
+```{r warning=FALSE, message=FALSE}
 mean_pred_df %>%
+  mutate(rank_diff = factor(ifelse(x_axis %in% rank_diff_models, 1, 0))) %>%
   ggplot(aes(x_axis, ave_pred_prop))+
-  geom_point()+
-  geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop))+
+  geom_point(aes(col=rank_diff))+
+  geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop, col=rank_diff))+
   xlab("")+
   ylab("Mean prediction accuracy")+
-  scale_x_discrete(labels = function(x) str_wrap(x, width=5))
+  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
+  scale_color_manual(values=c("black", "red"))+
+  theme(legend.position = "none")
 
 ggsave("RL_models_comp_pred.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
-Do models differ from each other based on prediction accuracy? Only the worst two.
+```{r warning=FALSE, message=FALSE}
+mean_bic_df %>%
+  mutate(rank_diff = factor(ifelse(x_axis %in% rank_diff_models, 1, 0))) %>%
+  ggplot(aes(factor(x_axis), mean_bic))+
+  geom_point(aes(col=rank_diff))+
+  geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic, col=rank_diff))+
+  theme(legend.position = "none",
+        panel.grid=element_blank())+
+  xlab("")+
+  ylab("Mean BIC across subjects")+
+  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
+  scale_color_manual(values=c("black", "red"))+
+  theme(legend.position = "none")
+
+ggsave("RL_models_comp_BIC.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
+```
+
+Do models differ from each other based on prediction accuracy? The worst two are significantly worse than the others. The other models do not differ from each in average prediction accuracy.
 
 ```{r}
 tmp = with(ave_sub_preds, pairwise.t.test(cor_pred_prop, model), p.adj="fdr")
@@ -98,40 +119,6 @@ tmp = tmp %>%
 tmp
 ```
 
-Plotting the best model/model with lowest average BIC for the bounded estimations.
-
-```{r message = FALSE, warning = FALSE}
-mean_bic_df = best_sub_pars %>%
-  select(x_axis, BIC) %>%
-  group_by(x_axis) %>%
-  summarise(mean_bic = mean(BIC), 
-            sem_bic = sem(BIC)) %>%
-  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(-mean_bic, x_axis)]), ordered=TRUE), 
-         bic_order = as.numeric(x_axis)) 
-```
-
-
-```{r}
-mean_pred_df %>%
-  left_join(mean_bic_df %>% select(x_axis, bic_order), by="x_axis") %>%
-  mutate(rank_diff = abs(pred_order - bic_order)) %>%
-  filter(rank_diff>3)
-```
-
-```{r}
-mean_bic_df %>%
-  ggplot(aes(factor(x_axis), mean_bic))+
-  geom_point()+
-  geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic))+
-  theme(legend.position = "none",
-        panel.grid=element_blank())+
-  xlab("")+
-  ylab("Mean BIC across subjects")+
-  scale_x_discrete(labels = function(x) str_wrap(x, width=5))
-
-ggsave("RL_models_comp_BIC.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
-```
-
 Do average BIC's for each model differ from each other? No.
 
 ```{r}
@@ -141,64 +128,55 @@ tmp = tmp %>%
   mutate(model1 = row.names(tmp)) %>%
   gather(model2, p_value, -model1) %>%
   mutate(model2 = gsub('\\.', '-', model2)) %>%
-  filter(p_value !=1) %>%
+  filter(p_value <0.05) %>%
   arrange(model1)
 
 tmp
 ```
 
-So far we only looked at average BIC's. To confirm that the overall tendency for smaller BICs in the best model is meaningful we compare the fit indices for the best two models for each subject.   
-
-To do this we calculate a Bayes Factors as listed in [Wagenmaakers (2007)](https://link-springer-com.stanford.idm.oclc.org/content/pdf/10.3758%2FBF03194105.pdf)
-
-$BF_{01} = exp(\frac{BIC_1 - BIC_0}{2})$
-
-the smaller this is the more evidence for H1 (the 4 parameter model with a single learning rate and two exponents). Here we take the simpler model to be H1 and the more complicated one as H0 (the 5 parameter model with two learning rates and two exponents). $BF_{01}$ < 3 suggests weak evidence for H0 and therefore a preference for H1.  
-
-The percentage of participants with weak evidence for H0 and for whom therefore the simpler model H1 would be preferred is:
+### Learner group difference in fit
 
 ```{r}
-tmp = best_sub_pars %>%
-  filter(model %in% c('Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_', 'Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_')) %>%
-  select(sub_id, BIC, model) %>%
-  group_by(sub_id) %>%
-  mutate(model = gsub("-", "_", model)) %>%
-  spread(model, BIC) %>%
-  mutate(BF01 = exp((Fit_alpha_beta_exp_neg_exp_pos_Fix_lossave_ - Fit_alpha_neg_alpha_pos_beta_exp_Fix_lossave_)/2),
-         simpler_model_better = ifelse(BF01<3,1,0)) %>%
-  drop_na(simpler_model_better)
+models = unique(ave_sub_preds$model)
 
-sum(tmp$simpler_model_better)/nrow(tmp)*100
+out_df = data.frame(model=NA, learner_p = NA)
+for(m in models){
+  reg_out = summary(lm(cor_pred_prop ~ learner, ave_sub_preds %>% filter(model == m)))
+  learner_p = coef(reg_out)["learner","Pr(>|t|)"]
+  cur_row = data.frame(model = m, learner_p = learner_p)
+  out_df = rbind(out_df, cur_row)
+}
+out_df = out_df[-1,]
+out_df = out_df %>%
+  mutate(learner_p = p.adjust(learner_p, method="fdr"))%>%
+  filter(learner_p<0.05)
+out_df
 ```
 
-The 'best' model based on average BIC using bounded estimation is the best for 76.6% of the subjects.
-
-### Age differences in fit
-
-Do models differ in fit by age group?   
-
-Only for the model with two learning rates the fits are more variable for kids than for other groups.
-
 ```{r}
-mean_bic_df  %>%
-  ggplot(aes(factor(x_axis),mean_bic, color=age_group))+
+ave_sub_preds %>%
+  filter(!is.na(learner)) %>%
+  group_by(learner, model) %>%
+  summarise(ave_pred_prop = mean(cor_pred_prop),
+            sem_pred_prop = sem(cor_pred_prop)) %>%
+  left_join(num_pars_df %>%
+              mutate(model = gsub("LearningParams_", "", model)) %>%
+              select(-pars), 
+            by="model") %>%
+  left_join(mean_pred_df %>%
+              select(model, pred_order), by="model") %>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE)) %>%
+  ggplot(aes(factor(x_axis),ave_pred_prop, color=factor(learner)))+
   geom_point()+
-  geom_errorbar(aes(ymin = mean_bic-sem_bic, ymax = mean_bic+sem_bic))+
+  geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop))+
   xlab("")+
-  ylab("Mean BIC across subjects")+
-  theme(axis.text.x = element_blank(),
-        legend.title = element_blank(),
-        panel.grid = element_blank())
+  ylab("Prediction accuracy across subjects")+
+  theme(panel.grid = element_blank())+
+  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
+  labs(color="Learner")+
+  geom_hline(yintercept = 0.5, linetype="dashed")
 
-ggsave("RL_models_comp_age.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
-```
-
-### Comparison of BIC distributions
-
-Bayes Factor check above suggested that for a majority of the subjects the 4 parameter model with the lowest BIC is supported more than the next best model. But are do these BIC distributions even have different means? The simplest model has a higher mean than the rest but the others do not differ from each other.
-
-```{r}
-summary(lm(BIC ~ model, best_sub_pars))
+ggsave("RL_models_comp_learner_pred.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
 ### Differing conclusions
@@ -207,10 +185,10 @@ Do the models tell the same story when checking for age differences across param
 
 Or a similar story that doesn't make sense with the behavior?
 
-Which parameters show age differences in which models?
+Which parameters show learner group differences in which models?
 
 ```{r}
-models = unique(best_sub_pars$model)[unique(best_sub_pars$model) %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_")==FALSE]
+models = unique(best_sub_pars$model)[unique(best_sub_pars$model) %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp-lossave_Fix_")==FALSE]
 
 age_diff_df = data.frame(model = NA, par = NA, teen=NA, adult=NA)
 
@@ -242,7 +220,7 @@ tmp = num_pars_df %>%
 
 fct_brdr_clrs = age_diff_df %>%
   #excluding models with lambda
-  filter(grepl("lossave_Fix", model)==FALSE) %>%
+  #filter(grepl("lossave_Fix", model)==FALSE) %>%
   mutate(adult_adjust = p.adjust(adult), method="fdr")%>%
   select(model, par, adult, adult_adjust) %>%
   mutate(fct_brdr = ifelse(adult<0.5, "purple", NA),
@@ -257,7 +235,7 @@ fct_brdr_clrs = age_diff_df %>%
 ```{r message = FALSE, warning=FALSE}
 best_sub_pars %>%
   #Excluding models that do not separate between gain and loss learning
-  filter(model %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
+  filter(model %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp-lossave_Fix_") == FALSE) %>%
   select(contains("xopt"), "sub_id", "x_axis", "age_group") %>%
   gather(key, value, -age_group, -sub_id, -x_axis) %>%
   mutate(par=key,
@@ -266,8 +244,8 @@ best_sub_pars %>%
   summarise(mean_val = mean(value,na.rm=T),
             sem_val = sem(value)) %>%
   left_join(fct_brdr_clrs, by=c("par", "x_axis")) %>%
-  filter(grepl("\u03bb",x_axis) == FALSE) %>%
-  filter(grepl("\u03bb",key) == FALSE) %>%
+  # filter(grepl("\u03bb",x_axis) == FALSE) %>%
+  # filter(grepl("\u03bb",key) == FALSE) %>%
     ggplot(aes(age_group, mean_val))+
     geom_bar(aes(fill=age_group, color=fct_brdr), stat="identity",size=1.25)+
     geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+

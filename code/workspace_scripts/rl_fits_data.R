@@ -41,15 +41,24 @@ for(f in fits){
   best_sub_pars = rbind.all.columns(best_sub_pars,data.frame(data))
 }
 
+learner_info = read.csv("~/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_3/learner_info.csv")
+learner_info = learner_info %>%
+  select(-non_learner) %>%
+  rename(sub_id = Sub_id) %>%
+  mutate(sub_id = as.numeric(as.character(gsub("sub-", "", sub_id))))
+
 all_sub_pars = all_sub_pars %>%
   mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<400000, "teen", "adult")),
          age_group = factor(age_group, levels = c("kid","teen","adult")),
          model = gsub("LearningParams_", "", model)) %>%
-  drop_na(age_group)
+  left_join(learner_info, by="sub_id") %>%
+  drop_na(learner_info)
 
 best_sub_pars = best_sub_pars %>%
   mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<400000, "teen", "adult")),
          age_group = factor(age_group, levels = c("kid","teen","adult")),
          model = gsub("LearningParams_", "", model)) %>%
-  drop_na(age_group)
+  left_join(learner_info, by="sub_id") %>%
+  drop_na(learner_info)
+
 

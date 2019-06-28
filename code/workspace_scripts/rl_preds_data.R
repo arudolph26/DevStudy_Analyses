@@ -24,15 +24,23 @@ for(f in preds){
   ave_sub_preds = rbind.all.columns(ave_sub_preds,data.frame(data))
 }
 
+learner_info = read.csv("~/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_3/learner_info.csv")
+learner_info = learner_info %>%
+  select(-non_learner) %>%
+  rename(sub_id = Sub_id) %>%
+  mutate(sub_id = as.numeric(as.character(gsub("sub-", "", sub_id))))
+
 all_sub_preds = all_sub_preds %>%
   mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<400000, "teen", "adult")),
          age_group = factor(age_group, levels = c("kid","teen","adult")),
          model = gsub("Pred_", "", model)) %>%
-  drop_na(age_group)
+  left_join(learner_info, by="sub_id") %>%
+  drop_na(learner_info)
 
 ave_sub_preds = ave_sub_preds %>%
   mutate(age_group = ifelse(sub_id<200000, "kid", ifelse(sub_id>200000 & sub_id<400000, "teen", "adult")),
          age_group = factor(age_group, levels = c("kid","teen","adult")),
          model = gsub("Preds_", "", model)) %>%
-  drop_na(age_group)
+  left_join(learner_info, by="sub_id") %>%
+  drop_na(learner_info)
 
