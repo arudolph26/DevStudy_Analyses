@@ -227,8 +227,34 @@ fct_brdr_clrs = learner_diff_df %>%
   mutate(par = gsub(".logTr", "", par))
 ```
 
+Create df with transformed parameter estimates for plotting since the transformed distributions were used in checking for group differences.
+
+```{r}
+log_lookup = best_sub_pars %>% 
+  select(sub_id, model, contains("xopt"), x_axis, learner) %>%
+  gather(key, value, -sub_id, -model, -x_axis, -learner) %>%
+  group_by(model, key) %>%
+  summarise(skw = skew(value)) %>%
+  filter(abs(skw)>1) %>%
+  arrange(model)
+
+best_sub_pars_trans = data.frame()
+
+for(i in 1:length(unique(best_sub_pars$model))){
+  cur_model = unique(best_sub_pars$model)[i]
+  cur_model_data = best_sub_pars %>% filter(model == cur_model)
+  cur_skw_vars = log_lookup %>% filter(model == cur_model)
+  
+  for(j in 1:nrow(cur_skw_vars)){
+    cur_model_data[,cur_skw_vars$key[j]] = pos_log(cur_model_data[,cur_skw_vars$key[j]])
+  }
+  
+  best_sub_pars_trans = rbind.all.columns(best_sub_pars_trans, cur_model_data)
+}
+```
+
 ```{r message = FALSE, warning=FALSE}
-best_sub_pars %>%
+best_sub_pars_trans %>%
   #Excluding models that do not separate between gain and loss learning
   filter(model %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp-lossave_Fix_") == FALSE) %>%
   select(contains("xopt"), "sub_id", "x_axis", "learner") %>%
@@ -258,18 +284,6 @@ best_sub_pars %>%
   guides(color=FALSE)
 
 ggsave("RL_par_diffs_all.jpeg", device = "jpeg", path = fig_path, width = 10, height = 8, units = "in", dpi = 450)
-```
-
-```{r}
-tmp = best_sub_pars %>% 
-  select(sub_id, model, contains("xopt"), x_axis, learner) %>%
-  mutate(sub_id = factor(sub_id),
-         learner = factor(learner)) %>%
-  group_by(model)
-
-transform_remove_skew(data.frame(tmp))
-
-#trying to figure out how to transform variables separately for each model so the plot depicting the parameter differences of all groups is more accurate since the models were run on transformed data and the current plot depits non-transformed parameter estimates
 ```
 
 ## Cor btw PEs
