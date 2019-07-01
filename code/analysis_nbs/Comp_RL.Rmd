@@ -206,8 +206,7 @@ for(i in 1:length(models)){
     }
 }
 learner_diff_df = learner_diff_df[-1,]
-# learner_diff_df %>%
-#   arrange(adult, teen)
+
 learner_diff_df %>%
   mutate(learner_adjust = p.adjust(learner), method="fdr")%>%
   filter(learner<0.05)
@@ -219,8 +218,6 @@ tmp = num_pars_df %>%
   select(model, x_axis)
 
 fct_brdr_clrs = learner_diff_df %>%
-  #excluding models with lambda
-  #filter(grepl("lossave_Fix", model)==FALSE) %>%
   mutate(learner_adjust = p.adjust(learner), method="fdr")%>%
   select(model, par, learner, learner_adjust) %>%
   mutate(fct_brdr = ifelse(learner<0.5, "purple", NA),
@@ -244,8 +241,9 @@ best_sub_pars %>%
   left_join(fct_brdr_clrs, by=c("par", "x_axis")) %>%
   ungroup()%>%
   mutate(learner = factor(ifelse(learner == 1, "Learner", "Non-learner"), levels = c("Learner", "Non-learner"))) %>%
-  # filter(grepl("\u03bb",x_axis) == FALSE) %>%
-  # filter(grepl("\u03bb",key) == FALSE) %>%
+  left_join(mean_pred_df %>%
+              select(x_axis, pred_order), by="x_axis") %>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE)) %>%
     ggplot(aes(learner, mean_val))+
     geom_bar(aes(fill=learner, color=fct_brdr), stat="identity",size=1.25)+
     geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
@@ -260,6 +258,18 @@ best_sub_pars %>%
   guides(color=FALSE)
 
 ggsave("RL_par_diffs_all.jpeg", device = "jpeg", path = fig_path, width = 10, height = 8, units = "in", dpi = 450)
+```
+
+```{r}
+tmp = best_sub_pars %>% 
+  select(sub_id, model, contains("xopt"), x_axis, learner) %>%
+  mutate(sub_id = factor(sub_id),
+         learner = factor(learner)) %>%
+  group_by(model)
+
+transform_remove_skew(data.frame(tmp))
+
+#trying to figure out how to transform variables separately for each model so the plot depicting the parameter differences of all groups is more accurate since the models were run on transformed data and the current plot depits non-transformed parameter estimates
 ```
 
 ## Cor btw PEs
