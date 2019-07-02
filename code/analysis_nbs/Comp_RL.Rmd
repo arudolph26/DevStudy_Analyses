@@ -204,7 +204,7 @@ Or a similar story that doesn't make sense with the behavior?
 Which parameters show learner group differences in which models?
 
 ```{r}
-models = unique(best_sub_pars$model)[unique(best_sub_pars$model) %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp-lossave_Fix_")==FALSE]
+models = unique(best_sub_pars$model)[unique(best_sub_pars$model) %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp-lossave_Fix_", "Fit_alpha-beta_Fix_exp-lossave_")==FALSE]
 
 learner_diff_df = data.frame(model = NA, par = NA, learner=NA)
 
@@ -256,8 +256,8 @@ log_lookup = best_sub_pars %>%
 
 best_sub_pars_trans = data.frame()
 
-for(i in 1:length(unique(best_sub_pars$model))){
-  cur_model = unique(best_sub_pars$model)[i]
+for(i in 1:length(models)){
+  cur_model = models[i]
   cur_model_data = best_sub_pars %>% filter(model == cur_model)
   cur_skw_vars = log_lookup %>% filter(model == cur_model)
   
@@ -362,29 +362,37 @@ tmp = num_pars_df %>%
   mutate(model = gsub("LearningParams_", "", model)) %>%
   select(model, x_axis)
 
+exp_models = c("Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos-lossave_Fix_", "Fit_alpha_neg-alpha_pos-beta-exp-lossave_Fix_", "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_", "Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_" )
+
 cor_df %>%
   mutate(var1 = gsub("PE_Preds_", "", var1),
          var2 = gsub("PE_Preds_", "", var2)) %>%
   #Exclude models that don't distinguish gain and loss learning at all
-  filter(var1 %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
-  filter(var2 %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha-beta_Fix_exp-lossave_") == FALSE) %>%
+  filter(var1 %in% models) %>%
+  filter(var2 %in% models) %>%
   #Exclude models with lambda
-  filter(grepl("lossave_Fix", var1) == FALSE) %>%
-  filter(grepl("lossave_Fix", var2) == FALSE) %>%
+  #filter(grepl("lossave_Fix", var1) == FALSE) %>%
+  #filter(grepl("lossave_Fix", var2) == FALSE) %>%
   left_join(tmp, by=c("var1"="model")) %>%
   left_join(tmp, by=c("var2"="model")) %>%
   mutate(cor_type = paste0(x_axis.x, " VS. ", x_axis.y)) %>%
   group_by(cor_type) %>%
-  mutate(med_cor_val = median(cor_val, na.rm=T)) %>%
-  ggplot(aes(reorder(cor_type,med_cor_val), cor_val ))+
+  mutate(med_cor_val = median(cor_val, na.rm=T),
+         model_type = ifelse((var1 %in% exp_models)&(var2 %in% exp_models), "exp_exp", ifelse(!(var1 %in% exp_models)&!(var2 %in% exp_models), "alpha_alpha", "exp_alpha"))) %>%
+  #exp_exp, alpha-alpha, "exp_alpha"
+  ggplot(aes(reorder(cor_type,med_cor_val), cor_val, color=factor(model_type)))+
   geom_boxplot()+
   theme(axis.text.x = element_text(angle=90),
-        legend.position = "none")+
+        legend.title = element_blank())+
   ylab("Correlation between PEs")+
   xlab("")+
   coord_flip()
 
 ggsave("PE_corrs.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
+```
+
+```{r}
+cor_df
 ```
 
 Create average PE's for all subjects using the three models that have highly correlated PEs. These three models are also the best fitting models. The PEs created in this way will be used for imaging analyses.
