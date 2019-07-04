@@ -1,4 +1,4 @@
-input_dir = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_preds_0_25/'
+input_dir = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_preds/'
 
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/rbind_all_columns.R')
 
@@ -43,4 +43,6 @@ ave_sub_preds = ave_sub_preds %>%
          model = gsub("Preds_", "", model)) %>%
   left_join(learner_info, by="sub_id") %>%
   drop_na(learner)
+
+rm(data, cur_m, f, preds)
 
