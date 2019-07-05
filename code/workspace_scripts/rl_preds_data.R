@@ -1,4 +1,4 @@
-input_dir = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_preds/'
+input_dir = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_preds_0_25/'
 
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/rbind_all_columns.R')
 

@@ -37,11 +37,11 @@ The parameters of the model are:
 
 To determine the best model we ran models where these parameters were allowed to vary for gains and losses and were either estimated for each subject. 
 
-Each model was fit 50 times for each subject minimizing negative log probability. Fit quality is evaluated using BIC for each fit. 
+Each model was fit 50 times for each subject minimizing negative log probability. 
 
 ## Model comparison
 
-Which is the best model?
+Fit quality can be assesed in several ways. We chose to do this by fitting the models on %75 of each subject' data and then predicting the left out 25% with the best fitting parameters for each model. The predicted choice accuracy of this left out data was out metric to determine the best model.  
 
 ```{r warning=FALSE, message=FALSE}
 mean_pred_df = ave_sub_preds %>%
@@ -54,20 +54,6 @@ mean_pred_df = ave_sub_preds %>%
             by="model") %>%
   mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(ave_pred_prop, x_axis)]), ordered=TRUE),
          pred_order = as.numeric(x_axis))
-
-mean_bic_df = best_sub_pars %>%
-  select(x_axis, BIC) %>%
-  group_by(x_axis) %>%
-  summarise(mean_bic = mean(BIC), 
-            sem_bic = sem(BIC)) %>%
-  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(-mean_bic, x_axis)]), ordered=TRUE), 
-         bic_order = as.numeric(x_axis)) 
-
-rank_diff_models = mean_pred_df %>%
-  left_join(mean_bic_df %>% select(x_axis, bic_order), by="x_axis") %>%
-  mutate(rank_diff = abs(pred_order - bic_order)) %>%
-  filter(rank_diff>4)
-rank_diff_models = rank_diff_models$x_axis
 ```
 
 Plotting each model's prediction accuracy when predicting the quarter of left out data for each subject after fitting the model on the remaining three quarters of data.  
@@ -76,34 +62,16 @@ Model are listed from worst to best.
 
 ```{r warning=FALSE, message=FALSE}
 mean_pred_df %>%
-  mutate(rank_diff = factor(ifelse(x_axis %in% rank_diff_models, 1, 0))) %>%
   ggplot(aes(x_axis, ave_pred_prop))+
-  geom_point(aes(col=rank_diff))+
-  geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop, col=rank_diff))+
+  geom_point()+
+  geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop))+
   xlab("")+
   ylab("Mean prediction accuracy")+
   scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
-  scale_color_manual(values=c("black", "red"))+
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        panel.grid = element_blank())
 
 ggsave("RL_models_comp_pred.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
-```
-
-```{r warning=FALSE, message=FALSE}
-mean_bic_df %>%
-  mutate(rank_diff = factor(ifelse(x_axis %in% rank_diff_models, 1, 0))) %>%
-  ggplot(aes(factor(x_axis), mean_bic))+
-  geom_point(aes(col=rank_diff))+
-  geom_errorbar(aes(ymin=mean_bic-sem_bic, ymax=mean_bic+sem_bic, col=rank_diff))+
-  theme(legend.position = "none",
-        panel.grid=element_blank())+
-  xlab("")+
-  ylab("Mean BIC across subjects")+
-  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
-  scale_color_manual(values=c("black", "red"))+
-  theme(legend.position = "none")
-
-ggsave("RL_models_comp_BIC.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
 Do models differ from each other based on prediction accuracy? The worst two are significantly worse than the others. The other models do not differ from each in average prediction accuracy.
@@ -121,22 +89,9 @@ tmp = tmp %>%
 tmp
 ```
 
-Do average BIC's for each model differ from each other? No.
-
-```{r}
-tmp = with(best_sub_pars, pairwise.t.test(BIC, model))
-tmp = data.frame(tmp$p.value)
-tmp = tmp %>%
-  mutate(model1 = row.names(tmp)) %>%
-  gather(model2, p_value, -model1) %>%
-  mutate(model2 = gsub('\\.', '-', model2)) %>%
-  filter(p_value <0.05) %>%
-  arrange(model1)
-
-tmp
-```
-
 ### Learner group difference in fit
+
+Are there any models that show a difference between the learner groups that survives multiple comparison? Yes.
 
 ```{r}
 models = unique(ave_sub_preds$model)
@@ -155,6 +110,8 @@ out_df = out_df %>%
 out_df
 ```
 
+What direction are the learner group differences in?
+
 ```{r}
 ave_sub_preds %>%
   filter(!is.na(learner)) %>%
@@ -167,15 +124,17 @@ ave_sub_preds %>%
             by="model") %>%
   left_join(mean_pred_df %>%
               select(model, pred_order), by="model") %>%
-  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE)) %>%
+  ungroup()%>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE),
+         learner = ifelse(learner == 1, "learner", "non-learner")) %>%
   ggplot(aes(factor(x_axis),ave_pred_prop, color=factor(learner)))+
   geom_point()+
   geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop))+
   xlab("")+
   ylab("Prediction accuracy across subjects")+
-  theme(panel.grid = element_blank())+
+  theme(panel.grid = element_blank(),
+        legend.title = element_blank())+
   scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
-  labs(color="Learner")+
   geom_hline(yintercept = 0.5, linetype="dashed")
 
 ggsave("RL_models_comp_learner_pred.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
@@ -431,7 +390,7 @@ In light of this new observation distinguishing 'types' of correlations/models I
 
 In the imaging results we haven't really found anything significant/expected from the literature. This might be because the regressor is bad. Since we have multiple models that generate RPEs and that we cannot distinguish from each other behaviorally we can try to distinguish them using the brain data by looking at whether the RPEs generated by any of them correlate more highly with the brain data (in expected regions).
 
-## 
+## Brain correlations
 
 ```{r}
 all_vstr_pe_betas = read.csv(paste0(input_path, 'rpe_cors/all_vstr_pe_betas.csv'))
