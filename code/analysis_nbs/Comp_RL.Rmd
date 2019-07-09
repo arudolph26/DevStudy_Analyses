@@ -554,9 +554,10 @@ summary(lmer(beta ~ learner*pe_type + (1|sub_num), tmp %>% filter(roi == "r_vstr
 ```
 
 What about change across time for learners and non-learners?  
-The change of relationship between RPEs predicted by exp_exp models and brain activity have different profiles for learners and non-learners but for neither group is this relationship monotonous. Thus it is difficult to pinpoint a group difference that would map on to a cognitive process.
+The change of relationship between RPEs predicted by exp_exp models and brain activity have different profiles for learners and non-learners. For non-learners there is no linear/monotonous pattern. For learners the relationship between brain activity and predicted LPEs show a clear linear decrease while the relationship between BOLD and HPE is 0 throughout.
 
-```{r warning=FALSE, message = FALSE}
+
+```{r warning=FALSE, message=FALSE}
 all_vstr_pe_betas %>%
   filter(pe_type != 'pe') %>%
   filter(beta> (-1) & beta<(1))%>%
@@ -566,7 +567,7 @@ all_vstr_pe_betas %>%
             by = "model") %>%
   mutate(x_axis = ifelse(model == "alpha_alpha", "\u03b1 + \u03b1", ifelse(model == "exp_exp", "\u03b3 + \u03b3", ifelse(model == "exp_alpha", "\u03b3 + \u03b1", x_axis))),
          x_axis = factor(x_axis, levels=tmp_levels)) %>%
-  filter(model %in% c("exp_exp", "exp_alpha", "alpha_alpha")) %>%
+  filter(model %in% c("exp_exp")) %>%
   left_join(learner_info %>% rename(sub_num = sub_id), by = "sub_num") %>%
   group_by(run_num, roi, pe_type, learner, x_axis) %>%
    summarise(mean_beta = mean(beta),
@@ -577,7 +578,8 @@ all_vstr_pe_betas %>%
   ggplot(aes(factor(run_num), mean_beta, color=pe_type))+
   geom_point(position=position_dodge(width = 0.9))+
   geom_errorbar(aes(ymin = mean_beta - sem_beta, ymax = mean_beta + sem_beta), position=position_dodge(width = 0.9), width=0.25)+
-   facet_grid(learner~x_axis)+
+  geom_line(stat='smooth', method='lm', aes(group=pe_type), size=2, span=0.5)+
+  facet_wrap(~learner, scales='free')+
   theme(panel.grid = element_blank(), 
         legend.title = element_blank())+
   xlab("")+
