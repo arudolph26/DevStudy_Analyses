@@ -1,0 +1,42 @@
+---
+title: "ROI analyses"
+output:
+github_document:
+toc: yes
+toc_float: yes
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+fig_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/figures/'
+
+from_gh=FALSE
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/ggplot_colors.R')
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/sem.R')
+library(lme4)
+```
+
+```{r}
+all_roi_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
+```
+
+```{r}
+all_roi_betas %>%
+  filter(abs(value) < 100) %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  group_by(learner, roi, regressor) %>%
+  summarise(mean_beta = mean(value),
+            sem_beta = sem(value)) %>%
+  mutate(roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma")))
+  ggplot(aes(roi, mean_beta, fill=learner))+
+  geom_bar(stat = "identity", position=position_dodge(width = 0.9))+
+  geom_errorbar(aes(ymin=mean_beta-sem_beta, ymax=mean_beta+sem_beta), position = position_dodge(width=0.9), width=0)+
+  facet_grid(.~regressor)+
+  xlab("")+
+  theme(legend.title = element_blank(),
+        panel.grid = element_blank())
+```
+
+```{r}
+
+```
