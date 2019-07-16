@@ -19,24 +19,51 @@ library(lme4)
 all_roi_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
 ```
 
+Learner groups' PE related activity in the vStr ROI's differ from each other.
+
+Is the right interpretation of this as follows?
+
+Correlation between non-learners' BOLD and predicted PE's are similar both types of PE's (high var and low var)  
+For learners on the other hand the relationship differs depending on the PE type. For hPE there is no relationship/small negative relationship between PE and learners' BOLD. For lPE there is a positive relationship.
+
+So PE account for less of the learners' BOLD change for hPE
+
 ```{r}
 all_roi_betas %>%
-  filter(abs(value) < 100) %>%
+ filter(abs(value) < 10) %>%
   left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
-  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
+         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma"))) %>%
   group_by(learner, roi, regressor) %>%
   summarise(mean_beta = mean(value),
             sem_beta = sem(value)) %>%
-  mutate(roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma")))
-  ggplot(aes(roi, mean_beta, fill=learner))+
-  geom_bar(stat = "identity", position=position_dodge(width = 0.9))+
-  geom_errorbar(aes(ymin=mean_beta-sem_beta, ymax=mean_beta+sem_beta), position = position_dodge(width=0.9), width=0)+
+  filter(roi %in% c("l_vstr", "r_vstr")) %>%
+  ggplot(aes(roi, mean_beta, col=learner))+
+  geom_point(position=position_dodge(width = 0.9))+
+  geom_errorbar(aes(ymin=mean_beta-sem_beta, ymax=mean_beta+sem_beta), position = position_dodge(width=0.9), width=0.25)+
+    geom_hline(aes(yintercept=0), linetype="dashed")+
   facet_grid(.~regressor)+
   xlab("")+
+  ylab("Mean \u03b2")+
   theme(legend.title = element_blank(),
         panel.grid = element_blank())
 ```
 
 ```{r}
-
+tmp = all_roi_betas %>%
+ filter(abs(value) < 10) %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
+         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma"))) %>%
+  filter(roi %in% c("l_vstr", "r_vstr"))
 ```
+
+```{r}
+summary(lmer(value~learner*regressor+(1|sub_num),tmp))
+```
+
+```{r}
+all_roi_zvals = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_zvals.csv')
+```
+
+Brain - parameter correlations? (Remember the question of interest is: what is the best/a good marker of self-regulation)

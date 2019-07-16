@@ -12,4 +12,5 @@ output/figures/neglogs/*
 old/
 input/rpe_cors/all_vstr_pe_betas.csv
 input/rois/all_roi_pe_betas.csv
+input/rois/all_roi_pe_zvals.csv
 input/left_insula_betas.csv
