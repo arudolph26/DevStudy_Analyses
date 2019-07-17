@@ -31,7 +31,7 @@ Is the right interpretation of this as follows?
 Relationship between non-learners' BOLD and predicted PE's are similar for both types of PE's (high var and low var)  
 For learners on the other hand the relationship differs depending on the PE type. For hPE there is no relationship/small negative relationship between PE and learners' BOLD. For lPE there is a positive relationship.
 
-So the convolved PE regressor accounts for less of the learners' BOLD change for hPE
+(So the convolved PE regressor accounts for less of the learners' BOLD change for hPE?)
 
 ```{r}
 all_roi_betas %>%
@@ -42,7 +42,7 @@ all_roi_betas %>%
   group_by(learner, roi, regressor) %>%
   summarise(mean_beta = mean(value),
             sem_beta = sem(value)) %>%
-  filter(roi %in% c("l_vstr", "r_vstr")) %>%
+  # filter(roi %in% c("l_vstr","acc", "pre_sma")) %>%
   ggplot(aes(roi, mean_beta, col=learner))+
   geom_point(position=position_dodge(width = 0.9))+
   geom_errorbar(aes(ymin=mean_beta-sem_beta, ymax=mean_beta+sem_beta), position = position_dodge(width=0.9), width=0.25)+
@@ -54,53 +54,12 @@ all_roi_betas %>%
         panel.grid = element_blank())
 ```
 
-What do the PE's themselves look like for learners and non-learners?
-
-```{r}
-exp_exp = read.csv("~/Dropbox/PoldrackLab/DevStudy_ServerScripts/rpe_cors/pred_rpes/exp_exp.csv")
-source("~/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/machine_game_data.R")
-
-machine_game_data_clean = machine_game_data_clean %>%
-  select(Response, Points_earned, Sub_id, Trial_number, facet_labels, age_group, correct1_incorrect0, variance) %>%
-  left_join(exp_exp %>%
-  rename(Sub_id = sub_id, Trial_number = X) %>%
-  mutate(Trial_number = Trial_number+1), by = c("Sub_id", "Trial_number")) %>%
-  left_join(learner_info %>% rename(Sub_id=sub_id), by="Sub_id") %>%
-  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"))
-
-```
-
-```{r}
-machine_game_data_clean %>%
-  filter(abs(PE)<10) %>%
-  ggplot(aes(PE,fill=learner))+
-  geom_density(color=NA, alpha=0.5)+
-  facet_wrap(~facet_labels)+
-  xlab("")+
-  theme(legend.title=element_blank(),
-        panel.grid = element_blank())
-```
-
-Since learners do not really play the high var machines how sparse is the PE regressor? Is it even useful?
-
-```{r}
-tmp = machine_game_data_clean %>%
-  mutate(no_PE = ifelse(is.na(PE),1,0))
-
-with(tmp, table(learner, facet_labels, Response))
-```
-
 ```{r}
 tmp = all_roi_betas %>%
  filter(abs(value) < 10) %>%
   left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
   mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
-         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma"))) %>%
-  filter(roi %in% c("l_vstr", "r_vstr"))
-```
-
-```{r}
-summary(lmer(value~learner*regressor+(1|sub_num),tmp))
+         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma")))
 ```
 
 Brain - parameter correlations? (Remember the question of interest is: what is the best/a good marker of self-regulation)

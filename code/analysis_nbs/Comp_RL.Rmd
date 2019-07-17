@@ -140,6 +140,42 @@ ave_sub_preds %>%
 ggsave("RL_models_comp_learner_pred.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)
 ```
 
+```{r}
+all_sub_preds %>%
+  mutate(pred_choice_1_0 = ifelse(choiceprob>0.5,1,0),
+           act_choice_1_0 = ifelse(Response == 1, 1, ifelse(Response == 2, 0, NA)),
+           pred_correct = ifelse(pred_choice_1_0 == act_choice_1_0, 1, 0)) %>%
+    group_by(sub_id, learner, Trial_type, model) %>%
+    summarise(cor_pred_prop = mean(pred_correct, na.rm=T)) %>%
+  filter(!is.na(learner)) %>%
+  ungroup()%>%
+  group_by(learner, model, Trial_type) %>%
+  summarise(ave_pred_prop = mean(cor_pred_prop),
+            sem_pred_prop = sem(cor_pred_prop)) %>%
+  ungroup() %>% 
+  mutate(model = gsub("Preds_", "", model))%>%
+  left_join(num_pars_df %>%
+              mutate(model = gsub("LearningParams_", "", model)) %>%
+              select(-pars), 
+            by="model") %>%
+  left_join(mean_pred_df %>%
+              select(model, pred_order), by="model") %>%
+  ungroup()%>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE),
+         learner = ifelse(learner == 1, "learner", "non-learner"),
+         facet_labels =  ifelse(Trial_type == 1, "+5,-495", ifelse(Trial_type == 2, "-5,+495", ifelse(Trial_type == 3, "-10,+100", ifelse(Trial_type == 4, "+10,-100", NA))))) %>%
+  ggplot(aes(factor(x_axis),ave_pred_prop, color=factor(learner)))+
+  geom_point()+
+  geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop))+
+  xlab("")+
+  ylab("Prediction accuracy across subjects")+
+  theme(panel.grid = element_blank(),
+        legend.title = element_blank())+
+  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
+  geom_hline(yintercept = 0.5, linetype="dashed") +
+  facet_wrap(~facet_labels)
+```
+
 The model type by learner type interaction is not significant but the main effects are. Models that do not distinguish between gains and losses in either the learning rates or the the value exponents have lower prediction accuracies. Non-learners also have lower predictiona accuracies compared to learners.
 
 ```{r}
