@@ -410,7 +410,7 @@ tmp_levels = c("α + α", "γ + α" ,"γ + γ" ,"α_gain, α_loss, β" , "α, β
 
 all_vstr_pe_betas %>%
   filter(pe_type != 'pe') %>%
-  filter(beta> (-1) & beta<(1))%>%
+ filter(abs(beta) < 10) %>%
   group_by(roi, run_num, model, pe_type) %>%
   summarise(mean_beta = mean(beta),
             sem_beta = sem(beta)) %>%
@@ -438,7 +438,7 @@ Looking only at the averages of three model types since there isn't a clear winn
 ```{r warning=FALSE, message=FALSE}
 all_vstr_pe_betas %>%
   filter(pe_type != 'pe') %>%
-  filter(beta> (-1) & beta<(1))%>%
+ filter(abs(beta) < 10) %>%
   group_by(roi, run_num, model, pe_type) %>%
   summarise(mean_beta = mean(beta),
             sem_beta = sem(beta)) %>%
@@ -460,12 +460,12 @@ all_vstr_pe_betas %>%
 ggsave("PE_betas_3_types.jpeg", device = "jpeg", path = fig_path, width = 8, height = 6, units = "in", dpi = 450)
 ```
 
-RPEs from the averaging of exp_exp models have both correlations with brain activity. Particularly for lpe's.
+RPEs from the averaging of exp_exp models have higher correlations with brain activity. Particularly for lpe's.
 
 ```{r warning=FALSE, message=FALSE}
 tmp=all_vstr_pe_betas %>%
   filter(pe_type != 'pe') %>%
-  filter(beta> (-1) & beta<(1))%>%
+ filter(abs(beta) < 10) %>%
   left_join(num_pars_df %>% 
               select(model, x_axis) %>%
               mutate(model = gsub("LearningParams_", "", model)),
@@ -490,7 +490,7 @@ Two points from the graph below:
 ```{r message = FALSE, warning=FALSE}
 all_vstr_pe_betas %>%
   filter(pe_type != 'pe') %>%
-  filter(beta> (-1) & beta<(1))%>%
+ filter(abs(beta) < 10) %>%
   left_join(num_pars_df %>% 
               select(model, x_axis) %>%
               mutate(model = gsub("LearningParams_", "", model)),
@@ -517,7 +517,7 @@ all_vstr_pe_betas %>%
 ```{r warning=FALSE, message=FALSE}
 tmp = all_vstr_pe_betas %>%
   filter(pe_type != 'pe') %>%
-  filter(beta> (-1) & beta<(1))%>%
+ filter(abs(beta) < 10) %>%
   left_join(num_pars_df %>% 
               select(model, x_axis) %>%
               mutate(model = gsub("LearningParams_", "", model)),
@@ -560,7 +560,7 @@ The change of relationship between RPEs predicted by exp_exp models and brain ac
 ```{r warning=FALSE, message=FALSE}
 all_vstr_pe_betas %>%
   filter(pe_type != 'pe') %>%
-  filter(beta> (-1) & beta<(1))%>%
+ filter(abs(beta) < 10) %>%
   left_join(num_pars_df %>% 
               select(model, x_axis) %>%
               mutate(model = gsub("LearningParams_", "", model)),
