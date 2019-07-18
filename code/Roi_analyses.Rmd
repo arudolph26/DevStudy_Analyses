@@ -25,14 +25,13 @@ all_roi_pe_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/
 all_roi_m1_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_m1_betas.csv')
 ```
 
-Learner groups' PE related activity in the vStr ROI's differ from each other.
-
-Is the right interpretation of this as follows?
-
-Relationship between non-learners' BOLD and predicted PE's are similar for both types of PE's (high var and low var)  
-For learners on the other hand the relationship differs depending on the PE type. For hPE there is no relationship/small negative relationship between PE and learners' BOLD. For lPE there is a positive relationship.
-
-(So the convolved PE regressor accounts for less of the learners' BOLD change for hPE?)
+We did not find any difference that survived whole-brain correction between learners and non-learners.   
+Schoenberg et al. (2007) groups their participants similarly based on task performance and does a group comparison in an ROI (VStr).  They find higher PE related activity for learners compared to non-learners ('engagement of RL signals').
+Inspired by this we compared PE related activity in several ROIs. We have two PE related regressors for high and low variance stimuli.  
+We do not find any region where PE related activity is higher for learners compared to non-learners.   
+Overall non-learners show larger increases and decreases compared to learners.  
+The group difference between learners and non-learners in this dataset lies in the difference in response to HPE vs LPE. Learners generally do not show change in activity in response to HPE but they do for LPE whereas non-learners activity changes similarly regardless of the PE type.  
+So we do find different response PE-related response profiles in these ROIs for the two learner groups but especially given that neither of these regressors showed any activity that survived whole brain correction to begin with these are difficult to interpret.
 
 ```{r}
 all_roi_pe_betas %>%
@@ -55,6 +54,10 @@ all_roi_pe_betas %>%
         panel.grid = element_blank())
 ```
 
+Increase of activity in response to M1 in all ROIs except vmPFC for both groups.
+Decrease of activity in response to M1 for both groups.
+Larger change for non-learners in all ROIs except vmPFC.
+
 ```{r}
 all_roi_m1_betas %>%
  filter(abs(value) < 10) %>%
@@ -76,12 +79,5 @@ all_roi_m1_betas %>%
         panel.grid = element_blank())
 ```
 
-```{r}
-tmp = all_roi_betas %>%
- filter(abs(value) < 10) %>%
-  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
-  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
-         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma")))
-```
 
 Brain - parameter correlations? (Remember the question of interest is: what is the best/a good marker of self-regulation)
