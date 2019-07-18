@@ -21,7 +21,8 @@ mutate(sub_id = as.numeric(as.character(gsub("sub-", "", sub_id))))
 ```
 
 ```{r}
-all_roi_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
+all_roi_pe_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
+all_roi_m1_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_m1_betas.csv')
 ```
 
 Learner groups' PE related activity in the vStr ROI's differ from each other.
@@ -34,7 +35,28 @@ For learners on the other hand the relationship differs depending on the PE type
 (So the convolved PE regressor accounts for less of the learners' BOLD change for hPE?)
 
 ```{r}
-all_roi_betas %>%
+all_roi_pe_betas %>%
+ filter(abs(value) < 10) %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
+         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma"))) %>%
+  group_by(learner, roi, regressor) %>%
+  summarise(mean_beta = mean(value),
+            sem_beta = sem(value)) %>%
+  # filter(roi %in% c("l_vstr","acc", "pre_sma")) %>%
+  ggplot(aes(roi, mean_beta, col=learner))+
+  geom_point(position=position_dodge(width = 0.9))+
+  geom_errorbar(aes(ymin=mean_beta-sem_beta, ymax=mean_beta+sem_beta), position = position_dodge(width=0.9), width=0.25)+
+    geom_hline(aes(yintercept=0), linetype="dashed")+
+  facet_grid(.~regressor)+
+  xlab("")+
+  ylab("Mean b")+
+  theme(legend.title = element_blank(),
+        panel.grid = element_blank())
+```
+
+```{r}
+all_roi_m1_betas %>%
  filter(abs(value) < 10) %>%
   left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
   mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
