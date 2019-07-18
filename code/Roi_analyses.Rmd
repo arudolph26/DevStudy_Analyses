@@ -25,6 +25,8 @@ all_roi_pe_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/
 all_roi_m1_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_m1_betas.csv')
 ```
 
+## PE-related activity
+
 We did not find any difference that survived whole-brain correction between learners and non-learners.   
 Schoenberg et al. (2007) groups their participants similarly based on task performance and does a group comparison in an ROI (VStr).  They find higher PE related activity for learners compared to non-learners ('engagement of RL signals').
 Inspired by this we compared PE related activity in several ROIs. We have two PE related regressors for high and low variance stimuli.  
@@ -54,6 +56,8 @@ all_roi_pe_betas %>%
         panel.grid = element_blank())
 ```
 
+## M1-related activity
+
 Increase of activity in response to M1 in all ROIs except vmPFC for both groups.
 Decrease of activity in response to M1 for both groups.
 Larger change for non-learners in all ROIs except vmPFC.
@@ -79,5 +83,55 @@ all_roi_m1_betas %>%
         panel.grid = element_blank())
 ```
 
+## Brain-behavior correlation
 
 Brain - parameter correlations? (Remember the question of interest is: what is the best/a good marker of self-regulation)
+
+```{r}
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/rl_fits_data.R')
+```
+
+Is average PE related activity in any of the ROIs associated with the any model parameters?
+
+```{r}
+ave_roi_pe_betas = all_roi_pe_betas %>%
+  filter(abs(value)<10)%>%
+  group_by(roi, sub_num) %>%
+  summarise(mean_b = mean(value))
+```
+
+Trying with one exp model first:
+
+```{r}
+ave_roi_pe_betas %>%
+  rename(sub_id = sub_num) %>% 
+  left_join(best_sub_pars %>%
+              filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_") %>%
+              select(sub_id, learner, contains("xopt")) %>%
+              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
+  gather(key, value, -learner, -roi, -sub_id, -mean_b) %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  ggplot(aes(value, mean_b, col=learner))+
+  geom_point()+
+  facet_grid(roi~key)+
+  geom_abline(slope=1, intercept=0, linetype="dashed")+
+  theme(panel.grid = element_blank(),
+        legend.title = element_blank())+
+  xlim(0,3)
+```
+
+```{r}
+ave_roi_pe_betas %>%
+  rename(sub_id = sub_num) %>% 
+  left_join(best_sub_pars %>%
+              select(sub_id, learner, model, contains("xopt")) %>%
+              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
+  gather(key, value, -roi, -sub_id, -learner, -model, -mean_b)%>%
+  group_by(model, roi, key) %>%
+  summarise(roi_cor = cor(mean_b, value)) %>%
+  mutate(t_val = (roi_cor*sqrt(72-2))/sqrt(1-roi_cor^2),
+         p_val = pt(t_val, 70)*2) %>%
+  drop_na()%>%
+  mutate(p_val_adj = p.adjust(p_val), method="fdr") %>%
+  arrange(-abs(roi_cor),p_val_adj)
+```
