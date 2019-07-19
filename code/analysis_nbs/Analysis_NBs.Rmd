@@ -1,0 +1,27 @@
+---
+title: 'Developmental differences in learning from losses'
+output:
+github_document:
+toc: yes
+toc_float: yes
+---
+
+A. Zeynep Enkavi^1^*, Sarah M. Helfinstein^2^, Jeanette A. Mumford^3^, Michelle E. Dunn^2^, Jacy R. Anthis^2^, James  L. Leake^4^, Kim Fromme^3^, and Russell A. Poldrack^1^
+
+^1^ Department of Psychology, Stanford University, ^2^Imaging Research Center, University of Texas at Austin; ^3^Department of Psychology, University of Texas at Austin, ^4^University of Texas Health Science Center at San Antonio
+
+*Correspondence at: zenkavi@stanford.edu*
+
+# Analysis notebooks
+
+## Behavioral analyses
+
+### [Machine Game Behavior](https://zenkavi.github.io/DevStudy_Analyses/output/reports/DevStudy_MG_Behavior.nb.html)
+#### [Comparison of RL models](https://zenkavi.github.io/DevStudy_Analyses/output/reports/Comp_RL.nb.html)
+### [Predictors of real-world risk](https://zenkavi.github.io/DevStudy_Analyses/output/reports/DevStudy_Other_Behavior.nb.html)
+
+## Neuroimaging analyses
+
+### Univariate analyses
+### [ROI analyses](https://zenkavi.github.io/DevStudy_Analyses/output/reports/Roi_analyses.nb.html)
+### Functional connectivity
