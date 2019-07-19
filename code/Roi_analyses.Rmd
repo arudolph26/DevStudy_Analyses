@@ -150,7 +150,9 @@ roi_par_cors
 
 - Looking only at exp_exp models since GLM's were fit on average PEs from these models  
 - The parameter that significantly correlates with brain data the most frequently is beta  
-- *Main point:* The behavioral measure does not match the neural summary measure in between subject variability. This results in spurious correlations driven by outliers that can be used to tell different narratives. (e.g. choosing the last column vs choosing the most complicated model)
+- *Main point:* The behavioral measure does not match the neural summary measure in between subject variability. This results in spurious correlations driven by outliers that can be used to tell different narratives. (e.g. choosing the last column vs choosing the most complicated model)  
+
+When looking for individual difference measures finding a "relationship" should not suffice. We should look for measures with comparable variance structures.
 
 ```{r warning=FALSE, message=FALSE}
 ave_roi_pe_betas %>%
