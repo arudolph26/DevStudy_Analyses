@@ -27,7 +27,7 @@ all_roi_m1_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/
 
 ## PE-related activity
 
-We did not find any difference that survived whole-brain correction between learners and non-learners.   
+We did not find any difference that survived whole-brain correction between learners and non-learners in response to RPE related activity.   
 Schoenberg et al. (2007) groups their participants similarly based on task performance and does a group comparison in an ROI (VStr).  They find higher PE related activity for learners compared to non-learners ('engagement of RL signals').
 Inspired by this we compared PE related activity in several ROIs. We have two PE related regressors for high and low variance stimuli.  
 We do not find any region where PE related activity is higher for learners compared to non-learners.   
@@ -98,26 +98,6 @@ ave_roi_pe_betas = all_roi_pe_betas %>%
   filter(abs(value)<10)%>%
   group_by(roi, sub_num) %>%
   summarise(mean_b = mean(value))
-```
-
-Trying with one exp model first:
-
-```{r}
-ave_roi_pe_betas %>%
-  rename(sub_id = sub_num) %>% 
-  left_join(best_sub_pars %>%
-              filter(model == "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_") %>%
-              select(sub_id, learner, contains("xopt")) %>%
-              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
-  gather(key, value, -learner, -roi, -sub_id, -mean_b) %>%
-  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
-  ggplot(aes(value, mean_b, col=learner))+
-  geom_point()+
-  facet_grid(roi~key)+
-  geom_abline(slope=1, intercept=0, linetype="dashed")+
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank())+
-  xlim(0,3)
 ```
 
 ```{r}

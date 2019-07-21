@@ -395,14 +395,15 @@ cor_df %>%
   #exp_exp, alpha-alpha, "exp_alpha"
   ggplot(aes(reorder(cor_btw,med_cor_val), cor_val, color=factor(cor_type)))+
   geom_boxplot()+
-  theme(axis.text.x = element_text(angle=90),
+  theme(#axis.text.x = element_text(angle=90),
+    axis.text.y = element_blank(),
         legend.title = element_blank(),
         panel.grid = element_blank())+
   ylab("Correlation between RPEs")+
   xlab("")+
   coord_flip()
 
-ggsave("PE_corrs.jpeg", device = "jpeg", path = fig_path, width = 7, height = 6, units = "in", dpi = 450)
+ggsave("PE_corrs.jpeg", device = "jpeg", path = fig_path, width = 3, height = 5, units = "in", dpi = 450)
 ```
 
 Predicted RPEs from models with exponents are more similar to each other compared to RPEs predicted by models without exponents. 
@@ -594,8 +595,32 @@ all_vstr_pe_betas %>%
   theme(panel.grid = element_blank(), 
         legend.title = element_blank())+
   xlab("Run")
+```
 
-ggsave("PE_betas_3_types.jpeg", device = "jpeg", path = fig_path, width = 8, height = 6, units = "in", dpi = 450)
+```{r warning=FALSE, message= FALSE}
+all_vstr_pe_betas %>%
+  filter(pe_type != 'pe') %>%
+ filter(abs(beta) < 10) %>%
+  group_by(roi, model, pe_type) %>%
+  summarise(mean_beta = mean(beta),
+            sem_beta = sem(beta)) %>%
+  left_join(num_pars_df %>% 
+              select(model, x_axis) %>%
+              mutate(model = gsub("LearningParams_", "", model)),
+            by = "model") %>%
+  mutate(x_axis = ifelse(model == "alpha_alpha", "\u03b1 + \u03b1", ifelse(model == "exp_exp", "\u03b3 + \u03b3", ifelse(model == "exp_alpha", "\u03b3 + \u03b1", x_axis))),
+         x_axis = factor(x_axis, levels=tmp_levels)) %>%
+  filter(model %in% c("exp_exp", "alpha_alpha", "exp_alpha")) %>%
+  ggplot(aes(x_axis, abs(mean_beta), color=pe_type))+
+  geom_point(position=position_dodge(width = 0.9))+
+  geom_errorbar(aes(ymin = abs(mean_beta) - sem_beta, ymax = abs(mean_beta) + sem_beta), position=position_dodge(width = 0.9), width=0.25)+
+  facet_grid(.~roi)+
+  theme(panel.grid = element_blank(), 
+        legend.title = element_blank())+
+  xlab("Model type")+
+  ylab("Mean absolute parameter estimate")
+
+ggsave("PE_betas_3_types.jpeg", device = "jpeg", path = fig_path, width = 3, height = 4, units = "in", dpi = 450)  
 ```
 
 RPEs from the averaging of exp_exp models have higher correlations with brain activity. Particularly for lpe's.
@@ -614,7 +639,7 @@ tmp=all_vstr_pe_betas %>%
 ```
 
 ```{r}
-summary(lmer(beta ~ pe_type*model+(1|sub_num), tmp))
+summary(lmer(abs(beta) ~ pe_type*model+(1|sub_num), tmp))
 ```
 
 ### Learner differences in brain correlations
@@ -729,4 +754,4 @@ all_vstr_pe_betas %>%
 - This relationship shows more fluctuation across the task (though these fluctuations are difficult to describe and interpret)  
 - They discriminate between learners and non-learners better.  
 
-In terms of clarifying the confusing picture in the literature using exp models has pros and cons. Since they haven't been used in this line of reseach before the models are not directly comparable. But they take into account a wealth of other literature on value processing and with a single parameter extend RL models to account for known differences in value distortion particularly with respect to the domain (gain vs loss). It also provides an answer for the behavioral difference between the learner groups in this new parameter which could provide a partial reason for why the previous results were not compatible with each other. 
+In terms of clarifying the confusing picture in the literature using exp models has pros and cons. Since they haven't been used in this line of research before the models are not directly comparable. But they take into account a wealth of other literature on value processing and with a single parameter extend RL models to account for known differences in value distortion particularly with respect to the domain (gain vs loss). It also provides an answer for the behavioral difference between the learner groups in this new parameter which could provide a partial reason for why the previous results were not compatible with each other. 
