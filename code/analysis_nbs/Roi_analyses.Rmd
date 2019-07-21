@@ -159,3 +159,58 @@ ave_roi_pe_betas %>%
   ylab("Mean b from ROI")+
   guides(color=guide_legend(ncol=2))
 ```
+
+## Functional connectivity
+
+```{r}
+all_cors = read.csv(paste0(input_path, 'func_cor/all_l_vstr_cors.csv'))
+```
+
+```{r}
+all_cors %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  # group_by(learner, roi) %>%
+  group_by(sub_num,learner, roi) %>%
+  summarise(mean_cor = mean(cor),
+            sem_cor = sem(cor)) %>%
+  ggplot(aes(roi, mean_cor, fill=learner))+
+  geom_boxplot()+
+  # geom_bar(stat="identity", position = position_dodge(width = 0.9))+
+  # geom_errorbar(aes(ymin= mean_cor-sem_cor, ymax=mean_cor+sem_cor), position = position_dodge(width = 0.9), width=0.25)+
+  theme(legend.title = element_blank(),
+        panel.grid = element_blank())+
+  xlab("")+
+  ylab("Mean Correlation with L-vStr seed")
+  
+```
+
+None of the interactions is significant.
+
+```{r}
+tmp = all_cors %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  group_by(sub_num, learner, roi) %>%
+  summarise(mean_cor = mean(cor))
+
+summary(lm(mean_cor ~ roi*learner, tmp))
+```
+
+Is the change in connectivity different between the learner groups?
+
+```{r}
+all_cors %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  group_by(sub_num,learner, roi, run_num) %>%
+  summarise(mean_cor = mean(cor)) %>%
+  spread(run_num, mean_cor) %>%
+  mutate(ch_1_to_6 = `1`-`6`) %>%
+  ggplot(aes(roi, ch_1_to_6, fill=learner))+
+  geom_boxplot()+
+  theme(legend.title = element_blank(),
+        panel.grid = element_blank())+
+  xlab("")+
+  ylab("Change in Mean Correlation \nwith L-vStr seed")
+```
