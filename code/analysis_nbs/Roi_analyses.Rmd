@@ -249,17 +249,35 @@ tmp$col_cor = NA
 #     }
 #   }
 # }
-  
+```  
 
+```{r}
 tmp %>%
-
-  ggplot(aes(...., mean_cor))+
+  filter(roi %in% c("l_ains", "pcc", "r_ains", "r_vstr", "vmpfc")) %>%
+  filter(key == "xopt_alpha_neg")%>%
+  filter(model %in% c("Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_","Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_") == FALSE) %>%
+  ggplot(aes(value, mean_cor))+
   geom_point(aes(col=learner), alpha=0.5)+
-  geom_smooth(method="lm", aes(col=learner, linetype=col_col), se=FALSE)+
+  geom_smooth(method="lm", aes(col=learner, linetype=col_cor), se=FALSE)+
   facet_grid(roi~x_axis, labeller = label_wrap_gen(10))+
    theme(panel.grid = element_blank(),
         legend.title = element_blank())+
-  xlab("Inverse temperature (\u03b2)")+
   ylab("Mean FC with l-Vstr seed")+
-  guides(color=guide_legend(ncol=2))
+  xlab("\u03b1_loss")
+```
+
+The story that the brain behavior correlation tells you is about different cognitive processes than those that relate to behavior.
+
+```{r}
+tmp %>%
+  filter(roi %in% c("l_ains", "pcc", "r_ains", "r_vstr", "vmpfc")) %>%
+  filter(key %in%  c("xopt_alpha_neg","xopt_alpha_pos","xopt_beta", "xopt_exp"))%>%
+  filter(model %in% c("Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_")) %>%
+  ggplot(aes(value, mean_cor))+
+  geom_point(aes(col=learner), alpha=0.5)+
+  geom_smooth(method="lm", aes(col=learner, linetype=col_cor), se=FALSE)+
+  facet_grid(roi~key, labeller = label_wrap_gen(10))+
+   theme(panel.grid = element_blank(),
+        legend.title = element_blank())+
+  ylab("Mean FC with l-Vstr seed")
 ```
