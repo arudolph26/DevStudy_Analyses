@@ -13,16 +13,17 @@ from_gh=FALSE
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/ggplot_colors.R')
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/sem.R')
 library(lme4)
+library(broom)
 learner_info = read.csv("~/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_3/learner_info.csv")
 learner_info = learner_info %>%
-select(-non_learner) %>%
-rename(sub_id = Sub_id) %>%
-mutate(sub_id = as.numeric(as.character(gsub("sub-", "", sub_id))))
+  select(-non_learner) %>%
+  rename(sub_id = Sub_id) %>%
+  mutate(sub_id = as.numeric(as.character(gsub("sub-", "", sub_id))))
+
 ```
 
 ```{r}
 all_roi_pe_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
-all_roi_m1_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_m1_betas.csv')
 ```
 
 ## PE-related activity
@@ -56,33 +57,6 @@ all_roi_pe_betas %>%
         panel.grid = element_blank())
 
 ggsave("PE_Str_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 3, units = "in", dpi = 450)  
-```
-
-## M1-related activity
-
-Increase of activity in response to M1 in all ROIs except vmPFC for both groups.
-Decrease of activity in response to M1 for both groups.
-Larger change for non-learners in all ROIs except vmPFC.
-
-```{r}
-all_roi_m1_betas %>%
- filter(abs(value) < 10) %>%
-  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
-  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
-         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma"))) %>%
-  group_by(learner, roi, regressor) %>%
-  summarise(mean_beta = mean(value),
-            sem_beta = sem(value)) %>%
-  # filter(roi %in% c("l_vstr","acc", "pre_sma")) %>%
-  ggplot(aes(roi, mean_beta, col=learner))+
-  geom_point(position=position_dodge(width = 0.9))+
-  geom_errorbar(aes(ymin=mean_beta-sem_beta, ymax=mean_beta+sem_beta), position = position_dodge(width=0.9), width=0.25)+
-    geom_hline(aes(yintercept=0), linetype="dashed")+
-  facet_grid(.~regressor)+
-  xlab("")+
-  ylab("Mean b")+
-  theme(legend.title = element_blank(),
-        panel.grid = element_blank())
 ```
 
 ## Brain-behavior correlation
@@ -125,9 +99,10 @@ roi_par_cors = ave_roi_pe_betas %>%
   drop_na()%>%
   mutate(p_val_adj = p.adjust(p_val), method="fdr") %>%
   filter(p_val_adj<0.05) %>%
-  arrange(-abs(roi_cor))
+  arrange(-abs(roi_cor)) 
 
-roi_par_cors
+roi_par_cors %>%
+  filter(roi %in% c("l_vstr", "r_vstr", "r_dstr"))
 ```
 
 - Looking only at exp_exp models since GLM's were fit on average PEs from these models  
@@ -144,28 +119,33 @@ ave_roi_pe_betas %>%
               select(sub_id, learner, xopt_beta, model), by="sub_id") %>%
   mutate(learner = ifelse(learner == 1, "Learner", "Non-learner"),
          col_col = ifelse(paste0(roi,model) %in% paste0(roi_par_cors$roi, roi_par_cors$model), "Sig.", "Not Sig.")) %>%
-  filter(roi %in% c("pcc", "acc", "l_vstr", "r_ains") &
-         xopt_beta <3) %>%
+  filter(xopt_beta <3) %>%
   left_join(num_pars_df %>%
               mutate(model = gsub("LearningParams_", "", model)) %>%
               filter(model %in% exp_exp_models) %>%
               select(model, x_axis), by = "model") %>%
-  ggplot(aes(scale(xopt_beta), scale(mean_b)))+
+  filter(roi %in% c("l_vstr", "r_vstr", "r_dstr")) %>%
+  # ggplot(aes(scale(xopt_beta), scale(mean_b)))+
+  ggplot(aes(xopt_beta, mean_b))+
   geom_point(aes(col=learner))+
   geom_smooth(method="lm", alpha=0.5, aes(col=col_col))+
   facet_grid(roi~x_axis, labeller = label_wrap_gen(10))+
    theme(panel.grid = element_blank(),
         legend.title = element_blank())+
   scale_color_manual(values=c(cbbPalette[1], cbbPalette[2],"black","red"))+
-  xlab("\u03b2")+
+  xlab("Inverse temperature (\u03b2)")+
   ylab("Mean b from ROI")+
   guides(color=guide_legend(ncol=2))
+
+ggsave("Brain-behavior_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 4, units = "in", dpi = 450)  
 ```
 
 ## Functional connectivity
 
 ```{r}
+input_path = "~/Dropbox/PoldrackLab/DevStudy_Analyses/input/"
 all_cors = read.csv(paste0(input_path, 'func_cor/all_l_vstr_cors.csv'))
+all_cors
 ```
 
 ```{r}
@@ -184,7 +164,8 @@ all_cors %>%
         panel.grid = element_blank())+
   xlab("")+
   ylab("Mean Correlation with L-vStr seed")
-  
+
+ggsave("FC_lvstr_mean.jpeg", device = "jpeg", path = fig_path, width = 5, height = 4, units = "in", dpi = 450)    
 ```
 
 None of the interactions is significant.
@@ -215,4 +196,70 @@ all_cors %>%
         panel.grid = element_blank())+
   xlab("")+
   ylab("Change in Mean Correlation \nwith L-vStr seed")
+```
+
+Connectivity data seems to vary more between participants. Is it suitable to be related to behavioral parameter estimates?
+
+```{r}
+fc_par_cors = all_cors %>%
+  group_by(sub_num, roi)%>%
+  summarise(mean_cor= mean(cor)) %>%
+  rename(sub_id = sub_num) %>% 
+  left_join(best_sub_pars %>%
+              filter(model %in% exp_exp_models)%>%
+              select(sub_id, learner, model, contains("xopt")) %>%
+              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
+  filter(xopt_beta<3) %>%
+  gather(key, value, -roi, -sub_id, -learner, -model, -mean_cor)%>%
+  group_by(model, roi, key) %>%
+  drop_na()%>%
+  do(tidy(lm(mean_cor ~ value*learner, data = .))) %>%
+  filter(term != "(Intercept)") %>%
+  filter(p.value<0.05) 
+
+fc_par_cors
+
+```
+
+```{r warning=FALSE, message=FALSE}
+tmp = all_cors %>%
+  group_by(sub_num, roi)%>%
+  summarise(mean_cor= mean(cor)) %>%
+  rename(sub_id = sub_num)%>% 
+  left_join(best_sub_pars %>%
+              filter(model %in% names(table(fc_par_cors$model))) %>%
+              select(sub_id, learner, contains("xopt"), model), by="sub_id") %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  filter(xopt_beta <3) %>%
+  left_join(num_pars_df %>%
+              mutate(model = gsub("LearningParams_", "", model)) %>%
+              filter(model %in% exp_exp_models) %>%
+              select(model, x_axis), by = "model") %>%
+  gather(key, value, -sub_id, -roi, -mean_cor, -learner,-model, -x_axis)
+
+tmp$col_cor = NA
+
+#this works but takes a while
+# for(i in 1:nrow(tmp)){
+#   a = with(tmp[i,], paste0(roi,model,key))
+#   for(j in 1:nrow(fc_par_cors)){
+#     b = with(fc_par_cors[j,], paste0(roi,model,key))
+#     if(a == b){
+#       tmp$col_cor[i] = fc_par_cors$term[j]
+#     }
+#   }
+# }
+  
+
+tmp %>%
+
+  ggplot(aes(...., mean_cor))+
+  geom_point(aes(col=learner), alpha=0.5)+
+  geom_smooth(method="lm", aes(col=learner, linetype=col_col), se=FALSE)+
+  facet_grid(roi~x_axis, labeller = label_wrap_gen(10))+
+   theme(panel.grid = element_blank(),
+        legend.title = element_blank())+
+  xlab("Inverse temperature (\u03b2)")+
+  ylab("Mean FC with l-Vstr seed")+
+  guides(color=guide_legend(ncol=2))
 ```
