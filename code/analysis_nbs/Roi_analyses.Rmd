@@ -27,24 +27,24 @@ all_roi_m1_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/
 
 ## PE-related activity
 
-We did not find any difference that survived whole-brain correction between learners and non-learners in response to RPE related activity.   
-Schoenberg et al. (2007) groups their participants similarly based on task performance and does a group comparison in an ROI (VStr).  They find higher PE related activity for learners compared to non-learners ('engagement of RL signals').
-Inspired by this we compared PE related activity in several ROIs. We have two PE related regressors for high and low variance stimuli.  
+- We did not find any difference that survived whole-brain correction between learners and non-learners in response to RPE related activity.   
+- Schoenberg et al. (2007) groups their participants similarly based on task performance and does a group comparison in an ROI (VStr).  They find higher PE related activity for learners compared to non-learners ('engagement of RL signals').  
+- Inspired by this we compared PE related activity in several ROIs. We have two PE related regressors for high and low variance stimuli.  
 We do not find any region where PE related activity is higher for learners compared to non-learners.   
-Overall non-learners show larger increases and decreases compared to learners.  
-The group difference between learners and non-learners in this dataset lies in the difference in response to HPE vs LPE. Learners generally do not show change in activity in response to HPE but they do for LPE whereas non-learners activity changes similarly regardless of the PE type.  
-So we do find different response PE-related response profiles in these ROIs for the two learner groups but especially given that neither of these regressors showed any activity that survived whole brain correction to begin with these are difficult to interpret.
+- Overall non-learners show larger increases and decreases compared to learners.  
+- The group difference between learners and non-learners in this dataset lies in the difference in response to HPE vs LPE. Learners generally do not show change in activity in response to HPE but they do for LPE whereas non-learners activity changes similarly regardless of the PE type.  
+- So we do find different response PE-related response profiles in these ROIs for the two learner groups but especially given that neither of these regressors showed any activity that survived whole brain correction to begin with these are difficult to interpret.
 
 ```{r}
 all_roi_pe_betas %>%
  filter(abs(value) < 10) %>%
   left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
   mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
-         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma"))) %>%
+         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
   group_by(learner, roi, regressor) %>%
   summarise(mean_beta = mean(value),
             sem_beta = sem(value)) %>%
-  # filter(roi %in% c("l_vstr","acc", "pre_sma")) %>%
+  filter(roi %in% c("l_vstr", "r_vstr", "r_dstr")) %>%
   ggplot(aes(roi, mean_beta, col=learner))+
   geom_point(position=position_dodge(width = 0.9))+
   geom_errorbar(aes(ymin=mean_beta-sem_beta, ymax=mean_beta+sem_beta), position = position_dodge(width=0.9), width=0.25)+
@@ -54,6 +54,8 @@ all_roi_pe_betas %>%
   ylab("Mean b")+
   theme(legend.title = element_blank(),
         panel.grid = element_blank())
+
+ggsave("PE_Str_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 3, units = "in", dpi = 450)  
 ```
 
 ## M1-related activity
