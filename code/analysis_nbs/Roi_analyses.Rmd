@@ -23,7 +23,8 @@ learner_info = learner_info %>%
 ```
 
 ```{r}
-all_roi_pe_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
+all_roi_pe_zvals = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_zvals.csv')
+all_roi_pe_zvals
 ```
 
 ## PE-related activity
@@ -36,27 +37,54 @@ We do not find any region where PE related activity is higher for learners compa
 - The group difference between learners and non-learners in this dataset lies in the difference in response to HPE vs LPE. Learners generally do not show change in activity in response to HPE but they do for LPE whereas non-learners activity changes similarly regardless of the PE type.  
 - So we do find different response PE-related response profiles in these ROIs for the two learner groups but especially given that neither of these regressors showed any activity that survived whole brain correction to begin with these are difficult to interpret.
 
+Looking at the full distribution
+
 ```{r}
-all_roi_pe_betas %>%
- filter(abs(value) < 10) %>%
+all_roi_pe_zvals %>%
   left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
   mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
          roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
-  group_by(learner, roi, regressor) %>%
-  summarise(mean_beta = mean(value),
-            sem_beta = sem(value)) %>%
-  filter(roi %in% c("l_vstr", "r_vstr", "r_dstr")) %>%
-  ggplot(aes(roi, mean_beta, col=learner))+
-  geom_point(position=position_dodge(width = 0.9))+
-  geom_errorbar(aes(ymin=mean_beta-sem_beta, ymax=mean_beta+sem_beta), position = position_dodge(width=0.9), width=0.25)+
-    geom_hline(aes(yintercept=0), linetype="dashed")+
+  group_by(sub_num, learner, roi, regressor) %>%
+  summarise(max_zval = max(value),
+            min_zval = min(value)) %>%
+  mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
+  filter(roi %in% c("vmpfc", "l_ains", "pcc", "pre_sma")== FALSE) %>%
+  ggplot(aes(roi, max_zval, col=learner))+
+  geom_hline(aes(yintercept=0),linetype="dashed")+
   facet_grid(.~regressor)+
   xlab("")+
-  ylab("Mean b")+
+  ylab("Peak Z")+
+  theme(legend.title = element_blank(),
+        panel.grid = element_blank())
+```
+
+Versus looking at the summary
+
+```{r}
+all_roi_pe_zvals %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
+         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
+  group_by(sub_num, learner, roi, regressor) %>%
+  summarise(max_zval = max(value),
+            min_zval = min(value)) %>%
+  mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
+  ungroup()%>%
+  group_by(learner, roi, regressor) %>%
+  summarise(mean_zval = mean(max_zval),
+            sem_zval = sem(max_zval)) %>%
+  filter(roi %in% c("vmpfc", "l_ains", "pcc", "pre_sma")== FALSE) %>%
+  ggplot(aes(roi, mean_zval, col=learner))+
+  geom_point(position=position_dodge(width = 0.9))+
+  geom_errorbar(aes(ymin=mean_zval-sem_zval, ymax=mean_zval+sem_zval), position = position_dodge(width=0.9), width=0.25)+
+  geom_hline(aes(yintercept=0),linetype="dashed")+
+  facet_grid(.~regressor)+
+  xlab("")+
+  ylab("Mean peak Z")+
   theme(legend.title = element_blank(),
         panel.grid = element_blank())
 
-ggsave("PE_Str_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 3, units = "in", dpi = 450)  
+ggsave("PE_Str_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 3, units = "in", dpi = 450)
 ```
 
 ## Brain-behavior correlation
@@ -70,21 +98,21 @@ source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace
 Is average PE related activity in any of the ROIs associated with the any model parameters?
 
 ```{r}
-ave_roi_pe_betas = all_roi_pe_betas %>%
-  filter(abs(value)<10)%>%
+ave_roi_pe_zvals = all_roi_pe_zvals %>%
+  # filter(abs(value)<10)%>%
   group_by(roi, sub_num) %>%
-  summarise(mean_b = mean(value))
+  summarise(mean_z = mean(value))
 ```
 
 ```{r}
 exp_exp_models = c("Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_",
-              "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_",
-              "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_", 
-              "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos-lossave_Fix_",
-              "Fit_alpha_neg-alpha_pos-beta-exp-lossave_Fix_", 
-              "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_")
+                   "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_",
+                   "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_", 
+                   "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos-lossave_Fix_",
+                   "Fit_alpha_neg-alpha_pos-beta-exp-lossave_Fix_", 
+                   "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_")
 
-roi_par_cors = ave_roi_pe_betas %>%
+roi_par_cors = ave_roi_pe_zvals %>%
   rename(sub_id = sub_num) %>% 
   left_join(best_sub_pars %>%
               filter(model %in% exp_exp_models)%>%
@@ -98,11 +126,28 @@ roi_par_cors = ave_roi_pe_betas %>%
          p_val = 1-pt(t_val, 70)) %>%
   drop_na()%>%
   mutate(p_val_adj = p.adjust(p_val), method="fdr") %>%
-  filter(p_val_adj<0.05) %>%
+  # filter(p_val_adj<0.05) %>%
   arrange(-abs(roi_cor)) 
 
-roi_par_cors %>%
-  filter(roi %in% c("l_vstr", "r_vstr", "r_dstr"))
+roi_par_cors
+
+fc_par_cors = all_cors %>%
+  group_by(sub_num, roi)%>%
+  summarise(mean_cor= mean(cor)) %>%
+  rename(sub_id = sub_num) %>% 
+  left_join(best_sub_pars %>%
+              filter(model %in% exp_exp_models)%>%
+              select(sub_id, learner, model, contains("xopt")) %>%
+              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
+  filter(xopt_beta<3) %>%
+  gather(key, value, -roi, -sub_id, -learner, -model, -mean_cor)%>%
+  group_by(model, roi, key) %>%
+  drop_na()%>%
+  do(tidy(lm(mean_cor ~ value*learner, data = .))) %>%
+  filter(term != "(Intercept)") %>%
+  filter(p.value<0.05) 
+
+fc_par_cors
 ```
 
 - Looking only at exp_exp models since GLM's were fit on average PEs from these models  
@@ -112,7 +157,7 @@ roi_par_cors %>%
 When looking for individual difference measures finding a "relationship" should not suffice. We should look for measures with comparable variance structures.
 
 ```{r warning=FALSE, message=FALSE}
-ave_roi_pe_betas %>%
+ave_roi_pe_zvals %>%
   rename(sub_id = sub_num) %>% 
   left_join(best_sub_pars %>%
               filter(model %in% names(table(roi_par_cors$model[roi_par_cors$key == "xopt_beta"]))) %>%
@@ -130,7 +175,7 @@ ave_roi_pe_betas %>%
   geom_point(aes(col=learner))+
   geom_smooth(method="lm", alpha=0.5, aes(col=col_col))+
   facet_grid(roi~x_axis, labeller = label_wrap_gen(10))+
-   theme(panel.grid = element_blank(),
+  theme(panel.grid = element_blank(),
         legend.title = element_blank())+
   scale_color_manual(values=c(cbbPalette[1], cbbPalette[2],"black","red"))+
   xlab("Inverse temperature (\u03b2)")+
@@ -141,6 +186,21 @@ ggsave("Brain-behavior_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, 
 ```
 
 ## Functional connectivity
+
+Data from different ROIs can be analyzed with respect to each other instead of in isolation as well.  
+
+In this case, for example, we examined whether the time series in an apriori l_vstr seed was similar to any other voxels time series.  
+**(SHOULD THIS BE ONE TIME STEP AHEAD?)**
+
+Prior literature has examples suggesting that such connectivity patterns might differ depending on performance (van den Bos, et al.).  
+
+If so, we could expect differentces between the learner and non-learner groups.  
+
+We do not find any voxels where the time series correlates significantly/above 0 on average for all subjects *This doesn't sound right when looking at the boxplots of correlations. Except for pre-sma the average correlations between an ROI and l-vstr seed are always >0*
+**(CORRELATION BETWEEN TIME SERIES; WHAT WOULD BE THEIR T/Z/P-VALUES? You know the number of time points and can calculate t values based on that)**
+
+This is the same for both learner groups as well. **(DON'T THINK I CHECKED FOR THIS STATISTICALLY. EXTRACT AVERAGE CORRELATION VALUES FOR LEARNERS AND NON-LEARNERS FROM WHOLE BRAIN AND COMPARE TO EACH OTHER?)**
+
 
 ```{r}
 input_path = "~/Dropbox/PoldrackLab/DevStudy_Analyses/input/"
@@ -260,7 +320,7 @@ tmp %>%
   geom_point(aes(col=learner), alpha=0.5)+
   geom_smooth(method="lm", aes(col=learner, linetype=col_cor), se=FALSE)+
   facet_grid(roi~x_axis, labeller = label_wrap_gen(10))+
-   theme(panel.grid = element_blank(),
+  theme(panel.grid = element_blank(),
         legend.title = element_blank())+
   ylab("Mean FC with l-Vstr seed")+
   xlab("\u03b1_loss")
@@ -277,7 +337,7 @@ tmp %>%
   geom_point(aes(col=learner), alpha=0.5)+
   geom_smooth(method="lm", aes(col=learner, linetype=col_cor), se=FALSE)+
   facet_grid(roi~key, labeller = label_wrap_gen(10))+
-   theme(panel.grid = element_blank(),
+  theme(panel.grid = element_blank(),
         legend.title = element_blank())+
   ylab("Mean FC with l-Vstr seed")
 ```
