@@ -98,91 +98,137 @@ source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace
 Is average PE related activity in any of the ROIs associated with the any model parameters?
 
 ```{r}
-ave_roi_pe_zvals = all_roi_pe_zvals %>%
-  # filter(abs(value)<10)%>%
-  group_by(roi, sub_num) %>%
-  summarise(mean_z = mean(value))
-```
-
-```{r}
 exp_exp_models = c("Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_",
                    "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_",
                    "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_", 
                    "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos-lossave_Fix_",
                    "Fit_alpha_neg-alpha_pos-beta-exp-lossave_Fix_", 
                    "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_")
-
-roi_par_cors = ave_roi_pe_zvals %>%
-  rename(sub_id = sub_num) %>% 
-  left_join(best_sub_pars %>%
-              filter(model %in% exp_exp_models)%>%
-              select(sub_id, learner, model, contains("xopt")) %>%
-              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
-  filter(xopt_beta<3) %>%
-  gather(key, value, -roi, -sub_id, -learner, -model, -mean_b)%>%
-  group_by(model, roi, key) %>%
-  summarise(roi_cor = cor(mean_b, value)) %>%
-  mutate(t_val = (roi_cor*sqrt(72-2))/sqrt(1-roi_cor^2),
-         p_val = 1-pt(t_val, 70)) %>%
-  drop_na()%>%
-  mutate(p_val_adj = p.adjust(p_val), method="fdr") %>%
-  # filter(p_val_adj<0.05) %>%
-  arrange(-abs(roi_cor)) 
-
-roi_par_cors
-
-fc_par_cors = all_cors %>%
-  group_by(sub_num, roi)%>%
-  summarise(mean_cor= mean(cor)) %>%
-  rename(sub_id = sub_num) %>% 
-  left_join(best_sub_pars %>%
-              filter(model %in% exp_exp_models)%>%
-              select(sub_id, learner, model, contains("xopt")) %>%
-              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
-  filter(xopt_beta<3) %>%
-  gather(key, value, -roi, -sub_id, -learner, -model, -mean_cor)%>%
-  group_by(model, roi, key) %>%
-  drop_na()%>%
-  do(tidy(lm(mean_cor ~ value*learner, data = .))) %>%
-  filter(term != "(Intercept)") %>%
-  filter(p.value<0.05) 
-
-fc_par_cors
 ```
 
-- Looking only at exp_exp models since GLM's were fit on average PEs from these models  
-- The parameter that significantly correlates with brain data the most frequently is beta  
-- *Main point:* The behavioral measure does not match the neural summary measure in between subject variability. This results in spurious correlations driven by outliers that can be used to tell different narratives. (e.g. choosing the last column vs choosing the most complicated model)  
+This does 696 comparisons 
+9 rois
 
-When looking for individual difference measures finding a "relationship" should not suffice. We should look for measures with comparable variance structures.
 
-```{r warning=FALSE, message=FALSE}
-ave_roi_pe_zvals %>%
+```{r}
+roi_par_cors = all_roi_pe_zvals %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
+         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
+  group_by(sub_num, learner, roi, regressor) %>%
+  summarise(max_zval = max(value),
+            min_zval = min(value)) %>%
+  mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
+  select(-min_zval)%>%
+  ungroup() %>%
   rename(sub_id = sub_num) %>% 
   left_join(best_sub_pars %>%
-              filter(model %in% names(table(roi_par_cors$model[roi_par_cors$key == "xopt_beta"]))) %>%
-              select(sub_id, learner, xopt_beta, model), by="sub_id") %>%
-  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner"),
-         col_col = ifelse(paste0(roi,model) %in% paste0(roi_par_cors$roi, roi_par_cors$model), "Sig.", "Not Sig.")) %>%
-  filter(xopt_beta <3) %>%
+              filter(model %in% exp_exp_models)%>%
+              select(sub_id, model, contains("xopt")) %>%
+              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
+  gather(par, estimate, -sub_id, -learner, -roi, -regressor, -max_zval, -model) %>%
+  group_by(model, roi, par, regressor) %>%
+  drop_na()%>%
+  do(tidy(lm(scale(max_zval) ~ scale(estimate)*learner, .))) 
+```
+
+```{r}
+roi_par_cors %>% 
+  filter(term != "(Intercept)") %>%
+  mutate(adj_p.value = p.adjust(p.value)) %>%
+  filter(adj_p.value<0.05)
+```
+
+```{r}
+col_col_df = 
+  roi_par_cors %>% 
+  filter(term != "(Intercept)") %>%
+  mutate(adj_p.value = p.adjust(p.value)) %>%
+  filter(adj_p.value<0.05) %>%
+  mutate(col_col = paste(roi, par, regressor, model, sep="-")) %>%
+  ungroup()%>%
+  select(col_col, roi, par, regressor, model)
+# table(col_col_df$roi)
+# table(col_col_df$par)
+# table(col_col_df$regressor)
+# table(col_col_df$model)
+
+#focusing on l_vstr, pcc, pre_sma
+col_col_df = col_col_df %>%
+  filter(roi %in% c("l_vstr", "pcc", "pre_sma")) %>%
+  filter(regressor == "hpe")
+table(col_col_df$par)
+table(col_col_df$model)
+```
+
+If I take the peak per ROI per subject:
+
+```{r warning=FALSE, message=FALSE}
+all_roi_pe_zvals %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
+         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
+  group_by(sub_num, learner, roi, regressor) %>%
+  summarise(max_zval = max(value),
+            min_zval = min(value)) %>%
+  mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
+  select(-min_zval)%>%
+  ungroup() %>%
+  rename(sub_id = sub_num) %>% 
+  left_join(best_sub_pars %>%
+              filter(model %in% exp_exp_models)%>%
+              select(sub_id, model, contains("xopt")) %>%
+              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
+  gather(par, estimate, -sub_id, -learner, -roi, -regressor, -max_zval, -model) %>%
+  mutate(col_col = paste(roi, par, regressor, model, sep="-")) %>%
   left_join(num_pars_df %>%
               mutate(model = gsub("LearningParams_", "", model)) %>%
-              filter(model %in% exp_exp_models) %>%
-              select(model, x_axis), by = "model") %>%
-  filter(roi %in% c("l_vstr", "r_vstr", "r_dstr")) %>%
-  # ggplot(aes(scale(xopt_beta), scale(mean_b)))+
-  ggplot(aes(xopt_beta, mean_b))+
-  geom_point(aes(col=learner))+
-  geom_smooth(method="lm", alpha=0.5, aes(col=col_col))+
-  facet_grid(roi~x_axis, labeller = label_wrap_gen(10))+
-  theme(panel.grid = element_blank(),
-        legend.title = element_blank())+
-  scale_color_manual(values=c(cbbPalette[1], cbbPalette[2],"black","red"))+
-  xlab("Inverse temperature (\u03b2)")+
-  ylab("Mean b from ROI")+
-  guides(color=guide_legend(ncol=2))
+              select(model, x_axis), by="model")%>%
+  filter(col_col %in% col_col_df$col_col) %>%
+  filter(roi == "l_vstr") %>%
+  ggplot(aes(estimate, max_zval, col=learner))+
+  geom_point() +
+  facet_grid(par~x_axis)+
+  theme(panel.grid = element_blank())+
+  xlab("Behavior")+
+  ylab("Brain")+
+  xlim(c(0,1))
 
-ggsave("Brain-behavior_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 4, units = "in", dpi = 450)  
+#ggsave("Brain-behavior_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 4, units = "in", dpi = 450)  
+```
+
+If I take the mean
+
+```{r warning=FALSE, message=FALSE}
+all_roi_pe_zvals %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
+         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
+  group_by(sub_num, learner, roi, regressor) %>%
+  summarise(max_zval = mean(value),
+            min_zval = min(value)) %>%
+  #mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
+  select(-min_zval)%>%
+  ungroup() %>%
+  rename(sub_id = sub_num) %>% 
+  left_join(best_sub_pars %>%
+              filter(model %in% exp_exp_models)%>%
+              select(sub_id, model, contains("xopt")) %>%
+              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
+  gather(par, estimate, -sub_id, -learner, -roi, -regressor, -max_zval, -model) %>%
+  mutate(col_col = paste(roi, par, regressor, model, sep="-")) %>%
+  left_join(num_pars_df %>%
+              mutate(model = gsub("LearningParams_", "", model)) %>%
+              select(model, x_axis), by="model")%>%
+  # filter(col_col %in% col_col_df$col_col) %>%
+  filter(roi == "l_vstr" & regressor == "hpe") %>%
+  ggplot(aes(estimate, max_zval, col=learner))+
+  geom_point(alpha=0.5) +
+  geom_smooth(method="lm", se=FALSE)+
+  facet_grid(x_axis~par, scales="free")+
+  theme(panel.grid = element_blank())+
+  xlab("Behavior")+
+  ylab("Brain")
 ```
 
 ## Functional connectivity
