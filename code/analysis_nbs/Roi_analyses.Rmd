@@ -24,7 +24,6 @@ learner_info = learner_info %>%
 
 ```{r}
 all_roi_pe_zvals = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_zvals.csv')
-all_roi_pe_zvals
 ```
 
 ## PE-related activity
@@ -50,6 +49,7 @@ all_roi_pe_zvals %>%
   mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
   filter(roi %in% c("vmpfc", "l_ains", "pcc", "pre_sma")== FALSE) %>%
   ggplot(aes(roi, max_zval, col=learner))+
+  geom_boxplot()+
   geom_hline(aes(yintercept=0),linetype="dashed")+
   facet_grid(.~regressor)+
   xlab("")+

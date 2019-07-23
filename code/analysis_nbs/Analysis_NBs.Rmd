@@ -22,6 +22,6 @@ A. Zeynep Enkavi^1^*, Sarah M. Helfinstein^2^, Jeanette A. Mumford^3^, Michelle 
 
 ## Neuroimaging analyses
 
-### Univariate analyses
+### [Univariate analyses](https://github.com/zenkavi/DevStudy_fmri-nbs/blob/master/notebooks/l3_sandbox.ipynb)
 ### [ROI analyses](https://zenkavi.github.io/DevStudy_Analyses/output/reports/Roi_analyses.nb.html)
-### Functional connectivity
+### [Functional connectivity](https://zenkavi.github.io/DevStudy_Analyses/output/reports/Roi_analyses.nb.html#functional_connectivity)
