@@ -23,7 +23,124 @@ learner_info = learner_info %>%
 ```
 
 ```{r}
-all_roi_pe_zvals = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_zvals.csv')
+all_roi_pe_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
+all_roi_pe_betas = all_roi_pe_betas %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  filter(abs(value)<10)
+
+#for the l-vstr ROI there are
+#81 voxels
+#i can look at peak value
+#or mean value
+#the former might inflate an outlier
+#the latter might wash out an effect
+#so what if I look at each voxel separately?
+#for each subject we have the HPE related form 81 voxels for each run
+#does the distribution of "value" in each of the 81 voxels 
+#value ~ run_num*learner, data= 1 per subject b for a given voxel
+hpe_lvstr_regs = all_roi_pe_betas %>% 
+  filter(regressor == "hpe" & roi == "l_vstr") %>%
+  select(-regressor, -roi, -value_type, -X) %>%
+  group_by(sub_num, run_num) %>%
+  mutate(vox_num = 1:n()) %>%
+  group_by(vox_num) %>%
+  do(tidy(lm(value ~ run_num*learner,.)))
+
+#does runnum matter for any voxel?
+#does the parameter estimate change across runs? No.
+hpe_lvstr_regs %>%
+  filter(term=="run_num") %>%
+  select(-estimate,-std.error)%>%
+  arrange(p.value)
+
+#Is there an interaction?
+#Do the parameter estimates change differently from run to run for the two learner groups? For one voxel only
+hpe_lvstr_regs %>%
+  filter(term=="run_num:learnerNon-learner") %>%
+  select(-estimate,-std.error)%>%
+  arrange(p.value) %>%
+  ungroup()%>%
+  mutate(adj_p_value = p.adjust(p.value)) %>%
+  select(-p.value) %>%
+  filter(adj_p_value<0.05)
+
+#So to the main question: is the distribution of parameter estimates for each voxel in this ROI different for learners compared to non-learners? No.
+hpe_lvstr_regs %>%
+  filter(term=="learnerNon-learner") %>%
+  select(-estimate,-std.error)%>%
+  ungroup()%>%
+  mutate(adj_p_value = p.adjust(p.value)) 
+
+#is there a difference between the distributions of HPE betas of learner for any of the ROIs? No when looking at adjusted p's. As expected from the GLMs.
+rois = unique(all_roi_pe_betas$roi)
+out = data.frame()
+for(i in 1:length(rois)){
+  
+  cur_roi = rois[i]
+  
+  cur_out = all_roi_pe_betas %>% 
+    filter(regressor == "hpe" & roi == cur_roi) %>%
+    select(-regressor, -roi, -value_type, -X) %>%
+    group_by(sub_num, run_num) %>%
+    mutate(vox_num = 1:n()) %>%
+    group_by(vox_num) %>%
+    do(tidy(lm(value ~ run_num*learner,.))) %>%
+    filter(term=="learnerNon-learner") %>%
+    select(-estimate,-std.error)%>%
+    arrange(p.value) %>%
+    ungroup()%>%
+    mutate(adj_p_value = p.adjust(p.value),
+           roi = cur_roi) %>%
+    # filter(adj_p_value<0.05)
+    filter(p.value<0.05)
+  
+  if(nrow(cur_out)>0){
+    print(cur_roi)
+    out = rbind(out, cur_out)
+  }
+}
+```
+
+```{r}
+out = out %>%
+  mutate(ext = paste(roi, vox_num, sep = "_"))
+table(out$roi)
+out
+```
+
+Looking at means for ease of vieweing (otherwise they are more confusing than helpful since the range of value is not)
+
+More than the mean difference the range of the betas seems interesting.
+
+```{r}
+all_roi_pe_betas %>%
+  group_by(sub_num, run_num, roi, regressor) %>%
+  mutate(vox_num = 1:n()) %>%
+  mutate(ext = paste(roi, vox_num, sep = "_")) %>%
+  filter(ext %in% out$ext) %>%
+  ungroup()%>%
+  group_by(ext, learner) %>%
+  summarise(mean_val = mean(value),
+            sem_val = sem(value),
+            roi= unique(roi)) %>%
+  ggplot(aes(ext, mean_val, color=learner))+
+  geom_point(position = position_dodge(width = 0.9))+
+  geom_errorbar(aes(ymin = mean_val-sem_val, ymax = mean_val+sem_val),position = position_dodge(width = 0.9), width=0.2)+
+  # ggplot(aes(ext, value, color=learner))+
+  # geom_boxplot()+
+  facet_wrap(~roi, scales="free")+
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_text(angle=90), 
+        legend.title = element_blank())+
+  xlab("")+
+  ylab("Mean parameter estimate for voxel")
+```
+
+Coefficient of variation
+
+```{r}
+
 ```
 
 ## PE-related activity
@@ -38,54 +155,6 @@ We do not find any region where PE related activity is higher for learners compa
 
 Looking at the full distribution
 
-```{r}
-all_roi_pe_zvals %>%
-  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
-  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
-         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
-  group_by(sub_num, learner, roi, regressor) %>%
-  summarise(max_zval = max(value),
-            min_zval = min(value)) %>%
-  mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
-  filter(roi %in% c("vmpfc", "l_ains", "pcc", "pre_sma")== FALSE) %>%
-  ggplot(aes(roi, max_zval, col=learner))+
-  geom_boxplot()+
-  geom_hline(aes(yintercept=0),linetype="dashed")+
-  facet_grid(.~regressor)+
-  xlab("")+
-  ylab("Peak Z")+
-  theme(legend.title = element_blank(),
-        panel.grid = element_blank())
-```
-
-Versus looking at the summary
-
-```{r}
-all_roi_pe_zvals %>%
-  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
-  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
-         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
-  group_by(sub_num, learner, roi, regressor) %>%
-  summarise(max_zval = max(value),
-            min_zval = min(value)) %>%
-  mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
-  ungroup()%>%
-  group_by(learner, roi, regressor) %>%
-  summarise(mean_zval = mean(max_zval),
-            sem_zval = sem(max_zval)) %>%
-  filter(roi %in% c("vmpfc", "l_ains", "pcc", "pre_sma")== FALSE) %>%
-  ggplot(aes(roi, mean_zval, col=learner))+
-  geom_point(position=position_dodge(width = 0.9))+
-  geom_errorbar(aes(ymin=mean_zval-sem_zval, ymax=mean_zval+sem_zval), position = position_dodge(width=0.9), width=0.25)+
-  geom_hline(aes(yintercept=0),linetype="dashed")+
-  facet_grid(.~regressor)+
-  xlab("")+
-  ylab("Mean peak Z")+
-  theme(legend.title = element_blank(),
-        panel.grid = element_blank())
-
-ggsave("PE_Str_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 3, units = "in", dpi = 450)
-```
 
 Is the distribution of parameters in an a priori ROI different for learners vs non-learners?
 
@@ -168,8 +237,6 @@ table(col_col_df$model)
 col_col_df = col_col_df %>%
   filter(roi == "pcc") %>%
   filter(regressor == "hpe")
- col_col_df %>%
-  filter(roi == "l_vstr")
 ```
 
 If I take the peak per ROI per subject:
