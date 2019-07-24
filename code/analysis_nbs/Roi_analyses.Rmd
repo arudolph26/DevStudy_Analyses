@@ -87,6 +87,16 @@ all_roi_pe_zvals %>%
 ggsave("PE_Str_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 3, units = "in", dpi = 450)
 ```
 
+Is the distribution of parameters in an a priori ROI different for learners vs non-learners?
+
+You need to look at each voxel separately
+
+```{r}
+all_roi_pe_zvals
+
+value ~ learner+(1|sub_num)
+```
+
 ## Brain-behavior correlation
 
 Brain - parameter correlations? (Remember the question of interest is: what is the best/a good marker of self-regulation)
@@ -116,9 +126,9 @@ roi_par_cors = all_roi_pe_zvals %>%
   mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
          roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
   group_by(sub_num, learner, roi, regressor) %>%
-  summarise(max_zval = max(value),
+  summarise(max_zval = mean(value),
             min_zval = min(value)) %>%
-  mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
+  # mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
   select(-min_zval)%>%
   ungroup() %>%
   rename(sub_id = sub_num) %>% 
@@ -147,18 +157,19 @@ col_col_df =
   filter(adj_p.value<0.05) %>%
   mutate(col_col = paste(roi, par, regressor, model, sep="-")) %>%
   ungroup()%>%
-  select(col_col, roi, par, regressor, model)
-# table(col_col_df$roi)
-# table(col_col_df$par)
-# table(col_col_df$regressor)
-# table(col_col_df$model)
-
-#focusing on l_vstr, pcc, pre_sma
-col_col_df = col_col_df %>%
-  filter(roi %in% c("l_vstr", "pcc", "pre_sma")) %>%
-  filter(regressor == "hpe")
+  select(col_col, roi, par, regressor, model) %>%
+  distinct()
+table(col_col_df$roi)
 table(col_col_df$par)
+table(col_col_df$regressor)
 table(col_col_df$model)
+
+#focusing on
+col_col_df = col_col_df %>%
+  filter(roi == "pcc") %>%
+  filter(regressor == "hpe")
+ col_col_df %>%
+  filter(roi == "l_vstr")
 ```
 
 If I take the peak per ROI per subject:
@@ -220,8 +231,8 @@ all_roi_pe_zvals %>%
   left_join(num_pars_df %>%
               mutate(model = gsub("LearningParams_", "", model)) %>%
               select(model, x_axis), by="model")%>%
-  # filter(col_col %in% col_col_df$col_col) %>%
-  filter(roi == "l_vstr" & regressor == "hpe") %>%
+  filter(col_col %in% col_col_df$col_col) %>%
+  # filter(roi == "pcc" & regressor == "hpe") %>%
   ggplot(aes(estimate, max_zval, col=learner))+
   geom_point(alpha=0.5) +
   geom_smooth(method="lm", se=FALSE)+
