@@ -12,8 +12,18 @@ fig_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/fig
 from_gh=FALSE
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/ggplot_colors.R')
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/sem.R')
+
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/rl_fits_data.R')
+exp_exp_models = c("Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_",
+                   "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_",
+                   "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_", 
+                   "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos-lossave_Fix_",
+                   "Fit_alpha_neg-alpha_pos-beta-exp-lossave_Fix_", 
+                   "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_")
+
 library(lme4)
 library(broom)
+library(psych)
 learner_info = read.csv("~/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_3/learner_info.csv")
 learner_info = learner_info %>%
   select(-non_learner) %>%
@@ -22,57 +32,43 @@ learner_info = learner_info %>%
 
 ```
 
+# ROI data
+
+## Group differences in PE-related activity
+
+- The only difference we found between the two learner groups in response to task-related regressors was for value sensitivity. 
+
+- Schoenberg et al. (2007) groups their participants similarly based on task performance. They find an uncorrected significant difference between the two learner groups in the caudate/ dorsal striatum which survives small volume correction in an anatomically defined ROI. They interpret this as higher PE related activity for learners compared to non-learners ('engagement of RL signals'). Further, they regress parameter estimates from the peak voxel onto a behavioral measure (*individual difference analysis*).    
+
+- We did not find any difference that survived whole-brain correction between learners and non-learners in response to RPE related activity. Relaxing the threshold to examine RL-related activity more closely for the two learner groups we find:  
+  - For LPE we find higher activity for learners in the ACC/dMPFC.    
+  - For HPE we find higher activity for non-learners in bilateral caudate and PCC.  
+
+- These are not easily compatible with Schoenberg's findings (in fact might even suggest the opposite since we find larger PE related striatal activity for non-learners compared to learners) but warrant a closer look at these ROIs. We compared PE related activity in 8 apriori ROIs from an earlier meta-analysis. We have two PE related regressors for high and low variance stimuli.  
+
+These are the parameter estimates of PE regressors extracted from level 1's (i.e. each run of each subject) from voxels in 8 apriori ROIs defined in Bartra et al.
+
 ```{r}
 all_roi_pe_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
 all_roi_pe_betas = all_roi_pe_betas %>%
   left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
   mutate(learner=ifelse(learner == 1, "Learner", "Non-learner")) %>%
   filter(abs(value)<10)
+all_roi_pe_betas
+```
 
-#for the l-vstr ROI there are
-#81 voxels
-#i can look at peak value
-#or mean value
-#the former might inflate an outlier
-#the latter might wash out an effect
-#so what if I look at each voxel separately?
-#for each subject we have the HPE related form 81 voxels for each run
-#does the distribution of "value" in each of the 81 voxels 
-#value ~ run_num*learner, data= 1 per subject b for a given voxel
-hpe_lvstr_regs = all_roi_pe_betas %>% 
-  filter(regressor == "hpe" & roi == "l_vstr") %>%
-  select(-regressor, -roi, -value_type, -X) %>%
-  group_by(sub_num, run_num) %>%
-  mutate(vox_num = 1:n()) %>%
-  group_by(vox_num) %>%
-  do(tidy(lm(value ~ run_num*learner,.)))
+How should this data be analyzed to answer "Does activitiy in ROI X differ between learners and non-learners"?  
 
-#does runnum matter for any voxel?
-#does the parameter estimate change across runs? No.
-hpe_lvstr_regs %>%
-  filter(term=="run_num") %>%
-  select(-estimate,-std.error)%>%
-  arrange(p.value)
+Thinking through a single ROI: In the l-vstr ROI there are 81 voxels. One can look at:   
+1. parameter estimate with highest absolute value --> might inflate an outlier
+2. mean of parameter estimates from all voxels in ROI --> might wash out effect
+**3. parameter estimate in each voxel separately and then checking whether any effect is consistent across an ROI. (i.e. compare the distribution of 36 values to 38 values 81 times)**
 
-#Is there an interaction?
-#Do the parameter estimates change differently from run to run for the two learner groups? For one voxel only
-hpe_lvstr_regs %>%
-  filter(term=="run_num:learnerNon-learner") %>%
-  select(-estimate,-std.error)%>%
-  arrange(p.value) %>%
-  ungroup()%>%
-  mutate(adj_p_value = p.adjust(p.value)) %>%
-  select(-p.value) %>%
-  filter(adj_p_value<0.05)
+### HPE
 
-#So to the main question: is the distribution of parameter estimates for each voxel in this ROI different for learners compared to non-learners? No.
-hpe_lvstr_regs %>%
-  filter(term=="learnerNon-learner") %>%
-  select(-estimate,-std.error)%>%
-  ungroup()%>%
-  mutate(adj_p_value = p.adjust(p.value)) 
+Is there a difference between the distributions of HPE parameter estimates of learner for any of the ROIs? Not when looking at adjusted p's. As expected from the GLMs (model 3). So relaxing it to look at non-adjusted p's
 
-#is there a difference between the distributions of HPE betas of learner for any of the ROIs? No when looking at adjusted p's. As expected from the GLMs.
+```{r}
 rois = unique(all_roi_pe_betas$roi)
 out = data.frame()
 for(i in 1:length(rois)){
@@ -96,7 +92,7 @@ for(i in 1:length(rois)){
     filter(p.value<0.05)
   
   if(nrow(cur_out)>0){
-    print(cur_roi)
+    print(paste0("Detected voxels in ",as.character(cur_roi), " that have different means between the learner groups"))
     out = rbind(out, cur_out)
   }
 }
@@ -109,9 +105,9 @@ table(out$roi)
 out
 ```
 
-Looking at means for ease of vieweing (otherwise they are more confusing than helpful since the range of value is not)
+Looking at means of parameter estimates per voxel for ease of vieweing (otherwise they are more confusing than helpful due to the range of values; plus this is what the regressions are comparing)
 
-More than the mean difference the range of the betas seems interesting.
+Visually comparing the two groups it looks like the larger range of the parameters estimates for non-learners is more noticable than the mean difference between the groups. 
 
 ```{r}
 all_roi_pe_betas %>%
@@ -131,40 +127,180 @@ all_roi_pe_betas %>%
   # geom_boxplot()+
   facet_wrap(~roi, scales="free")+
   theme(panel.grid = element_blank(),
-        axis.text.x = element_text(angle=90), 
+        axis.text.x = element_blank(), 
         legend.title = element_blank())+
   xlab("")+
   ylab("Mean parameter estimate for voxel")
 ```
 
-Coefficient of variation
+### LPE
+
+```{r}
+rois = unique(all_roi_pe_betas$roi)
+out = data.frame()
+for(i in 1:length(rois)){
+  
+  cur_roi = rois[i]
+  
+  cur_out = all_roi_pe_betas %>% 
+    filter(regressor == "lpe" & roi == cur_roi) %>%
+    select(-regressor, -roi, -value_type, -X) %>%
+    group_by(sub_num, run_num) %>%
+    mutate(vox_num = 1:n()) %>%
+    group_by(vox_num) %>%
+    do(tidy(lm(value ~ run_num*learner,.))) %>%
+    filter(term=="learnerNon-learner") %>%
+    select(-estimate,-std.error)%>%
+    arrange(p.value) %>%
+    ungroup()%>%
+    mutate(adj_p_value = p.adjust(p.value),
+           roi = cur_roi) %>%
+    # filter(adj_p_value<0.05)
+    filter(p.value<0.05)
+  
+  if(nrow(cur_out)>0){
+    print(paste0("Detected voxels in ",as.character(cur_roi), " that have different means between the learner groups"))
+    out = rbind(out, cur_out)
+  }
+}
+```
+
+```{r}
+out = out %>%
+  mutate(ext = paste(roi, vox_num, sep = "_"))
+table(out$roi)
+out
+```
+
+Again comparing the two groups larger range of the parameters estimates for non-learners is more noticable than the mean difference between the groups. 
+
+```{r}
+all_roi_pe_betas %>%
+  group_by(sub_num, run_num, roi, regressor) %>%
+  mutate(vox_num = 1:n()) %>%
+  mutate(ext = paste(roi, vox_num, sep = "_")) %>%
+  filter(ext %in% out$ext) %>%
+  ungroup()%>%
+  group_by(ext, learner) %>%
+  summarise(mean_val = mean(value),
+            sem_val = sem(value),
+            roi= unique(roi)) %>%
+  ggplot(aes(ext, mean_val, color=learner))+
+  geom_point(position = position_dodge(width = 0.9))+
+  geom_errorbar(aes(ymin = mean_val-sem_val, ymax = mean_val+sem_val),position = position_dodge(width = 0.9), width=0.2)+
+  # ggplot(aes(ext, value, color=learner))+
+  # geom_boxplot()+
+  facet_wrap(~roi, scales="free")+
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_blank(), 
+        legend.title = element_blank())+
+  xlab("")+
+  ylab("Mean parameter estimate for voxel")
+```
+
+*Could that larger variability of betas for non-learners suggest that they are better suited for relating these values to other values? Because they have lower kurtosis/are more evently spread out?*
+
+## Kurtosis
+
+A way to capture between-subjects variability of different types of measures. Kurtosis captures the likelihood (not in the quantitative sense) of an outlier in a distribution. The more evenly spread out a distribution the lower the kurtosis.
+
+Is the kurtosis of parameter estimates for non-learners from ROIs lower than learners? Yes.
+**Note that although the difference in distributions between the two learner groups is very stark the estimation of these neural parameter estimates was independent of this post-hoc behavioral delineation of the sample.**
+**Can we say that in some sense what the learners' brains are doing are more similar to each other compared to non-learners' brains that are all over the place?**
+
+```{r}
+all_roi_pe_betas %>%
+  group_by(sub_num, run_num, roi, regressor) %>%
+  mutate(vox_num = 1:n()) %>%
+  ungroup() %>%
+  group_by(roi, vox_num, learner, regressor) %>%
+  summarise(kurt = kurtosi(value)) %>%
+  ungroup() %>%
+  group_by(roi, learner, regressor)%>%
+  summarise(mean_kur = mean(kurt),
+            sem_kur = sem(kurt)) %>%
+  ggplot(aes(roi, mean_kur, col=learner))+
+  geom_point(position = position_dodge(width = .9))+
+  geom_errorbar(aes(ymin = mean_kur-sem_kur, ymax = mean_kur+sem_kur), position = position_dodge(width = .9), width=.2)+
+  facet_wrap(~regressor)+
+  theme(legend.title=element_blank(),
+        panel.grid = element_blank())+
+  xlab("")+
+  ylab("Mean kurtosis of parameter estimates")
+```
+
+Is the kurtosis of parameter estimates for non-learners from ROIs more similar to those of the behavioral RL parameter estimates? (i.e. more suitable for individual difference analyses)
+
+What counts as ab individiaul difference 'measure' in this ROI data
+Average betas per ROI?
+...?
+
+To get sense of what this should work like do it for the behavioral parameters first:
+```{r}
+best_sub_pars %>%
+  select(sub_id, contains("xopt"), model, x_axis,age_group, learner) %>%
+  filter(model %in% exp_exp_models) %>%
+  gather(key, value, -sub_id, -model, -x_axis, -age_group, -learner) %>%
+  group_by(model, key, learner) %>%
+  drop_na() %>%
+  summarise(kurt = kurtosi(value)) %>%
+  arrange(kurt) %>%
+  select(kurt, key, learner, everything()) %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  ungroup() %>%
+  group_by(key, learner) %>%
+  summarise(mean_kur = mean(kurt),
+            sem_kur = sem(kurt)) %>%
+  ggplot(aes(key, mean_kur, col=learner))+
+  geom_point(position = position_dodge(width = .9))+
+  geom_errorbar(aes(ymin = mean_kur-sem_kur, ymax = mean_kur+sem_kur), position = position_dodge(width = .9), width=.2)+
+  theme(legend.title=element_blank(),
+        panel.grid = element_blank())+
+  xlab("")+
+  ylab("Mean kurtosis of parameter estimates")
+```
+
+Ok so ROI measures start with average ROI activity (which I think is what is used mostly)
+In general start with getting the 1 per subject measure and then get its kurtosis
+
+these have more variability than the behavioral measures? It's not that their outliers can be further apart from their means that I care for. It's how likely it is that there is an outlier vs how evenly spread out the distribution is.
+
+```{r}
+all_roi_pe_betas %>%
+  group_by(sub_num, regressor, roi) %>%
+  summarise(m_val = mean(value)) %>%
+  ungroup() %>%
+  group_by(regressor, roi) %>%
+  summarise(kurt = kurtosi(m_val)) %>%
+  arrange(kurt)
+```
+
+```{r}
+all_roi_pe_betas %>%
+  group_by(sub_num, regressor, roi) %>%
+  summarise(m_val = mean(value)) %>%
+  arrange(m_val) %>%
+  filter(roi == "l_vstr" & regressor == "hpe") %>%
+  left_join(best_sub_pars %>%
+              select(sub_id, contains("xopt"), model, x_axis,age_group, learner) %>%
+              filter(model %in% exp_exp_models[1]) %>%
+              gather(key, value, -sub_id, -model, -x_axis, -age_group, -learner) %>%
+              group_by(model, key) %>%
+              drop_na() %>%
+              filter(key == "xopt_beta") %>%
+              rename(sub_num = sub_id)%>%
+              ungroup()%>%
+              select(sub_num, value), by="sub_num") %>%
+  ggplot(aes(value, m_val))+
+  geom_point()
+```
+
+Then check "peak values" for each ROI
 
 ```{r}
 
 ```
 
-## PE-related activity
-
-- We did not find any difference that survived whole-brain correction between learners and non-learners in response to RPE related activity.   
-- Schoenberg et al. (2007) groups their participants similarly based on task performance and does a group comparison in an ROI (VStr).  They find higher PE related activity for learners compared to non-learners ('engagement of RL signals').  
-- Inspired by this we compared PE related activity in several ROIs. We have two PE related regressors for high and low variance stimuli.  
-We do not find any region where PE related activity is higher for learners compared to non-learners.   
-- Overall non-learners show larger increases and decreases compared to learners.  
-- The group difference between learners and non-learners in this dataset lies in the difference in response to HPE vs LPE. Learners generally do not show change in activity in response to HPE but they do for LPE whereas non-learners activity changes similarly regardless of the PE type.  
-- So we do find different response PE-related response profiles in these ROIs for the two learner groups but especially given that neither of these regressors showed any activity that survived whole brain correction to begin with these are difficult to interpret.
-
-Looking at the full distribution
-
-
-Is the distribution of parameters in an a priori ROI different for learners vs non-learners?
-
-You need to look at each voxel separately
-
-```{r}
-all_roi_pe_zvals
-
-value ~ learner+(1|sub_num)
-```
 
 ## Brain-behavior correlation
 
@@ -175,15 +311,6 @@ source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace
 ```
 
 Is average PE related activity in any of the ROIs associated with the any model parameters?
-
-```{r}
-exp_exp_models = c("Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_",
-                   "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_",
-                   "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_", 
-                   "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos-lossave_Fix_",
-                   "Fit_alpha_neg-alpha_pos-beta-exp-lossave_Fix_", 
-                   "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_")
-```
 
 This does 696 comparisons 
 9 rois
@@ -309,7 +436,7 @@ all_roi_pe_zvals %>%
   ylab("Brain")
 ```
 
-## Functional connectivity
+# Functional connectivity
 
 Data from different ROIs can be analyzed with respect to each other instead of in isolation as well.  
 
