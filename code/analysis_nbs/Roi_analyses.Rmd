@@ -304,10 +304,14 @@ best_sub_pars %>%
 
 Data from different ROIs can be analyzed with respect to each other instead of in isolation as well.  
 
-In this case, for example, we examined whether the time series in an apriori l_vstr seed was similar to any other voxels time series.  
-**(SHOULD THIS BE ONE TIME STEP AHEAD?)**
+In this case, for example, we examined whether the time series in an apriori l_vstr seed was similar to any other voxels' time series in 8 other subjective value network ROI spheres.  
 
-Prior literature has examples suggesting that such connectivity patterns might differ depending on performance (van den Bos, et al. -- **THEY DO A PPI**).  
+Prior literature has examples suggesting that connectivity patterns might differ depending on age.
+van den Bos, et al. (2012) extract the time series of striatal seed regions that correlate with prediction errors.
+They normalize these time series and multiply is with binary negative and positive prediction error regressors to create two interaction (PPI) regressors
+Level 1 images per subject for pos>neg feedback was entered into a level 2 with an age regressor
+They found that correlation between mpfc and vstr was higher for pos feedback compared to negative feedback and that this correlation increased with age
+Finally they also correlated functional connectivity strength with RL parameters and found a negative relationship between learning rate for negative feedback
 
 If so, we could expect differentces between the learner and non-learner groups.  
 
@@ -316,7 +320,14 @@ We do not find any voxels where the time series correlates significantly/above 0
 
 This is the same for both learner groups as well. **(DON'T THINK I CHECKED FOR THIS STATISTICALLY. EXTRACT AVERAGE CORRELATION VALUES FOR LEARNERS AND NON-LEARNERS FROM WHOLE BRAIN AND COMPARE TO EACH OTHER?)**
 
+### Seed2vox whole task
 
+### Seed2seed whole task
+
+### Seed2vox or seed? for M1 vs others
+
+
+This is the correlation of the TS for the lvstr seed with each voxel in each ROI for each run for the whole task (accounting for confounds)
 ```{r}
 input_path = "~/Dropbox/PoldrackLab/DevStudy_Analyses/input/"
 all_cors = read.csv(paste0(input_path, 'func_cor/all_l_vstr_cors.csv'))
