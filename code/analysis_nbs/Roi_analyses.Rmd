@@ -12,6 +12,7 @@ fig_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/fig
 from_gh=FALSE
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/ggplot_colors.R')
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/sem.R')
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/transform_remove_skew.R')
 
 source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/rl_fits_data.R')
 exp_exp_models = c("Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_",
@@ -44,9 +45,9 @@ learner_info = learner_info %>%
   - For LPE we find higher activity for learners in the ACC/dMPFC.    
   - For HPE we find higher activity for non-learners in bilateral caudate and PCC.  
 
-- These are not easily compatible with Schoenberg's findings (in fact might even suggest the opposite since we find larger PE related striatal activity for non-learners compared to learners) but warrant a closer look at these ROIs. We compared PE related activity in 8 apriori ROIs from an earlier meta-analysis. We have two PE related regressors for high and low variance stimuli.  
+- These are not easily compatible with Schoenberg's findings (in fact might even suggest the opposite since we find larger PE related striatal activity for non-learners compared to learners) but warrant a closer look at these ROIs. We compared PE related activity in 9 apriori ROIs from an earlier meta-analysis. We have two PE related regressors for high and low variance stimuli.  
 
-These are the parameter estimates of PE regressors extracted from level 1's (i.e. each run of each subject) from voxels in 8 apriori ROIs defined in Bartra et al.
+These are the parameter estimates of PE regressors extracted from level 1's (i.e. each run of each subject) from voxels in 9 apriori ROIs defined in Bartra et al.
 
 ```{r}
 all_roi_pe_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
@@ -88,7 +89,6 @@ for(i in 1:length(rois)){
     ungroup()%>%
     mutate(adj_p_value = p.adjust(p.value),
            roi = cur_roi) %>%
-    # filter(adj_p_value<0.05)
     filter(p.value<0.05)
   
   if(nrow(cur_out)>0){
@@ -123,14 +123,12 @@ all_roi_pe_betas %>%
   ggplot(aes(ext, mean_val, color=learner))+
   geom_point(position = position_dodge(width = 0.9))+
   geom_errorbar(aes(ymin = mean_val-sem_val, ymax = mean_val+sem_val),position = position_dodge(width = 0.9), width=0.2)+
-  # ggplot(aes(ext, value, color=learner))+
-  # geom_boxplot()+
   facet_wrap(~roi, scales="free")+
   theme(panel.grid = element_blank(),
         axis.text.x = element_blank(), 
         legend.title = element_blank())+
   xlab("")+
-  ylab("Mean parameter estimate for voxel")
+  ylab("Mean HPE parameter estimate for voxel")
 ```
 
 ### LPE
@@ -188,25 +186,37 @@ all_roi_pe_betas %>%
   ggplot(aes(ext, mean_val, color=learner))+
   geom_point(position = position_dodge(width = 0.9))+
   geom_errorbar(aes(ymin = mean_val-sem_val, ymax = mean_val+sem_val),position = position_dodge(width = 0.9), width=0.2)+
-  # ggplot(aes(ext, value, color=learner))+
-  # geom_boxplot()+
   facet_wrap(~roi, scales="free")+
   theme(panel.grid = element_blank(),
         axis.text.x = element_blank(), 
         legend.title = element_blank())+
   xlab("")+
-  ylab("Mean parameter estimate for voxel")
+  ylab("Mean LPE parameter estimate for voxel")
 ```
+
+Looking closer at the parameter estimates in each voxel of all ROIs did not reveal any region where there was a clear majority of voxels that showed a difference between the learning groups. It did reveal a difference in the between subject variability of the parameter estimates for each learner group.
 
 *Could that larger variability of betas for non-learners suggest that they are better suited for relating these values to other values? Because they have lower kurtosis/are more evently spread out?*
 
 ## Kurtosis
 
-A way to capture between-subjects variability of different types of measures. Kurtosis captures the likelihood (not in the quantitative sense) of an outlier in a distribution. The more evenly spread out a distribution the lower the kurtosis.
+The kurtosis of a DV distribution describes the between-subjects variability and is comparable across different types of measures. It captures how unlikely an outlier would be in a distribution. The more evenly spread out a distribution the lower the kurtosis. Two distributions cannot relate to each other strongly if they do not have comparable spreads.  
 
-Is the kurtosis of parameter estimates for non-learners from ROIs lower than learners? Yes.
-**Note that although the difference in distributions between the two learner groups is very stark the estimation of these neural parameter estimates was independent of this post-hoc behavioral delineation of the sample.**
-**Can we say that in some sense what the learners' brains are doing are more similar to each other compared to non-learners' brains that are all over the place?**
+First we check whether this is true for all voxels within each ROI. [Yes]  
+
+Then we compare the different summary statistics one can extract from ROIs in their between subject variability. [mostly the same conclusion regardless of what is extracted from the ROI]  
+
+Finally we compare the kurtosis of brain measures to behavioral RL parameter estimates to determine whether an individual difference analysis relating the two data types is sensible. [No]  
+
+### Brain 
+
+Is the kurtosis of *raw* parameter estimates for non-learners from ROIs lower than learners? Yes. The spread of the distributions can be made more similar between the learning groups by (log-) transforming (not more similar between brain and behavior measures).  
+
+Two things to note from this graph:  
+
+**Note that although the difference in distributions between the two learner groups is very stark the estimation of these neural parameter estimates was independent of this post-hoc behavioral delineation of the sample.**  
+
+**Can we say that in some sense what the learners' brains are doing are more similar to each other compared to non-learners' brains that are all over the place?**  
 
 ```{r}
 all_roi_pe_betas %>%
@@ -219,221 +229,75 @@ all_roi_pe_betas %>%
   group_by(roi, learner, regressor)%>%
   summarise(mean_kur = mean(kurt),
             sem_kur = sem(kurt)) %>%
-  ggplot(aes(roi, mean_kur, col=learner))+
-  geom_point(position = position_dodge(width = .9))+
+  ggplot(aes(roi, mean_kur, fill=learner))+
+  geom_bar(stat="identity",position = position_dodge(width = .9))+
   geom_errorbar(aes(ymin = mean_kur-sem_kur, ymax = mean_kur+sem_kur), position = position_dodge(width = .9), width=.2)+
   facet_wrap(~regressor)+
   theme(legend.title=element_blank(),
         panel.grid = element_blank())+
   xlab("")+
-  ylab("Mean kurtosis of parameter estimates")
+  ylab("Mean kurtosis of parameter estimates \n across voxel of ROI")
 ```
-
-Is the kurtosis of parameter estimates for non-learners from ROIs more similar to those of the behavioral RL parameter estimates? (i.e. more suitable for individual difference analyses)
-
-What counts as ab individiaul difference 'measure' in this ROI data
-Average betas per ROI?
-...?
-
-To get sense of what this should work like do it for the behavioral parameters first:
-```{r}
-best_sub_pars %>%
-  select(sub_id, contains("xopt"), model, x_axis,age_group, learner) %>%
-  filter(model %in% exp_exp_models) %>%
-  gather(key, value, -sub_id, -model, -x_axis, -age_group, -learner) %>%
-  group_by(model, key, learner) %>%
-  drop_na() %>%
-  summarise(kurt = kurtosi(value)) %>%
-  arrange(kurt) %>%
-  select(kurt, key, learner, everything()) %>%
-  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner")) %>%
-  ungroup() %>%
-  group_by(key, learner) %>%
-  summarise(mean_kur = mean(kurt),
-            sem_kur = sem(kurt)) %>%
-  ggplot(aes(key, mean_kur, col=learner))+
-  geom_point(position = position_dodge(width = .9))+
-  geom_errorbar(aes(ymin = mean_kur-sem_kur, ymax = mean_kur+sem_kur), position = position_dodge(width = .9), width=.2)+
-  theme(legend.title=element_blank(),
-        panel.grid = element_blank())+
-  xlab("")+
-  ylab("Mean kurtosis of parameter estimates")
-```
-
-Ok so ROI measures start with average ROI activity (which I think is what is used mostly)
-In general start with getting the 1 per subject measure and then get its kurtosis
-
-these have more variability than the behavioral measures? It's not that their outliers can be further apart from their means that I care for. It's how likely it is that there is an outlier vs how evenly spread out the distribution is.
 
 ```{r}
 all_roi_pe_betas %>%
-  group_by(sub_num, regressor, roi) %>%
+  group_by(sub_num, regressor, roi, learner) %>%
   summarise(m_val = mean(value)) %>%
   ungroup() %>%
-  group_by(regressor, roi) %>%
+  group_by(regressor, roi, learner) %>%
   summarise(kurt = kurtosi(m_val)) %>%
-  arrange(kurt)
-```
-
-```{r}
-all_roi_pe_betas %>%
-  group_by(sub_num, regressor, roi) %>%
-  summarise(m_val = mean(value)) %>%
-  arrange(m_val) %>%
-  filter(roi == "l_vstr" & regressor == "hpe") %>%
-  left_join(best_sub_pars %>%
-              select(sub_id, contains("xopt"), model, x_axis,age_group, learner) %>%
-              filter(model %in% exp_exp_models[1]) %>%
-              gather(key, value, -sub_id, -model, -x_axis, -age_group, -learner) %>%
-              group_by(model, key) %>%
-              drop_na() %>%
-              filter(key == "xopt_beta") %>%
-              rename(sub_num = sub_id)%>%
-              ungroup()%>%
-              select(sub_num, value), by="sub_num") %>%
-  ggplot(aes(value, m_val))+
-  geom_point()
+  ggplot(aes(roi, kurt, fill=learner))+
+  geom_bar(stat="identity",position = position_dodge(width = .9))+
+  facet_grid(.~regressor)+
+  theme(panel.grid=element_blank(), 
+        legend.title = element_blank())+
+  xlab("")+
+  ylab("Kurtosis of mean parameter \nestimates across voxels of ROI")
 ```
 
 Then check "peak values" for each ROI
 
 ```{r}
-
-```
-
-
-## Brain-behavior correlation
-
-Brain - parameter correlations? (Remember the question of interest is: what is the best/a good marker of self-regulation)
-
-```{r}
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/rl_fits_data.R')
-```
-
-Is average PE related activity in any of the ROIs associated with the any model parameters?
-
-This does 696 comparisons 
-9 rois
-
-
-```{r}
-roi_par_cors = all_roi_pe_zvals %>%
-  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
-  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
-         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
-  group_by(sub_num, learner, roi, regressor) %>%
-  summarise(max_zval = mean(value),
-            min_zval = min(value)) %>%
-  # mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
-  select(-min_zval)%>%
+all_roi_pe_betas %>%
+  group_by(sub_num, regressor, roi, learner) %>%
+  summarise(m_val = max(abs(value))) %>%
   ungroup() %>%
-  rename(sub_id = sub_num) %>% 
-  left_join(best_sub_pars %>%
-              filter(model %in% exp_exp_models)%>%
-              select(sub_id, model, contains("xopt")) %>%
-              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
-  gather(par, estimate, -sub_id, -learner, -roi, -regressor, -max_zval, -model) %>%
-  group_by(model, roi, par, regressor) %>%
-  drop_na()%>%
-  do(tidy(lm(scale(max_zval) ~ scale(estimate)*learner, .))) 
+  group_by(regressor, roi, learner) %>%
+  summarise(kurt = kurtosi(m_val)) %>%
+  ggplot(aes(roi, kurt, fill=learner))+
+  geom_bar(stat="identity",position = position_dodge(width = .9))+
+  facet_grid(.~regressor)+
+  theme(panel.grid=element_blank(), 
+        legend.title = element_blank())+
+  xlab("")+
+  ylab("Kurtosis of peak parameter \nestimates across voxels of ROI")
 ```
 
-```{r}
-roi_par_cors %>% 
-  filter(term != "(Intercept)") %>%
-  mutate(adj_p.value = p.adjust(p.value)) %>%
-  filter(adj_p.value<0.05)
-```
+### Behavior
+
+Is the kurtosis of parameter estimates for non-learners from ROIs more similar to those of the behavioral RL parameter estimates? (i.e. more suitable for individual difference analyses)
+
+The distributions of behavioral parameter estimates do not show a similar divergence between the learner groups. They also have much lower kurtosis overall. **Does this make a brain-behavior correlation/individual difference analysis attempt useless?**
 
 ```{r}
-col_col_df = 
-  roi_par_cors %>% 
-  filter(term != "(Intercept)") %>%
-  mutate(adj_p.value = p.adjust(p.value)) %>%
-  filter(adj_p.value<0.05) %>%
-  mutate(col_col = paste(roi, par, regressor, model, sep="-")) %>%
+best_sub_pars %>%
+  select(sub_id, contains("xopt"), model, x_axis, age_group, learner) %>%
+  filter(model %in% exp_exp_models) %>%
+  gather(key, value, -sub_id, -model, -x_axis, -age_group, -learner) %>%
+  group_by(x_axis, key, learner) %>%
+  drop_na() %>%
+  summarise(kurt = kurtosi(value)) %>%
   ungroup()%>%
-  select(col_col, roi, par, regressor, model) %>%
-  distinct()
-table(col_col_df$roi)
-table(col_col_df$par)
-table(col_col_df$regressor)
-table(col_col_df$model)
-
-#focusing on
-col_col_df = col_col_df %>%
-  filter(roi == "pcc") %>%
-  filter(regressor == "hpe")
-```
-
-If I take the peak per ROI per subject:
-
-```{r warning=FALSE, message=FALSE}
-all_roi_pe_zvals %>%
-  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
   mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
-         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
-  group_by(sub_num, learner, roi, regressor) %>%
-  summarise(max_zval = max(value),
-            min_zval = min(value)) %>%
-  mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
-  select(-min_zval)%>%
-  ungroup() %>%
-  rename(sub_id = sub_num) %>% 
-  left_join(best_sub_pars %>%
-              filter(model %in% exp_exp_models)%>%
-              select(sub_id, model, contains("xopt")) %>%
-              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
-  gather(par, estimate, -sub_id, -learner, -roi, -regressor, -max_zval, -model) %>%
-  mutate(col_col = paste(roi, par, regressor, model, sep="-")) %>%
-  left_join(num_pars_df %>%
-              mutate(model = gsub("LearningParams_", "", model)) %>%
-              select(model, x_axis), by="model")%>%
-  filter(col_col %in% col_col_df$col_col) %>%
-  filter(roi == "l_vstr") %>%
-  ggplot(aes(estimate, max_zval, col=learner))+
-  geom_point() +
-  facet_grid(par~x_axis)+
-  theme(panel.grid = element_blank())+
-  xlab("Behavior")+
-  ylab("Brain")+
-  xlim(c(0,1))
-
-#ggsave("Brain-behavior_ROIs.jpeg", device = "jpeg", path = fig_path, width = 5, height = 4, units = "in", dpi = 450)  
-```
-
-If I take the mean
-
-```{r warning=FALSE, message=FALSE}
-all_roi_pe_zvals %>%
-  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
-  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
-         roi = factor(roi, levels = c("l_vstr", "r_vstr", "vmpfc", "l_ains", "r_ains", "pcc", "acc", "pre_sma", "r_dstr"))) %>%
-  group_by(sub_num, learner, roi, regressor) %>%
-  summarise(max_zval = mean(value),
-            min_zval = min(value)) %>%
-  #mutate(max_zval = ifelse(abs(max_zval)>abs(min_zval), max_zval, min_zval)) %>%
-  select(-min_zval)%>%
-  ungroup() %>%
-  rename(sub_id = sub_num) %>% 
-  left_join(best_sub_pars %>%
-              filter(model %in% exp_exp_models)%>%
-              select(sub_id, model, contains("xopt")) %>%
-              select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
-  gather(par, estimate, -sub_id, -learner, -roi, -regressor, -max_zval, -model) %>%
-  mutate(col_col = paste(roi, par, regressor, model, sep="-")) %>%
-  left_join(num_pars_df %>%
-              mutate(model = gsub("LearningParams_", "", model)) %>%
-              select(model, x_axis), by="model")%>%
-  filter(col_col %in% col_col_df$col_col) %>%
-  # filter(roi == "pcc" & regressor == "hpe") %>%
-  ggplot(aes(estimate, max_zval, col=learner))+
-  geom_point(alpha=0.5) +
-  geom_smooth(method="lm", se=FALSE)+
-  facet_grid(x_axis~par, scales="free")+
-  theme(panel.grid = element_blank())+
-  xlab("Behavior")+
-  ylab("Brain")
+         key = gsub("xopt_", "", key),
+         key = ifelse(key == "alpha", "\u03b1", ifelse(key=="alpha_pos", "\u03b1_pos", ifelse(key=="alpha_neg", "\u03b1_neg", ifelse(key=="beta", "\u03b2", ifelse(key == "exp", "\u03b3", ifelse(key == "exp_neg", "\u03b3_neg", ifelse(key == "exp_pos", "\u03b3_pos", ifelse(key == "lossave", "\u03bb", NA))))))))) %>%
+  ggplot(aes(key, kurt, fill=learner))+
+  geom_bar(stat="identity",position = position_dodge(width = .9))+
+  facet_wrap(~x_axis, scales="free", labeller = label_wrap_gen(10))+
+  theme(legend.title=element_blank(),
+        panel.grid = element_blank())+
+  xlab("")+
+  ylab("Kurtosis of RL parameter estimates")
 ```
 
 # Functional connectivity
@@ -443,7 +307,7 @@ Data from different ROIs can be analyzed with respect to each other instead of i
 In this case, for example, we examined whether the time series in an apriori l_vstr seed was similar to any other voxels time series.  
 **(SHOULD THIS BE ONE TIME STEP AHEAD?)**
 
-Prior literature has examples suggesting that such connectivity patterns might differ depending on performance (van den Bos, et al.).  
+Prior literature has examples suggesting that such connectivity patterns might differ depending on performance (van den Bos, et al. -- **THEY DO A PPI**).  
 
 If so, we could expect differentces between the learner and non-learner groups.  
 

@@ -1,0 +1,200 @@
+---
+title: 'Introduction'
+output:
+github_document:
+toc: yes
+toc_float: yes
+---
+
+```{r}
+library(gridExtra)
+```
+# Introduction
+
+## Individual difference analysis
+
+```{r}
+df = data.frame(x = rnorm(250))
+df = df %>%
+  mutate(y = x*2+3+runif(250))
+
+p1 = df %>%
+  ggplot(aes(x, y))+
+  geom_point()+
+  theme_classic()+
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank())+
+  xlab("")+
+  ylab("")+
+  ggtitle("High correlation\nComparable kurtosis")
+
+with(df, cor(x,y))
+kurtosi(df$x)
+kurtosi(df$y)
+```
+
+```{r}
+df = data.frame(x = rnorm(250), y=rnorm(250))
+
+p2 = df %>%
+  ggplot(aes(x, y))+
+  geom_point()+
+  theme_classic()+
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank())+
+  xlab("")+
+  ylab("")+
+  ggtitle("No correlation\nComparable kurtosis")
+
+with(df, cor(x,y))
+kurtosi(df$x)
+kurtosi(df$y)
+```
+
+```{r}
+df = data.frame(x=rnorm(250, sd=0.0001), y = c(rnorm(125, mean=5, sd=50),rnorm(125, mean=2, sd=2)))
+
+p3 = df %>%
+  ggplot(aes(x, y))+
+  geom_point()+
+  theme_classic()+
+  theme(axis.text = element_blank(),
+      axis.ticks = element_blank())+
+  xlab("")+
+  ylab("")+
+  ggtitle("No correlation\nIncomparable kurtosis")
+
+with(df, cor(x,y))
+kurtosi(df$x)
+kurtosi(df$y)
+```
+
+```{r}
+grid.arrange(p1, p2, p3, nrow=1)
+```
+
+### 1 measure >1 time points
+
+Testing stability; between vs within subject varince
+
+```{r}
+df = data.frame(Time_1 = rnorm(250))
+df = df %>%
+  mutate(Time_2 = Time_1+runif(250, min=-2, max=2))
+```
+
+```{r}
+s1 = which.min(df$Time_2)
+s2 = which.max(df$Time_2)
+s3 = which.min(df$Time_1)
+s4 = which.max(df$Time_1)
+
+df %>%
+  ggplot(aes(Time_1, Time_2))+
+  geom_point()+
+  theme_classic()+
+  theme(axis.text = element_blank(),
+       axis.ticks = element_blank())+
+  geom_abline(aes(intercept=0, slope=1), linetype="dashed")+
+  xlab("Time 1")+
+  ylab("Time 2")+
+  geom_segment(aes(x=Time_1[s1], xend = Time_1[s1], y = Time_1[s1], yend = Time_2[s1]), arrow=arrow(), color=cbbPalette[1], linetype=2, size=1)+
+  geom_segment(aes(x=Time_1[s2], xend = Time_1[s2], y = Time_1[s2], yend = Time_2[s2]), arrow=arrow(), color=cbbPalette[1], linetype=2, size=1)+
+  geom_segment(aes(x=0, xend = 0, y = Time_2[s1], yend = Time_2[s2]), arrow=arrow(end="both"), color=cbbPalette[2], linetype=2, size=1)+
+geom_segment(aes(x=Time_1[s3], xend = Time_1[s4], y = 0, yend = 0), arrow=arrow(end="both"), color=cbbPalette[2], linetype=2, size=1)+
+  annotate("text", x = df$Time_1[s1]+0.5, y = df$Time_2[s1]-0.5, label = "Within subject variance", color= cbbPalette[1])+
+  annotate("text", x = .5, y = df$Time_2[s1]-.5, label = "Between subjects variance", color=cbbPalette[2])
+```
+
+### 2 meausres 1 time point
+
+Comparison of kurtosis
+
+```{r}
+df = data.frame(Measure_1=rnorm(250, sd=0.0001), Measure_2 = c(rnorm(125, mean=5, sd=50),rnorm(125, mean=2, sd=2)))
+
+p1 = df %>%
+  ggplot(aes(Measure_1, Measure_2))+
+  geom_point()+
+  theme_classic()+
+  theme(axis.text = element_blank(),
+      axis.ticks = element_blank())+
+  xlab("Measure 1")+
+  ylab("Measure 2")
+
+hist_top = df %>%
+  ggplot(aes(Measure_1))+
+  geom_histogram(fill="white",col="black")+
+  theme_classic()+
+  theme(axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      line = element_blank(),
+      text = element_blank())
+
+empty = ggplot()+
+  geom_point(aes(1,1), colour="white")+
+  theme_classic()+
+  theme(axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      line = element_blank(),
+      text = element_blank())
+
+hist_right = df %>%
+  ggplot(aes(Measure_2))+
+  geom_histogram(fill="white",col="black")+
+  theme_classic()+
+  theme(axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      line = element_blank(),
+      text = element_blank())+
+  coord_flip()
+
+#ggExtra::ggMarginal(p1, type = "histogram")
+grid.arrange(hist_top, empty, p1, hist_right, ncol=2, nrow=2, widths=c(4, 1), heights=c(1, 4))
+
+```
+
+
+## Group difference analysis
+
+### Different means
+
+```{r}
+df = data.frame(Group_1 = rnorm(250), Group_2 = rnorm(250, mean=5))
+
+p1 = df %>%
+  gather(key, value) %>%
+  ggplot(aes(value, col=key))+
+  geom_density(adjust=2)+
+  theme_classic()+
+  theme(legend.position="bottom",
+        legend.title= element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())+
+  xlab("")+
+  ylab("")+
+  ggtitle("Different means")
+```
+
+### Different variances
+
+```{r}
+df = data.frame(Group_1 = rnorm(250), Group_2 = rnorm(250, sd=.2))
+
+p2 = df %>%
+  gather(key, value) %>%
+  ggplot(aes(value, col=key))+
+  geom_density(adjust=2)+
+  theme_classic()+
+  theme(legend.position="bottom",
+        legend.title= element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())+
+  xlab("")+
+  ylab("")+
+  ggtitle("Different variances")
+```
+
+```{r}
+grid.arrange(p1, p2, nrow=1)
+```
