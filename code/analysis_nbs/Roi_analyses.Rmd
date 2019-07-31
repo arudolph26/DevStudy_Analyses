@@ -320,12 +320,9 @@ We do not find any voxels where the time series correlates significantly/above 0
 
 This is the same for both learner groups as well. **(DON'T THINK I CHECKED FOR THIS STATISTICALLY. EXTRACT AVERAGE CORRELATION VALUES FOR LEARNERS AND NON-LEARNERS FROM WHOLE BRAIN AND COMPARE TO EACH OTHER?)**
 
+### PPI
+
 ### Seed2vox whole task
-
-### Seed2seed whole task
-
-### Seed2vox or seed? for M1 vs others
-
 
 This is the correlation of the TS for the lvstr seed with each voxel in each ROI for each run for the whole task (accounting for confounds)
 ```{r}
@@ -449,3 +446,150 @@ tmp %>%
         legend.title = element_blank())+
   ylab("Mean FC with l-Vstr seed")
 ```
+
+
+### Seed2seed
+
+```{r}
+all_seed2seed = read.csv(paste0(input_path, "/func_con/seed2seed/all_seed2seed_cors.csv"))
+all_seed2seed
+```
+
+```{r}
+seed2seed_tests = all_seed2seed %>%
+  left_join(learner_info %>% rename(subnum=sub_id), by="subnum") %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  mutate(seeds = paste(seed1, seed2, sep="-")) %>%
+  group_by(seeds) %>%
+  do(tidy(lm(cor_val ~ runnum*learner, data = .)))
+
+seed2seed_tests
+
+seed2seed_runef = seed2seed_tests %>%
+  filter(term == "runnum")
+seed2seed_runef$adj_p = p.adjust(seed2seed_runef$p.value)
+
+seed2seed_learnef = seed2seed_tests %>%
+  filter(term == "learnerNon-learner")
+seed2seed_learnef$adj_p = p.adjust(seed2seed_learnef$p.value)
+
+seed2seed_runlearnint = seed2seed_tests %>%
+  filter(term == "runnum:learnerNon-learner") %>%
+  mutate(adj_p = p.adjust(p.value))
+seed2seed_runlearnint$adj_p = p.adjust(seed2seed_runlearnint$p.value)
+```
+
+```{r}
+seed2seed_runef %>%
+  filter(adj_p<0.05)
+```
+
+```{r}
+seed2seed_learnef %>%
+  filter(p.value<0.05)
+```
+
+```{r}
+seed2seed_runlearnint %>%
+  filter(adj_p<0.05)
+```
+
+```{r}
+all_seed2seed %>%
+  left_join(learner_info %>% rename(subnum=sub_id), by="subnum") %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner"),
+         seeds = paste(seed1, seed2, sep="-"),
+         runnum= factor(runnum)) %>%
+  filter(seeds %in% c("l_vstr-pcc", "vmpfc-acc")) %>%
+  group_by(seeds, runnum, learner) %>%
+  summarise(mean_cor_val = mean(cor_val),
+            sem_cor_val = sem(cor_val)) %>%
+  ggplot(aes(runnum, mean_cor_val, col=learner))+
+  geom_point(position = position_dodge(width=.9))+
+  geom_errorbar(aes(ymin = mean_cor_val-sem_cor_val, ymax=mean_cor_val+sem_cor_val), position=position_dodge(width=.9), width=0.2)+
+  facet_wrap(~seeds)+
+  xlab("Run")+
+  ylab("Mean Partial Correlation")+
+  theme(legend.title = element_blank(), 
+        panel.grid=element_blank())
+```
+
+#### Marker?
+
+So is this a "marker"? Does it correlate with behavior? (In some sense it already does since the learner groups are defined by behavior)
+Does it correlate with any behavioral RL parameters?
+
+First: are the distributions comparable? Yes!
+
+```{r}
+all_seed2seed %>%
+  left_join(learner_info %>% rename(subnum=sub_id), by="subnum") %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner"),
+         seeds = paste(seed1, seed2, sep="-"),
+         runnum= factor(runnum)) %>%
+  filter(seeds %in% c("l_vstr-pcc", "vmpfc-acc")) %>%
+  group_by(learner, seeds, runnum) %>%
+  summarise(kurt = kurtosi(cor_val)) %>%
+  arrange(kurt)
+```
+
+```{r}
+best_sub_pars %>%
+  select(sub_id, contains("xopt"), model, x_axis, age_group, learner) %>%
+  filter(model %in% exp_exp_models) %>%
+  gather(key, value, -sub_id, -model, -x_axis, -age_group, -learner) %>%
+  group_by(x_axis, key, learner) %>%
+  drop_na() %>%
+  summarise(kurt = kurtosi(value)) %>%
+  ungroup()%>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner"),
+         key = gsub("xopt_", "", key),
+         key = ifelse(key == "alpha", "\u03b1", ifelse(key=="alpha_pos", "\u03b1_pos", ifelse(key=="alpha_neg", "\u03b1_neg", ifelse(key=="beta", "\u03b2", ifelse(key == "exp", "\u03b3", ifelse(key == "exp_neg", "\u03b3_neg", ifelse(key == "exp_pos", "\u03b3_pos", ifelse(key == "lossave", "\u03bb", NA))))))))) %>%
+  arrange(kurt)
+```
+
+What relationship is same across models for both learner groups:
+
+std of slopes for both learner groups for the brain-behavior relationship across models for each run
+
+```{r}
+all_seed2seed %>%
+  select(-X)%>%
+  left_join(learner_info %>% rename(subnum=sub_id), by="subnum") %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner"),
+         seeds = paste(seed1, seed2, sep="-"),
+         runnum= factor(runnum)) %>%
+  filter(seeds %in% c("l_vstr-pcc", "vmpfc-acc")) %>%
+  left_join(best_sub_pars %>%
+  select(sub_id, contains("xopt"), model, x_axis) %>%
+  filter(model %in% exp_exp_models) %>%
+  rename(subnum = sub_id), by = "subnum") %>%
+  gather(key, value, -seed1, -seed2, -cor_val, -subnum, -runnum, -learner, -seeds, -model, -x_axis)%>%
+  group_by(seeds, runnum, key, x_axis) %>%
+  drop_na()%>%
+  do(tidy(lm(cor_val~value*learner, data=.))) %>%
+  select(-std.error, -statistic, -p.value) %>%
+  filter(term != "(Intercept)") %>%
+  spread(term, estimate) %>%
+  mutate(non_learner_slope = value+`learnerNon-learner`+`value:learnerNon-learner`) %>%
+  rename(learner_slope=value) %>%
+  select(-`learnerNon-learner`,-`value:learnerNon-learner`) %>%
+  gather(slope_type, value, -seeds, -runnum, -key, -x_axis) %>%
+  group_by(runnum, seeds, key, slope_type) %>%
+  summarise(mean_slope = mean(value),
+            sem_slope = sem(value)) %>%
+  ungroup()%>%
+  mutate(key = gsub("xopt_", "", key))%>%
+  mutate(key = ifelse(key == "alpha", "\u03b1", ifelse(key=="alpha_pos", "\u03b1_pos", ifelse(key=="alpha_neg", "\u03b1_neg", ifelse(key=="beta", "\u03b2", ifelse(key == "exp", "\u03b3", ifelse(key == "exp_neg", "\u03b3_neg", ifelse(key == "exp_pos", "\u03b3_pos", ifelse(key == "lossave", "\u03bb", NA))))))))) %>%
+  ggplot(aes(runnum, mean_slope, col = slope_type))+
+  geom_errorbar(aes(ymin = mean_slope-sem_slope, ymax = mean_slope+sem_slope), position=position_dodge(width = .9), width=.2)+
+  geom_hline(aes(yintercept=0),linetype="dashed")+
+  facet_grid(key~seeds, scale="free")+
+  theme(legend.title = element_blank(), 
+        panel.grid=element_blank())+
+  xlab("Run")+
+  ylab("Mean brain-behavior correlation")
+
+ggsave("tmp.jpeg", device = "jpeg", path = fig_path, width = 10, height = 8, units = "in", dpi = 450)
+```
+
