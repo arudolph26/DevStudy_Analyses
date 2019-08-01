@@ -304,27 +304,24 @@ best_sub_pars %>%
 
 Data from different ROIs can be analyzed with respect to each other instead of in isolation as well.  
 
-In this case, for example, we examined whether the time series in an apriori l_vstr seed was similar to any other voxels' time series in 8 other subjective value network ROI spheres.  
+Prior literature has examples suggesting that connectivity patterns might differ depending on age. For example, van den Bos, et al. (2012) extract the time series of striatal seed regions that correlate with prediction errors. They normalize these time series and multiply with binary negative and positive prediction error regressors to create two interaction (PPI) regressors. Level 1 images per subject for pos>neg feedback was entered into a level 2 with an age regressor. They found that correlation between mPFC and vStr was higher for positive feedback compared to negative feedback and that this correlation increased with age. Connecting their neural results to their behavioral results they also correlated functional connectivity strength with RL parameters and found a negative relationship between learning rate for negative feedback.
 
-Prior literature has examples suggesting that connectivity patterns might differ depending on age.
-van den Bos, et al. (2012) extract the time series of striatal seed regions that correlate with prediction errors.
-They normalize these time series and multiply is with binary negative and positive prediction error regressors to create two interaction (PPI) regressors
-Level 1 images per subject for pos>neg feedback was entered into a level 2 with an age regressor
-They found that correlation between mpfc and vstr was higher for pos feedback compared to negative feedback and that this correlation increased with age
-Finally they also correlated functional connectivity strength with RL parameters and found a negative relationship between learning rate for negative feedback
+Inspired by these results we checked for differentces between the learner and non-learner groups in connectivity patterns as well. We did this in three ways. 
 
-If so, we could expect differentces between the learner and non-learner groups.  
-
-We do not find any voxels where the time series correlates significantly/above 0 on average for all subjects *This doesn't sound right when looking at the boxplots of correlations. Except for pre-sma the average correlations between an ROI and l-vstr seed are always >0*
-**(CORRELATION BETWEEN TIME SERIES; WHAT WOULD BE THEIR T/Z/P-VALUES? You know the number of time points and can calculate t values based on that)**
-
-This is the same for both learner groups as well. **(DON'T THINK I CHECKED FOR THIS STATISTICALLY. EXTRACT AVERAGE CORRELATION VALUES FOR LEARNERS AND NON-LEARNERS FROM WHOLE BRAIN AND COMPARE TO EACH OTHER?)**
+Where we found differences between the learner groups we followed up with analyses connecting the neural results with behavioral findings.
 
 ### PPI
 
+First we conducted a PPI analysis following the example in the literature. We checked whether the association between a l_vstr seed and any other voxel changed depending on the machine. We created four interaction regressors for each machine. At group level we compared these interactions to baseline, across age groups and between the learner groups. We did not find any difference in connectivity between the l_vstr seed and other voxels depending on the condition or any differences across age or learner groups in connectivity.
+
+Details of the PPI results can be found [here](https://github.com/zenkavi/DevStudy_fmri-nbs/blob/master/notebooks/connectivity_sandbox.ipynb).
+
 ### Seed2vox whole task
 
-This is the correlation of the TS for the lvstr seed with each voxel in each ROI for each run for the whole task (accounting for confounds)
+In a second analysis  we examined whether the time series in an apriori l_vstr seed was similar to any other voxels' time series in 8 other subjective value network ROI spheres all taken from Barta et al., 2013.  
+
+This is the correlation of the TS for the lvstr seed with each voxel in each ROI for each run for the whole task (accounting for confounds).
+
 ```{r}
 input_path = "~/Dropbox/PoldrackLab/DevStudy_Analyses/input/"
 all_cors = read.csv(paste0(input_path, 'func_cor/all_l_vstr_cors.csv'))
@@ -335,23 +332,22 @@ all_cors
 all_cors %>%
   left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
   mutate(learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
-  # group_by(learner, roi) %>%
+  # group_by(sub_num,learner, roi, run_num) %>%
   group_by(sub_num,learner, roi) %>%
   summarise(mean_cor = mean(cor),
             sem_cor = sem(cor)) %>%
   ggplot(aes(roi, mean_cor, fill=learner))+
   geom_boxplot()+
-  # geom_bar(stat="identity", position = position_dodge(width = 0.9))+
-  # geom_errorbar(aes(ymin= mean_cor-sem_cor, ymax=mean_cor+sem_cor), position = position_dodge(width = 0.9), width=0.25)+
   theme(legend.title = element_blank(),
         panel.grid = element_blank())+
+  # facet_grid(run_num~.)+
   xlab("")+
   ylab("Mean Correlation with L-vStr seed")
 
 ggsave("FC_lvstr_mean.jpeg", device = "jpeg", path = fig_path, width = 5, height = 4, units = "in", dpi = 450)    
 ```
 
-None of the interactions is significant.
+All ROIs correlate >0 with the lvstr seed throughout the whole task but there is no difference in these relationships depending on the learner group.
 
 ```{r}
 tmp = all_cors %>%
@@ -363,7 +359,9 @@ tmp = all_cors %>%
 summary(lm(mean_cor ~ roi*learner, tmp))
 ```
 
-Connectivity data seems to vary more between participants. Is it suitable to be related to behavioral parameter estimates?
+#### Marker?
+
+Notably these mean correlations between each ROI and l_vstr seem to vary more between participants. Is it suitable to be related to behavioral parameter estimates?
 
 ```{r}
 fc_par_cors = all_cors %>%
@@ -374,7 +372,7 @@ fc_par_cors = all_cors %>%
               filter(model %in% exp_exp_models)%>%
               select(sub_id, learner, model, contains("xopt")) %>%
               select_if(~sum(!is.na(.)) > 0), by="sub_id") %>%
-  filter(xopt_beta<3) %>%
+  # filter(xopt_beta<3) %>%
   gather(key, value, -roi, -sub_id, -learner, -model, -mean_cor)%>%
   group_by(model, roi, key) %>%
   drop_na()%>%
