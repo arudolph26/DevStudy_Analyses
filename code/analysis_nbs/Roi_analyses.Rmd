@@ -39,7 +39,7 @@ learner_info = learner_info %>%
 
 - The only difference we found between the two learner groups in response to task-related regressors was for value sensitivity. 
 
-- Schoenberg et al. (2007) groups their participants similarly based on task performance. They find an uncorrected significant difference between the two learner groups in the caudate/ dorsal striatum which survives small volume correction in an anatomically defined ROI. They interpret this as higher PE related activity for learners compared to non-learners ('engagement of RL signals'). Further, they regress parameter estimates from the peak voxel onto a behavioral measure (*individual difference analysis*).    
+- Schoenberg et al. (2007) groups their participants similarly based on task performance. They find an uncorrected significant difference between the two learner groups in the caudate/ dorsal striatum which survives small volume correction in an anatomically defined ROI. They interpret this as higher PE related activity for learners compared to non-learners ('engagement of RL signals'). Further, they regress parameter estimates from the peak voxel onto a behavioral RL parameter estimate. Thus they conduct an *individual difference analysis* relating neural and behavioral findings.    
 
 - We did not find any difference that survived whole-brain correction between learners and non-learners in response to RPE related activity. Relaxing the threshold to examine RL-related activity more closely for the two learner groups we find:  
   - For LPE we find higher activity for learners in the ACC/dMPFC.    
@@ -129,6 +129,8 @@ all_roi_pe_betas %>%
         legend.title = element_blank())+
   xlab("")+
   ylab("Mean HPE parameter estimate for voxel")
+
+ggsave("HPE_roi.jpeg", device = "jpeg", path = fig_path, width = 6, height = 4, units = "in", dpi = 450)
 ```
 
 ### LPE
@@ -192,11 +194,13 @@ all_roi_pe_betas %>%
         legend.title = element_blank())+
   xlab("")+
   ylab("Mean LPE parameter estimate for voxel")
+
+ggsave("LPE_roi.jpeg", device = "jpeg", path = fig_path, width = 6, height = 4, units = "in", dpi = 450)    
 ```
 
 Looking closer at the parameter estimates in each voxel of all ROIs did not reveal any region where there was a clear majority of voxels that showed a difference between the learning groups. It did reveal a difference in the between subject variability of the parameter estimates for each learner group.
 
-*Could that larger variability of betas for non-learners suggest that they are better suited for relating these values to other values? Because they have lower kurtosis/are more evently spread out?*
+*Could that larger variability of betas for non-learners suggest that they are better suited for relating these values to other values? Because they have lower kurtosis/are more evenly spread out?*
 
 ## Kurtosis
 
@@ -237,6 +241,8 @@ all_roi_pe_betas %>%
         panel.grid = element_blank())+
   xlab("")+
   ylab("Mean kurtosis of parameter estimates \n across voxel of ROI")
+
+ggsave("ROI_kurtosis.jpeg", device = "jpeg", path = fig_path, width = 8, height = 3, units = "in", dpi = 450)    
 ```
 
 ```{r}
@@ -293,11 +299,13 @@ best_sub_pars %>%
          key = ifelse(key == "alpha", "\u03b1", ifelse(key=="alpha_pos", "\u03b1_pos", ifelse(key=="alpha_neg", "\u03b1_neg", ifelse(key=="beta", "\u03b2", ifelse(key == "exp", "\u03b3", ifelse(key == "exp_neg", "\u03b3_neg", ifelse(key == "exp_pos", "\u03b3_pos", ifelse(key == "lossave", "\u03bb", NA))))))))) %>%
   ggplot(aes(key, kurt, fill=learner))+
   geom_bar(stat="identity",position = position_dodge(width = .9))+
-  facet_wrap(~x_axis, scales="free", labeller = label_wrap_gen(10))+
+  facet_wrap(~x_axis, scales="free", labeller = label_wrap_gen(20))+
   theme(legend.title=element_blank(),
         panel.grid = element_blank())+
   xlab("")+
   ylab("Kurtosis of RL parameter estimates")
+
+ggsave("RL_kurtosis.jpeg", device = "jpeg", path = fig_path, width = 8, height = 6, units = "in", dpi = 450)    
 ```
 
 # Functional connectivity
