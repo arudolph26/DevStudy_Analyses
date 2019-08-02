@@ -126,7 +126,7 @@ ave_sub_preds %>%
               select(model, pred_order), by="model") %>%
   ungroup()%>%
   mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE),
-         learner = ifelse(learner == 1, "learner", "non-learner")) %>%
+         learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
   ggplot(aes(factor(x_axis),ave_pred_prop, color=factor(learner)))+
   geom_point()+
   geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop))+
@@ -601,9 +601,6 @@ all_vstr_pe_betas %>%
 all_vstr_pe_betas %>%
   filter(pe_type != 'pe') %>%
  filter(abs(beta) < 10) %>%
-  group_by(roi, model, pe_type) %>%
-  summarise(mean_beta = mean(beta),
-            sem_beta = sem(beta)) %>%
   left_join(num_pars_df %>% 
               select(model, x_axis) %>%
               mutate(model = gsub("LearningParams_", "", model)),
@@ -611,6 +608,11 @@ all_vstr_pe_betas %>%
   mutate(x_axis = ifelse(model == "alpha_alpha", "\u03b1 + \u03b1", ifelse(model == "exp_exp", "\u03b3 + \u03b3", ifelse(model == "exp_alpha", "\u03b3 + \u03b1", x_axis))),
          x_axis = factor(x_axis, levels=tmp_levels)) %>%
   filter(model %in% c("exp_exp", "alpha_alpha", "exp_alpha")) %>%
+  group_by(sub_num, roi, x_axis, pe_type) %>%
+  summarise(mean_beta = mean(beta)) %>%
+  group_by(roi, x_axis, pe_type) %>%
+  summarise(sem_beta = sem(mean_beta),
+            mean_beta = mean(mean_beta)) %>%
   ggplot(aes(x_axis, abs(mean_beta), color=pe_type))+
   geom_point(position=position_dodge(width = 0.9))+
   geom_errorbar(aes(ymin = abs(mean_beta) - sem_beta, ymax = abs(mean_beta) + sem_beta), position=position_dodge(width = 0.9), width=0.25)+
