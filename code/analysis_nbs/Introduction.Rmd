@@ -26,9 +26,10 @@ p1 = df %>%
         axis.ticks = element_blank())+
   xlab("")+
   ylab("")+
-  ggtitle("High correlation\nComparable kurtosis")
+  ggtitle("High correlation\nComparable spread")
 
 with(df, cor(x,y))
+with(df, cor(x,y, method="spearman"))
 kurtosi(df$x)
 kurtosi(df$y)
 ```
@@ -44,9 +45,10 @@ p2 = df %>%
         axis.ticks = element_blank())+
   xlab("")+
   ylab("")+
-  ggtitle("No correlation\nComparable kurtosis")
+  ggtitle("No correlation\nComparable spread")
 
 with(df, cor(x,y))
+with(df, cor(x,y, method="spearman"))
 kurtosi(df$x)
 kurtosi(df$y)
 ```
@@ -62,9 +64,10 @@ p3 = df %>%
       axis.ticks = element_blank())+
   xlab("")+
   ylab("")+
-  ggtitle("No correlation\nIncomparable kurtosis")
+  ggtitle("No correlation\nIncomparable spread")
 
 with(df, cor(x,y))
+with(df, cor(x,y, method="spearman"))
 kurtosi(df$x)
 kurtosi(df$y)
 ```
