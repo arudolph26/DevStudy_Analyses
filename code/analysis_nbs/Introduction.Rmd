@@ -8,6 +8,9 @@ toc_float: yes
 
 ```{r}
 library(gridExtra)
+fig_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/figures'
+library(psych)
+source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/figure_scripts/figure_res_wrapper.R')
 ```
 # Introduction
 
@@ -26,7 +29,7 @@ p1 = df %>%
         axis.ticks = element_blank())+
   xlab("")+
   ylab("")+
-  ggtitle("High correlation\nComparable spread")
+  ggtitle(label="A")
 
 with(df, cor(x,y))
 with(df, cor(x,y, method="spearman"))
@@ -45,7 +48,7 @@ p2 = df %>%
         axis.ticks = element_blank())+
   xlab("")+
   ylab("")+
-  ggtitle("No correlation\nComparable spread")
+  ggtitle(label="B")
 
 with(df, cor(x,y))
 with(df, cor(x,y, method="spearman"))
@@ -64,7 +67,7 @@ p3 = df %>%
       axis.ticks = element_blank())+
   xlab("")+
   ylab("")+
-  ggtitle("No correlation\nIncomparable spread")
+  ggtitle(label="C")
 
 with(df, cor(x,y))
 with(df, cor(x,y, method="spearman"))
@@ -73,7 +76,9 @@ kurtosi(df$y)
 ```
 
 ```{r}
-grid.arrange(p1, p2, p3, nrow=1)
+p_all = arrangeGrob(p1,p2,p3, nrow=1)
+ggsave(paste0('ind_diff.', out_device), p_all, device = out_device, path = fig_path, width = 8, height = 3, units = "in")
+
 ```
 
 ### 1 measure >1 time points
@@ -83,30 +88,42 @@ Testing stability; between vs within subject varince
 ```{r}
 df = data.frame(Time_1 = rnorm(250))
 df = df %>%
-  mutate(Time_2 = Time_1+runif(250, min=-2, max=2))
+  mutate(Time_2 = Time_1+runif(250, min=-2, max=2),
+         mean_t1_t2 = (Time_1+Time_2)/2)
 ```
 
 ```{r}
 s1 = which.min(df$Time_2)
 s2 = which.max(df$Time_2)
-s3 = which.min(df$Time_1)
-s4 = which.max(df$Time_1)
 
-df %>%
-  ggplot(aes(Time_1, Time_2))+
-  geom_point()+
+p1 = df %>%
+  ggplot()+
+  geom_point(aes(Time_1, Time_2))+
   theme_classic()+
   theme(axis.text = element_blank(),
        axis.ticks = element_blank())+
   geom_abline(aes(intercept=0, slope=1), linetype="dashed")+
   xlab("Time 1")+
   ylab("Time 2")+
-  geom_segment(aes(x=Time_1[s1], xend = Time_1[s1], y = Time_1[s1], yend = Time_2[s1]), arrow=arrow(), color=cbbPalette[1], linetype=2, size=1)+
-  geom_segment(aes(x=Time_1[s2], xend = Time_1[s2], y = Time_1[s2], yend = Time_2[s2]), arrow=arrow(), color=cbbPalette[1], linetype=2, size=1)+
-  geom_segment(aes(x=0, xend = 0, y = Time_2[s1], yend = Time_2[s2]), arrow=arrow(end="both"), color=cbbPalette[2], linetype=2, size=1)+
-geom_segment(aes(x=Time_1[s3], xend = Time_1[s4], y = 0, yend = 0), arrow=arrow(end="both"), color=cbbPalette[2], linetype=2, size=1)+
-  annotate("text", x = df$Time_1[s1]+0.5, y = df$Time_2[s1]-0.5, label = "Within subject variance", color= cbbPalette[1])+
-  annotate("text", x = .5, y = df$Time_2[s1]-.5, label = "Between subjects variance", color=cbbPalette[2])
+  geom_segment(aes(x=Time_1[s1], xend = Time_1[s1], y = Time_1[s1], yend = Time_2[s1]), arrow=arrow(), color=cbbPalette[1], linetype=1, size=1)+
+  geom_segment(aes(x=Time_1[s2], xend = Time_1[s2], y = Time_1[s2], yend = Time_2[s2]), arrow=arrow(), color=cbbPalette[1], linetype=1, size=1)+
+  annotate("text", x = df$Time_1[s1]+1.5, y = df$Time_2[s1]-0.5, label = "Within subject variance", color= cbbPalette[1])
+
+p2 = df %>%
+  ggplot()+
+  geom_histogram(aes(mean_t1_t2), bins=40, fill=NA, color="gray")+
+  theme_classic()+
+  theme(axis.text = element_blank(),
+       axis.ticks = element_blank())+
+  xlab("Within subject means")+
+  ylab("")+
+  geom_segment(aes(x=min(mean_t1_t2), xend = max(mean_t1_t2), y = 5, yend = 5), arrow=arrow(end = "both"), color=cbbPalette[2], size=1)+
+  annotate("text", x = 0, y = 5.5, label = "Between subjects variance", color= cbbPalette[2], size=4)
+
+# grid.arrange(p1,p2,nrow=1)
+p_all = arrangeGrob(p1,p2, nrow=1)
+ggsave(paste0('test_retest.', out_device), p_all, device = out_device, path = fig_path, width = 8, height = 3, units = "in")
+#ggsave('test_retest.jpeg', p_all, path = fig_path, width = 8, height = 3, units = "in")
 ```
 
 ### 2 meausres 1 time point
