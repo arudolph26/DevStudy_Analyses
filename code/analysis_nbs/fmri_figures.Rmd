@@ -1,0 +1,34 @@
+---
+title: ''
+output:
+github_document:
+toc: yes
+toc_float: yes
+---
+
+```{r}
+library(magick)
+input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+output_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/figures/'
+```
+
+```{r}
+task_on_plot = image_read(paste0(input_path, 'fmri_plots/task_on_plot.jpeg'))
+ev_sen_plot = image_read(paste0(input_path, 'fmri_plots/ev_sen_plot.jpeg'))
+
+fig_4_8 = image_append(c(image_resize(task_on_plot, "x250") %>%
+  image_annotate("A", size=20) %>%
+  image_annotate("z", location="+295+115", size=16),
+image_resize(ev_sen_plot, "x250")%>%
+  image_annotate("B", size=20) %>%
+   image_annotate("z", location="+255+115", size=16)))
+
+image_write(fig_4_8, path = paste0(output_path,"fig_4_8.jpeg"), format = "jpeg", density = 300)
+```
+
+```{r}
+```
+
+```{r}
+
+```

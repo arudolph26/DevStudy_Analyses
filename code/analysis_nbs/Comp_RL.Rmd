@@ -431,6 +431,7 @@ cor_df %>%
   group_by(cor_type) %>%
   summarise(mean_cor = mean(cor_val, na.rm=T),
             sem_cor = sem(cor_val)) %>%
+  mutate(cor_type = ifelse(cor_type == "alpha_alpha", "\u03b1 + \u03b1", ifelse(cor_type == "exp_exp", "\u03b3 + \u03b3", ifelse(cor_type == "exp_alpha", "\u03b3 + \u03b1", cor_type))))  %>%
   ggplot(aes(cor_type, mean_cor, col=cor_type))+
   geom_point()+
   geom_errorbar(aes(ymin = mean_cor-sem_cor, ymax = mean_cor+sem_cor))+
