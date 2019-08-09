@@ -27,8 +27,26 @@ image_write(fig_4_8, path = paste0(output_path,"fig_4_8.jpeg"), format = "jpeg",
 ```
 
 ```{r}
+kids_fig_4_9 = image_read(paste0(input_path, 'fmri_plots/kids_fig_4_9.jpeg'))
+teens_fig_4_9 = image_read(paste0(input_path, 'fmri_plots/teens_fig_4_9.jpeg'))
+adults_fig_4_9 = image_read(paste0(input_path, 'fmri_plots/adults_fig_4_9.jpeg'))
+
+fig_4_9 = image_append(c(image_resize(kids_fig_4_9, "x250") %>%
+                           image_annotate("Kids", size=20) %>%
+                           image_annotate("z", location="+255+115", size=16),
+                         image_resize(teens_fig_4_9, "x250")%>%
+                           image_annotate("Teens", size=20) %>%
+                           image_annotate("z", location="+255+115", size=16),
+                       image_resize(adults_fig_4_9, "x250")%>%
+                         image_annotate("Adults", size=20) %>%
+                         image_annotate("z", location="+255+115", size=16)))
+
+image_write(fig_4_9, path = paste0(output_path,"fig_4_9.jpeg"), format = "jpeg", density = 300)
 ```
 
 ```{r}
-
+fig_4_10 = image_read(paste0(input_path, 'fmri_plots/fig_4_10.jpeg'))
+fig_4_10 = image_resize(fig_4_10, "x250") %>%
+  image_annotate("z", location="+650+115", size=16)
+image_write(fig_4_10, path = paste0(output_path,"fig_4_10.jpeg"), format = "jpeg", density = 300)
 ```
