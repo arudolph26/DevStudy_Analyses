@@ -1,0 +1,441 @@
+---
+title: ''
+output:
+github_document:
+toc: yes
+toc_float: yes
+---
+
+```{r}
+exp_models = c("Fit_alpha-beta-exp_neg-exp_pos-lossave_Fix_",
+               "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_",
+               "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_", 
+               "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos-lossave_Fix_",
+               "Fit_alpha_neg-alpha_pos-beta-exp-lossave_Fix_", 
+               "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_")
+
+exp_models = num_pars_df %>%
+  select(model, x_axis) %>%
+  mutate(model = gsub("LearningParams_", "", model)) %>%
+  filter(model %in% exp_models)
+
+exp_models
+```
+
+
+```{r}
+best_sub_pars_trans %>%
+  select(contains("xopt"), "sub_id", "x_axis", "learner") %>%
+  gather(key, value, -learner, -sub_id, -x_axis) %>%
+  mutate(par=key,
+         key = ifelse(key == "xopt_alpha", "\u03b1", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp", "\u03b3", ifelse(key == "xopt_alpha_pos", "\u03b1_gain", ifelse(key == "xopt_alpha_neg", "\u03b1_loss",ifelse(key == "xopt_exp_pos", "\u03b3_gain", ifelse(key == "xopt_exp_neg", "\u03b3_loss", ifelse(key == "xopt_lossave", "\u03bb", NA)))))))))%>%
+  group_by(learner, x_axis, key, par) %>%
+  summarise(mean_val = mean(value,na.rm=T),
+            sem_val = sem(value)) %>%
+  left_join(fct_brdr_clrs, by=c("par", "x_axis")) %>%
+  ungroup()%>%
+  mutate(learner = factor(ifelse(learner == 1, "Learner", "Non-learner"), levels = c("Learner", "Non-learner"))) %>%
+  left_join(mean_pred_df %>%
+              select(x_axis, pred_order), by="x_axis") %>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE)) %>%
+  filter(x_axis %in% exp_models$x_axis) %>%
+  
+    ggplot(aes(learner, mean_val))+
+    geom_bar(aes(fill=learner, color=fct_brdr), stat="identity",size=1.25)+
+    geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
+  facet_grid(key~x_axis, scales='free', labeller = label_wrap_gen(10))+
+  ylab("")+
+  xlab("")+
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.title=element_blank(),
+        strip.text = element_text(size=12),
+        legend.position = "none")+
+  scale_color_manual(values=c(NA, "red", NA))+
+  guides(color=FALSE)
+
+ggsave("exp_RL_par_diffs_all.jpeg", device = "jpeg", path = fig_path, width = 7, height = 8, units = "in", dpi = 450)
+```
+
+```{r}
+best_sub_pars_trans %>%
+  select(contains("xopt"), "sub_id", "x_axis", "learner") %>%
+  gather(key, value, -learner, -sub_id, -x_axis) %>%
+  mutate(par=key,
+         key = ifelse(key == "xopt_alpha", "\u03b1", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp", "\u03b3", ifelse(key == "xopt_alpha_pos", "\u03b1_gain", ifelse(key == "xopt_alpha_neg", "\u03b1_loss",ifelse(key == "xopt_exp_pos", "\u03b3_gain", ifelse(key == "xopt_exp_neg", "\u03b3_loss", ifelse(key == "xopt_lossave", "\u03bb", NA)))))))))%>%
+  group_by(learner, x_axis, key, par) %>%
+  summarise(mean_val = mean(value,na.rm=T),
+            sem_val = sem(value)) %>%
+  left_join(fct_brdr_clrs, by=c("par", "x_axis")) %>%
+  ungroup()%>%
+  mutate(learner = factor(ifelse(learner == 1, "Learner", "Non-learner"), levels = c("Learner", "Non-learner"))) %>%
+  left_join(mean_pred_df %>%
+              select(x_axis, pred_order), by="x_axis") %>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE)) %>%
+  filter(x_axis %in% exp_models$x_axis == FALSE) %>%
+  
+    ggplot(aes(learner, mean_val))+
+    geom_bar(aes(fill=learner, color=fct_brdr), stat="identity",size=1.25)+
+    geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
+  facet_grid(key~x_axis, scales='free', labeller = label_wrap_gen(10))+
+  ylab("")+
+  xlab("")+
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.title=element_blank(),
+        strip.text = element_text(size=12),
+        legend.position = "none")+
+  scale_color_manual(values=c(NA, "red", NA))+
+  guides(color=FALSE)
+
+ggsave("alpha_RL_par_diffs_all.jpeg", device = "jpeg", path = fig_path, width = 4, height = 8, units = "in", dpi = 450)
+```
+
+```{r}
+all_vstr_pe_betas %>%
+  filter(pe_type != 'pe') %>%
+ filter(abs(beta) < 10) %>%
+  left_join(num_pars_df %>% 
+              select(model, x_axis) %>%
+              mutate(model = gsub("LearningParams_", "", model)),
+            by = "model") %>%
+  mutate(x_axis = ifelse(model == "alpha_alpha", "\u03b1 + \u03b1", ifelse(model == "exp_exp", "\u03b3 + \u03b3", ifelse(model == "exp_alpha", "\u03b3 + \u03b1", x_axis))),
+         x_axis = factor(x_axis, levels=tmp_levels)) %>%
+  filter(model %in% c("exp_exp", "alpha_alpha", "exp_alpha")) %>%
+  group_by(sub_num, roi, x_axis) %>%
+  summarise(mean_beta = mean(beta)) %>%
+  group_by(x_axis) %>%
+  summarise(sem_beta = sem(mean_beta),
+            mean_beta = mean(mean_beta)) %>%
+  ggplot(aes(x_axis, abs(mean_beta), col=x_axis))+
+  geom_point(position=position_dodge(width = 0.9))+
+  geom_errorbar(aes(ymin = abs(mean_beta) - sem_beta, ymax = abs(mean_beta) + sem_beta), position=position_dodge(width = 0.9), width=0.25)+
+  # facet_grid(.~roi)+
+  theme(panel.grid = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "none")+
+  xlab("")+
+  ylab("Mean absolute parameter estimate")
+
+ggsave("vstr_PE_corrs_by_modeltype.jpeg", device = "jpeg", path = fig_path, width = 3, height = 5, units = "in", dpi = 450)
+```
+
+
+```{r}
+all_roi_pe_betas %>%
+  group_by(sub_num, run_num, roi, regressor, learner) %>%
+  mutate(vox_num = 1:n()) %>%
+  summarise(mean_val=mean(value)) %>%
+  ungroup() %>%
+  group_by(roi, learner)%>%
+  summarise(sem_val = sem(mean_val),
+            mean_val = mean(mean_val)) %>%
+  ggplot(aes(roi, mean_val, col=learner))+
+  geom_point(stat="identity",position = position_dodge(width = .4))+
+  geom_errorbar(aes(ymin = mean_val-sem_val, ymax = mean_val+sem_val), position = position_dodge(width = .4), width=.2)+
+  # facet_wrap(~regressor)+
+  theme(legend.title=element_blank(),
+        panel.grid = element_blank())+
+  xlab("")+
+  ylab("Parameter estimates \n across voxel of ROI")
+
+ggsave("collapsed_ROI_variance.jpeg", device = "jpeg", path = fig_path, width = 7, height = 5, units = "in", dpi = 450)    
+```
+```{r}
+machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels, Response) %>%
+  tally %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(pct=(100*n)/sum(n)) %>%
+  do(assign.age.info(.)) %>%
+  filter(Response == "play") %>%
+  ggplot(aes(facet_labels, pct, col = age_group))+
+  geom_point(position = position_dodge(width=0.8), size=2, alpha = 0.7)+
+  # geom_errorbar(aes(ymin = mean_pct - sem_pct, ymax = mean_pct + sem_pct), position = position_dodge(width = 0.9), width=0.25)+
+  ylab('Percentage of trials')+
+  labs(fill = 'Age group')+
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "none",
+        axis.text.y = element_text(size=14),
+        axis.ticks.y = element_line(size=1), 
+        panel.border = element_rect(size=1))
+
+ggsave("mg_ind_diff.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 300)   
+```
+
+```{r}
+learner_info = read.csv("~/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_3/learner_info.csv")
+learner_info = learner_info %>%
+  select(-non_learner) %>%
+  rename(sub_id = Sub_id) %>%
+  mutate(sub_id = as.numeric(as.character(gsub("sub-", "", sub_id))))
+learner_info
+```
+
+```{r}
+p = machine_game_data_clean %>%
+  group_by(Sub_id, facet_labels, Response) %>%
+  tally %>%
+  group_by(Sub_id, facet_labels) %>%
+  mutate(pct=(100*n)/sum(n)) %>%
+  do(assign.age.info(.)) %>%
+  filter(Response == "play") %>%
+  left_join(learner_info %>% rename(Sub_id = sub_id) , by = "Sub_id") %>%
+  mutate(learner = ifelse(learner == 1, "Learner", "Non-learner"),
+         learner = as.factor(learner))%>%
+  # ggplot(aes(facet_labels, pct, group=factor(learner), col = age_group, fill=factor(learner)))+
+   ggplot(aes(facet_labels, pct, fill=learner))+
+  geom_point(aes(group=factor(learner), col = age_group),position = position_jitterdodge(), size=2, alpha = 0.7)+
+   # geom_boxplot(alpha = .3)+
+  ylab('Percentage of trials')+
+  labs(fill = 'Age group')+
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "none",
+        axis.text.y = element_text(size=14),
+        axis.ticks.y = element_line(size=1), 
+        panel.border = element_rect(size=1))
+
+ggsave("mg_learners_nobox.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 300)
+
+p+geom_boxplot(alpha = .3)
+
+ggsave("mg_learners_wbox.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 300)
+
+# ggsave("mg_learners_wbox_wleg.jpeg", device = "jpeg", path = fig_path, width = 9, height = 5, units = "in", dpi = 300)
+```
+
+```{r}
+mean_pred_df %>% 
+    filter(model %in% c("Fit_alpha_neg-alpha_pos-beta_Fix_exp-lossave_", "Fit_alpha-beta_Fix_exp-lossave_", "Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_"))
+```
+
+```{r}
+mean_pred_df %>%
+  # filter(model %in% c("Fit_alpha_neg-alpha_pos-beta_Fix_exp-lossave_", "Fit_alpha-beta_Fix_exp-lossave_")) %>%
+  # filter(model %in% c("Fit_alpha_neg-alpha_pos-beta_Fix_exp-lossave_", "Fit_alpha-beta_Fix_exp-lossave_", "Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_")) %>%
+  filter(model %in% c("Fit_alpha_neg-alpha_pos-beta_Fix_exp-lossave_", "Fit_alpha-beta_Fix_exp-lossave_", "Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_")) %>%
+  mutate(x_axis = factor(x_axis, levels = c("α, β", "α_gain, α_loss, β","α, β, γ", "α_gain, α_loss, β, γ", "α, β, γ_gain, γ_loss", "α_gain, α_loss, β, γ_gain, γ_loss"))) %>%
+  ggplot(aes(x_axis, ave_pred_prop))+
+  geom_point()+
+  geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop), width=0)+
+  xlab("")+
+  ylab("Mean prediction accuracy")+
+  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
+  theme(legend.position = "none",
+        panel.grid = element_blank(),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=12))+
+    geom_hline(yintercept = 0.5, linetype="dashed")+
+  ylim(c(0.35, 0.8))
+
+
+# ggsave("defense_rl1.jpeg", device = "jpeg", path = fig_path, width = 3, height = 6, units = "in", dpi = 450)
+# ggsave("defense_rl4.jpeg", device = "jpeg", path = fig_path, width = 5, height = 6, units = "in", dpi = 450)
+ggsave("defense_rl5.jpeg", device = "jpeg", path = fig_path, width = 7, height = 6, units = "in", dpi = 450)
+
+```
+
+```{r}
+ave_sub_preds %>%
+  filter(!is.na(learner)) %>%
+  group_by(learner, model) %>%
+  summarise(ave_pred_prop = mean(cor_pred_prop),
+            sem_pred_prop = sem(cor_pred_prop)) %>%
+  left_join(num_pars_df %>%
+              mutate(model = gsub("LearningParams_", "", model)) %>%
+              select(-pars), 
+            by="model") %>%
+  left_join(mean_pred_df %>%
+              select(model, pred_order), by="model") %>%
+  ungroup()%>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE),
+         learner = ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  filter(model %in% c("Fit_alpha_neg-alpha_pos-beta_Fix_exp-lossave_", "Fit_alpha-beta_Fix_exp-lossave_", "Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_")) %>%
+  mutate(x_axis = factor(x_axis, levels = c("α, β", "α_gain, α_loss, β","α, β, γ", "α_gain, α_loss, β, γ", "α, β, γ_gain, γ_loss", "α_gain, α_loss, β, γ_gain, γ_loss"))) %>%
+  ggplot(aes(factor(x_axis),ave_pred_prop, color=factor(learner)))+
+  geom_point()+
+  geom_errorbar(aes(ymin = ave_pred_prop-sem_pred_prop, ymax = ave_pred_prop+sem_pred_prop), width=0)+
+  xlab("")+
+  ylab("Mean prediction accuracy")+
+  theme(legend.position = "none",
+        panel.grid = element_blank(),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=12))+
+  scale_x_discrete(labels = function(x) str_wrap(x, width=5))+
+  geom_hline(yintercept = 0.5, linetype="dashed")+
+  ylim(c(0.35, 0.8))
+
+ggsave("defense_rl6.jpeg", device = "jpeg", path = fig_path, width = 7, height = 6, units = "in", dpi = 450)
+```
+
+```{r}
+models = unique(best_sub_pars$model)
+
+learner_diff_df = data.frame(model = NA, par = NA, learner=NA)
+
+for(i in 1:length(models)){
+  cur_data = best_sub_pars %>% filter(model == models[i])
+  cur_data = cur_data %>% select(learner, contains("xopt"))
+  cur_data = cur_data[,colSums(is.na(cur_data))<nrow(cur_data)]
+  cur_data = transform_remove_skew(cur_data, verbose=FALSE)
+  names(cur_data)[1] = "learner"
+  pars = names(cur_data)[!names(cur_data) %in% c("learner")]
+  
+    for(j in 1:length(pars)){
+      p_vals = summary(lm(cur_data[,pars[j]] ~ cur_data[,"learner"]))$coefficients['cur_data[, "learner"]','Pr(>|t|)']
+      learner_diff_df[nrow(learner_diff_df) + 1,] = list(models[i],pars[j], p_vals[1])
+    }
+}
+learner_diff_df = learner_diff_df[-1,]
+```
+
+```{r}
+#Helper functions for plot coloring
+tmp = num_pars_df %>%
+  mutate(model = gsub("LearningParams_", "", model)) %>%
+  select(model, x_axis)
+
+fct_brdr_clrs = learner_diff_df %>%
+  mutate(learner_adjust = p.adjust(learner), method="fdr")%>%
+  select(model, par, learner, learner_adjust) %>%
+  mutate(fct_brdr = ifelse(learner<0.5, "purple", NA),
+         fct_brdr = ifelse(learner_adjust<0.5, "red", fct_brdr)) %>%
+  left_join(tmp, by="model") %>%
+  select(par, x_axis, fct_brdr) %>%
+  mutate(par = gsub(".logTr", "", par))
+```
+
+```{r}
+#Create df with transformed parameter estimates for plotting since the transformed distributions were used in checking for group differences.
+
+log_lookup = best_sub_pars %>% 
+  select(sub_id, model, contains("xopt"), x_axis, learner) %>%
+  gather(key, value, -sub_id, -model, -x_axis, -learner) %>%
+  group_by(model, key) %>%
+  summarise(skw = skew(value)) %>%
+  filter(abs(skw)>1) %>%
+  arrange(model)
+
+best_sub_pars_trans = data.frame()
+
+for(i in 1:length(models)){
+  cur_model = models[i]
+  cur_model_data = best_sub_pars %>% filter(model == cur_model)
+  cur_skw_vars = log_lookup %>% filter(model == cur_model)
+  
+  for(j in 1:nrow(cur_skw_vars)){
+    cur_model_data[,cur_skw_vars$key[j]] = pos_log(cur_model_data[,cur_skw_vars$key[j]])
+  }
+  
+  best_sub_pars_trans = rbind.all.columns(best_sub_pars_trans, cur_model_data)
+}
+```
+
+```{r message = FALSE, warning=FALSE}
+best_sub_pars_trans %>%
+ filter(model %in% c("Fit_alpha-beta-exp_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_Fix_lossave_", "Fit_alpha-beta-exp_neg-exp_pos_Fix_lossave_", "Fit_alpha_neg-alpha_pos-beta-exp_neg-exp_pos_Fix_lossave_")) %>%
+  select(contains("xopt"), "sub_id", "x_axis", "learner") %>%
+  gather(key, value, -learner, -sub_id, -x_axis) %>%
+  mutate(par=key,
+         key = ifelse(key == "xopt_alpha", "\u03b1", ifelse(key == "xopt_beta", "\u03b2", ifelse(key == "xopt_exp", "\u03b3", ifelse(key == "xopt_alpha_pos", "\u03b1_gain", ifelse(key == "xopt_alpha_neg", "\u03b1_loss",ifelse(key == "xopt_exp_pos", "\u03b3_gain", ifelse(key == "xopt_exp_neg", "\u03b3_loss", ifelse(key == "xopt_lossave", "\u03bb", NA)))))))))%>%
+  group_by(learner, x_axis, key, par) %>%
+  summarise(mean_val = mean(value,na.rm=T),
+            sem_val = sem(value)) %>%
+  # left_join(fct_brdr_clrs, by=c("par", "x_axis")) %>%
+  ungroup()%>%
+  mutate(learner = factor(ifelse(learner == 1, "Learner", "Non-learner"), levels = c("Learner", "Non-learner"))) %>%
+  left_join(mean_pred_df %>%
+              select(x_axis, pred_order), by="x_axis") %>%
+  mutate(x_axis = factor(x_axis, levels=unique(x_axis[order(pred_order, x_axis)]), ordered=TRUE)) %>%
+    ggplot(aes(learner, mean_val))+
+    geom_bar(aes(fill=learner), stat="identity",size=1.25)+
+    geom_errorbar(aes(ymin=mean_val-sem_val, ymax=mean_val+sem_val), width=0)+
+  facet_grid(key~x_axis, scales='free', labeller = label_wrap_gen(10))+
+  ylab("")+
+  xlab("")+
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.title=element_blank(),
+        axis.text = element_text(size=14),
+        strip.text = element_text(size=14))+
+  guides(color=FALSE)
+  
+ggsave("defense_rl7.jpeg", device = "jpeg", path = fig_path, width = 12, height = 12, units = "in", dpi = 250)
+```
+
+```{r}
+input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+all_vstr_pe_betas = read.csv(paste0(input_path, 'rpe_cors/all_vstr_pe_betas.csv'))
+tmp_levels = c("α + α", "γ + α" ,"γ + γ" ,"α_gain, α_loss, β" , "α, β, λ","α_gain, α_loss, β, λ","α_gain, α_loss, β, γ" ,"α_gain, α_loss, β, γ_gain, γ_loss", "α_gain, α_loss, β, γ_gain, γ_loss, λ", "α_gain, α_loss, β, γ, λ" , "α, β, γ_gain, γ_loss", "α, β, γ_gain, γ_loss, λ"  )
+```
+
+```{r}
+all_vstr_pe_betas %>%
+  filter(pe_type != 'pe') %>%
+  filter(abs(beta) < 10) %>%
+  left_join(num_pars_df %>%
+              select(model, x_axis) %>%
+              mutate(model = gsub("LearningParams_", "", model)),
+            by = "model") %>%
+  mutate(x_axis = ifelse(model == "alpha_alpha", "\u03b1 - models", ifelse(model == "exp_exp", "\u03b3 - models", ifelse(model == "exp_alpha", "\u03b3 + \u03b1", x_axis))))%>%
+         #x_axis = factor(x_axis, levels=tmp_levels)) %>%
+  filter(model %in% c("exp_exp", "alpha_alpha")) %>%
+  group_by(sub_num, roi, x_axis) %>%
+  summarise(mean_beta = mean(beta)) %>%
+  group_by(x_axis) %>%
+  summarise(sem_beta = sem(mean_beta),
+            mean_beta = mean(mean_beta)) %>%
+  ggplot(aes(x_axis, abs(mean_beta)))+
+  geom_point(position=position_dodge(width = 0.9), size=2)+
+  geom_errorbar(aes(ymin = abs(mean_beta) - sem_beta, ymax = abs(mean_beta) + sem_beta), position=position_dodge(width = 0.9), width=0)+
+  # facet_grid(.~roi)+
+  theme(panel.grid = element_blank(),
+        legend.title = element_blank(),
+        legend.position = "none",
+        axis.text = element_text(size=18),
+        axis.title = element_text(size=18))+
+  xlab("")+
+  ylab("Relationship with neural data")
+
+ggsave("defense_rl8.jpeg", device = "jpeg", path = fig_path, width = 4, height = 6, units = "in", dpi = 450)
+
+```
+
+```{r}
+all_roi_pe_betas = read.csv('~/Dropbox/PoldrackLab/DevStudy_Analyses/input/rois/all_roi_pe_betas.csv')
+all_roi_pe_betas = all_roi_pe_betas %>%
+  left_join(learner_info %>% rename(sub_num=sub_id), by="sub_num") %>%
+  mutate(learner=ifelse(learner == 1, "Learner", "Non-learner")) %>%
+  filter(abs(value)<10)
+
+```
+
+```{r}
+all_roi_pe_betas %>%
+  group_by(sub_num, run_num, roi, regressor, learner) %>%
+  mutate(vox_num = 1:n()) %>%
+  summarise(mean_val=mean(value)) %>%
+  ungroup() %>%
+  group_by(roi, learner)%>%
+  summarise(sem_val = sem(mean_val),
+            mean_val = mean(mean_val)) %>%
+  ggplot(aes(roi, mean_val, col=learner))+
+  geom_point(stat="identity",position = position_dodge(width = .4), size=2)+
+  geom_errorbar(aes(ymin = mean_val-sem_val, ymax = mean_val+sem_val), position = position_dodge(width = .4), width=0)+
+  # facet_wrap(~regressor)+
+  theme(legend.title=element_blank(),
+        panel.grid = element_blank(),
+        axis.text = element_text(size=18),
+        axis.title = element_text(size=18),
+        legend.position = "none")+
+  xlab("")+
+  ylab("Parameter estimates \n across voxel of ROI")
+
+
+ggsave("defense_rl9.jpeg", device = "jpeg", path = fig_path, width = 12, height = 6, units = "in", dpi = 450)
+```
