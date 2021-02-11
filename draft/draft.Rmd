@@ -1,0 +1,72 @@
+---
+title: Insufficient and inappropriate model comparison can
+author:
+  - name: A. Zeynep Enkavi
+    email: zenkavi@caltech.edu
+    affiliation: California Institute of Technology
+    footnote: 1
+  - name: Russell A. Poldrack
+    email: russpold@stanford.edu
+    affiliation: Stanford University
+address:
+  - code: California Institute of Technology
+    address: Division of Humanities and Social Sciences, 1200 E. California Blvd., Pasadena, CA, 91125
+  - code: Stanford University
+    address: Department of Psychology, 450 Jane Stanford Way, Stanford, CA, 94305
+footnote:
+  - code: 1
+    text: "Corresponding Author"
+abstract: |
+  This is the abstract.
+
+  It consists of two paragraphs.
+
+journal: "Neuroimage"
+date: "`r Sys.Date()`"
+bibliography: mybibfile.bib
+#linenumbers: true
+#numbersections: true
+csl: elsevier-harvard.csl
+output: rticles::elsevier_article
+---
+
+Introduction
+==========================
+
+
+Methods
+============
+
+## Sample 
+
+## Behavioral data
+
+### Outside the scanner
+
+### Inside the scanner
+
+## Neuroimaging protocol
+
+## Neuroimaging preprocessing
+
+Results
+============
+
+## Behavioral results
+
+## Neuroimaging results
+
+Discussion
+============
+
+There are various bibliography styles available. You can select the
+style of your choice in the preamble of this document. These styles are
+Elsevier styles based on standard styles like Harvard and Vancouver.
+Please use BibTeX to generate your bibliography and include DOIs
+whenever available.
+
+Here are two sample references: One in text @Feynman1963118 and another at the sentence end [@Dirac1953888].
+
+References {#references .unnumbered}
+==========
+
