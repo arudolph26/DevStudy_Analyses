@@ -1,5 +1,5 @@
 ---
-title: Insufficient and inappropriate model comparison can
+title: adolescent experiential learning  
 author:
   - name: A. Zeynep Enkavi
     email: zenkavi@caltech.edu
@@ -31,33 +31,41 @@ output: rticles::elsevier_article
 ---
 
 Introduction
-==========================
+=============
 
+Computational modeling is a valuable tool. Particularly, prediction error models present a rare success story in mapping behavior to a model parameter and then onto a neural correlate in the dopamine response.
+
+What can we do with models? Hypotheses on behavioral differences can be conceptualized as group differences in parameter estimates.
+
+Alternatively the description of the cognitive process can be resolved by comparing models with different parameterization.
+
+In binary choice modeling there is also the caveat of mapping discrete outcomes to continuous values. This can be done either categorically with hardmax rules but much more frequently they are paarmeterized with a softmax choice rule.
+The interpretation of the softmax temperature parameter presents a different challenge. From one perspective it represents how often the observed behavior can be explained by the latent variables in the computational models (in this case value differences) versus random choosing. If all of an observed behavioral difference between groups is attributed to a difference in this parameter it raises the question of whether the behavior is modeled correctly.
 
 Methods
-============
+========
 
 ## Sample 
 
 ## Behavioral data
 
-### Outside the scanner
+Outside the scanner
 
-### Inside the scanner
+Inside the scanner
 
 ## Neuroimaging protocol
 
 ## Neuroimaging preprocessing
 
 Results
-============
+========
 
 ## Behavioral results
 
 ## Neuroimaging results
 
 Discussion
-============
+===========
 
 There are various bibliography styles available. You can select the
 style of your choice in the preamble of this document. These styles are
