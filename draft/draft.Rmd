@@ -33,11 +33,21 @@ output: rticles::elsevier_article
 Introduction
 =============
 
-Computational modeling is a valuable tool. Particularly, prediction error models present a rare success story in mapping behavior to a model parameter and then onto a neural correlate in the dopamine response.
+Learning from experience
 
-What can we do with models? Hypotheses on behavioral differences can be conceptualized as group differences in parameter estimates.
+Adolescent decision-making 
+public health consequences
+helps us understand the development of healthy and matured adult decision making.
 
-Alternatively the description of the cognitive process can be resolved by comparing models with different parameterization.
+benefited from developments in neuroimaging and a more formalized study of decision-making
+
+developments in neuroimaging confirmed the importance of the prefrontal cortex, which was already known as the region that continued development at this stage
+
+
+
+Computational models provide a quantitative way to relate the limited observable behavioral data to unobservable underlying cognitive processes and their biological correlates. They are used in two primary ways within cognitive neuroscience research. On the one hand, hypotheses on behavioral differences can be conceptualized as group differences in parameter estimates. In these studies the same model is fitted to each subject's data to estimate parameters. The subject-specific estimates are then compared between groups or related to another variable of interest. Alternatively, hypotheses on differing cognitive processes are resolved by comparing models. In these cases the hypotheses are specified in different models and multiple models are fit to each subject's data. Instead of subject-specific parameter estimates, descriptions of how well the models fit all the data are compared between models to determine the "winning model." In practice a comparison of parameter estimates between groups often follows a model comparison.
+
+Particularly, prediction error models applied to experiential learning tasks present a rare success story in mapping behavior to a model parameter and then onto a neural correlate in the dopamine response.
 
 In binary choice modeling there is also the caveat of mapping discrete outcomes to continuous values. This can be done either categorically with hardmax rules but much more frequently they are paarmeterized with a softmax choice rule.
 The interpretation of the softmax temperature parameter presents a different challenge. From one perspective it represents how often the observed behavior can be explained by the latent variables in the computational models (in this case value differences) versus random choosing. If all of an observed behavioral difference between groups is attributed to a difference in this parameter it raises the question of whether the behavior is modeled correctly.
