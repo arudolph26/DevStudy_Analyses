@@ -1,0 +1,33 @@
+---
+title: "Machine Game behavioral analysis"
+output: html_notebook
+---
+
+Load in data
+
+```{r}
+
+```
+
+Define learner and assign label to subjects
+
+```{r}
+
+```
+
+How many from each age group in these two groups
+
+```{r}
+
+```
+
+Show example learner vs. non-learner behavior in plot
+
+```{r}
+
+```
+
+Fit (hierarchical) Stan models for subject specific parameters
+
+Compare model evidence
+
