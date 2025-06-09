@@ -5,9 +5,16 @@ html_document:
 toc: true
 toc_depts: 2
 ---
+```{r}
+library(tidyverse)
+```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
+```{r}
+sem <- function(x) {sd(x, na.rm=T) / sqrt(length(x))}
+```
+
+```{r}
+source('/Users/ally/Desktop/Lab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
 ```
 
 This notebook contains exploratory analyses of behavioral data collected to investigate the relationship between risk taking behavior and probabilistic learning.  
@@ -57,7 +64,7 @@ machine_game_data_clean %>%
   geom_bar(stat='identity', position = position_dodge((0.9)))+
   geom_errorbar(aes(ymin=mean_points-sem_points, ymax=mean_points+sem_points), position = position_dodge(0.9), width=0.25)+
   theme_bw()+
-  xlab('Machine')+
+  xlab('Age Group')+
   ylab('Mean points')+
   labs(fill='Age group')
 
@@ -193,7 +200,11 @@ The differences in points earned map directly on to proportion of choosing to pl
 - Everyone plays the high var positive EV machine less than the low var positive EV machine.
 - Everyone plays the low var negative EV machines less than the low var positive EV machine.
 
+
 ```{r}
+library(dplyr)
+library(Matrix)
+library(lme4)
 tmp <- machine_game_data_clean %>%
   group_by(Sub_id, facet_labels, Response) %>%
   tally %>%
@@ -215,6 +226,11 @@ As a first step to translate raw playing behavior to learning I recoded the choi
 ## Learning 
 
 Recoding the behavior in this way gave a clearer picture of the age difference *in learning of optimal behavior* between the conditions. Specifically we can now look at how the probability of a correct choice changes for each age group in each condition across trials.
+
+```{r}
+library(ggplot2)
+```
+
 
 ```{r warning=FALSE, message=FALSE}
 machine_game_data_clean %>%
@@ -332,6 +348,11 @@ data.frame(Sub_id = unique(machine_game_data_clean$Sub_id)) %>%
 ### Variance vs. EV effects on learning
 
 A subject-level measure of learning (the slope of the sigmoids) allows us to compare the effect of the two varying attributes (EV and variance) on learning. To do so we compared the difference in slopes between the two conditions of each attribute and computed the effect of EV and variance for each subject.
+```{r}
+library(tidyr)
+library(dplyr)
+```
+
 
 ```{r}
 ev_var_effect = tmp %>% 
@@ -430,6 +451,9 @@ How does performance change depending on the delay between the last time a machi
 Can we think of this as a 'memory effect'? The more trials since the last time you have played a machine, the more forgetting/interference? 
 
 We find a negative effect of the play delay only for hVAR pEV. Perhaps the large reward participants experience lead to a more salient representation than the more frequent small losses. In contrast, both nEV are more likely to be correct the longer the delay  possibly by allowing more time for integration.
+```{r}
+library(zoo)
+```
 
 ```{r warning=FALSE, message=FALSE}
 tmp = machine_game_data_clean %>%
@@ -448,6 +472,9 @@ tmp %>%
   ylab("Correct")+
   scale_y_continuous(breaks=c(0,1))
   
+```
+```{r}
+library(lme4)
 ```
 
 ```{r}

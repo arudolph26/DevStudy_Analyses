@@ -7,16 +7,20 @@ toc_float: yes
 ---
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-fig_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/output/figures/'
+fig_path = '/Users/ally/Desktop/Lab/DevStudy_Analyses/output/figures/'
 
 from_gh=FALSE
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/ggplot_colors.R')
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/transform_remove_skew.R')
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/sem.R')
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/rl_fits_data.R')
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/rl_preds_data.R')
+source('/Users/ally/Desktop/Lab/DevStudy_Analyses/code/helper_functions/ggplot_colors.R')
+source('/Users/ally/Desktop/Lab/DevStudy_Analyses/code/workspace_scripts/transform_remove_skew.R')
+source('/Users/ally/Desktop/Lab/DevStudy_Analyses/code/workspace_scripts/rl_fits_data.R')
+source('/Users/ally/Desktop/Lab/DevStudy_Analyses/code/workspace_scripts/rl_preds_data.R')
 
 library(lme4)
+```
+
+```{r}
+#sem function
+sem <- function(x) {sd(x, na.rm=T) / sqrt(length(x))}
 ```
 
 The behavior in the machine game task lends itself to prediction error modeling as frequently done in the literature. 
@@ -315,7 +319,7 @@ We can quantify how similar the models are to each other at a finer scale (inste
 The motivation for this comparison came from the difficulty in choosing the RPE regressor for the imaging analyses. Since the models were not different from each in other metrics we wondered whether we could average RPEs from them without loosing information and possibly getting a more informative regressor. 
 
 ```{r}
-input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+input_path = '/Users/ally/Desktop/Lab/DevStudy_Analyses/input/'
 
 preds = list.files(path=paste0(input_path, "rl_preds/"), pattern = "All")
 
@@ -448,7 +452,7 @@ Since we have multiple models that generate RPEs that we cannot distinguish from
 ## Brain correlations
 
 ```{r}
-input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+input_path = '/Users/ally/Desktop/Lab/DevStudy_Analyses/input/'
 all_vstr_pe_betas = read.csv(paste0(input_path, 'rpe_cors/all_vstr_pe_betas.csv'))
 ```
 

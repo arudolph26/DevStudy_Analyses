@@ -6,7 +6,7 @@ toc: true
 toc_depts: 2
 ---
 
-In addition to the RL task this dataset contains self-reported 'real-world' risk behaviors, several impultivity surveys and BART. One question of interest was whether any of the measures predicted the 'real-world' risk behaviors. This report looks into that question.
+In addition to the RL task, this dataset contains self-reported 'real-world' risk behaviors, several impulsivity surveys and BART. One question of interest was whether any of the measures predicted the 'real-world' risk behaviors. This report looks into that question.
 
 ## DV: Real-world risk dimensions
 
@@ -15,7 +15,7 @@ Real-world risk was measured using two questionnaires with a total of 63 items. 
 Here is the list of items that were skewed and could not transformed successfully.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
+source('/Users/ally/Desktop/Lab/DevStudy_Analyses/code/workspace_scripts/DevStudy_workspace.R')
 ```
 
 The remaining 29 items were entered into a hierarchical clustering analysis. Here is the tree structure of the remaining items
@@ -26,7 +26,7 @@ library(ggdendro)
 try$labels = gsub(".logTr","",try$labels)
 try$labels = gsub("_.*","",try$labels)
 
-input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+input_path = '/Users/ally/Desktop/Lab/DevStudy_Analyses/input/'
 survey_questions = read.csv(paste0(input_path,"survey_questions.csv"))
 
 tmp = data.frame(label=try$labels) %>%

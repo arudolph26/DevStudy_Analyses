@@ -1,4 +1,4 @@
-input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+input_path = '/Users/ally/Desktop/Lab/DevStudy_Analyses/input/'
 
 ##################
 #Machine game data

@@ -1,8 +1,8 @@
 library(psych)
 
-input_path = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/'
+input_path = '/Users/ally/Desktop/Lab/DevStudy_Analyses/input/'
 from_gh=FALSE
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/SRO_Retest_Analyses/code/helper_functions/transform_remove_skew.R')
+source('/Users/ally/Desktop/Lab/DevStudy_Analyses/code/workspace_scripts/transform_remove_skew.R')
 
 data <- read.csv(paste0(input_path,'DevStudy_Master_Behavior.csv'))
 

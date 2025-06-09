@@ -1,4 +1,4 @@
-input_dir = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_fits/'
+input_dir = '/Users/ally/Desktop/Lab/DevStudy_Analyses/input/rl_fits/'
 
 process_fits = function(data){
   require(tidyverse)
@@ -6,7 +6,7 @@ process_fits = function(data){
   return(data)
 }
 
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/rbind_all_columns.R')
+source('/Users/ally/Desktop/Lab/DevStudy_Analyses/code/helper_functions/rbind_all_columns.R')
 
 fits = list.files(path=input_dir, pattern = "All")
 old_fits = c('LearningParams_Fit_alpha_neg-alpha_pos-beta-exp_Fix_All.csv',
@@ -41,7 +41,7 @@ for(f in fits){
   best_sub_pars = rbind.all.columns(best_sub_pars,data.frame(data))
 }
 
-learner_info = read.csv("~/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_3/learner_info.csv")
+learner_info = read.csv("~/Desktop/Lab/DevStudy_Analyses/input/learner_info.csv")
 learner_info = learner_info %>%
   select(-non_learner) %>%
   rename(sub_id = Sub_id) %>%

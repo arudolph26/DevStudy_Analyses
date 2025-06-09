@@ -1,6 +1,6 @@
-input_dir = '/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/input/rl_preds_0_25/'
+input_dir = '/Users/ally/Desktop/Lab/DevStudy_Analyses/input/rl_preds_0_25/'
 
-source('/Users/zeynepenkavi/Dropbox/PoldrackLab/DevStudy_Analyses/code/helper_functions/rbind_all_columns.R')
+source('/Users/ally/Desktop/Lab/DevStudy_Analyses/code/helper_functions/rbind_all_columns.R')
 
 preds = list.files(path=input_dir, pattern = "All")
 
@@ -24,7 +24,7 @@ for(f in preds){
   ave_sub_preds = rbind.all.columns(ave_sub_preds,data.frame(data))
 }
 
-learner_info = read.csv("~/Dropbox/PoldrackLab/DevStudy_ServerScripts/nistats/level_3/learner_info.csv")
+learner_info = read.csv("~/Desktop/Lab/DevStudy_Analyses/input/learner_info.csv")
 learner_info = learner_info %>%
   select(-non_learner) %>%
   rename(sub_id = Sub_id) %>%
